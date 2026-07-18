@@ -10,9 +10,8 @@ venv/
 ENV/
 .python-version
 
-# Data
-data/
-outputs/
+/data/
+/outputs/
 
 # Jupyter
 .ipynb_checkpoints/
