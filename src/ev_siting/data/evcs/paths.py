@@ -1,0 +1,30 @@
+"""Canonical filesystem paths for the EVCS crawl/clean pipeline.
+
+Every step anchors on PROJECT_ROOT derived from this file's location, so the
+pipeline runs correctly regardless of the working directory. Directory layout
+follows the repo convention (see README.md): immutable crawl output lives under
+``data/raw/``, cleaned/derived artefacts under ``data/interim/``.
+
+Run each step as a module from the repo root, e.g.::
+
+    PYTHONPATH=src python -m ev_siting.data.evcs.split_timeseries
+"""
+from pathlib import Path
+
+# evcs -> data -> ev_siting -> src -> <project root>
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+
+DATA = PROJECT_ROOT / "data"
+
+# --- raw, immutable crawl output (data/raw/evcs) ---
+RAW_DIR = DATA / "raw" / "evcs"
+CATALOG_DIR = RAW_DIR / "catalog"
+CATALOG_CSV = CATALOG_DIR / "evcs_catalog.csv"
+ALL_CODES = CATALOG_DIR / "evcs_all_codes.txt"
+LOAD_TS = RAW_DIR / "load_ts.csv"
+
+# --- cleaned / derived (data/interim) ---
+INTERIM_DIR = DATA / "interim"
+TS_DIR = INTERIM_DIR / "evcs_timeseries"
+MASTER_CSV = INTERIM_DIR / "stations_master_evcs.csv"
+QUALITY_REPORT = INTERIM_DIR / "quality_report.json"
