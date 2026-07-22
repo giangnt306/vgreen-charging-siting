@@ -190,7 +190,8 @@ agg_h3.h3_r8 ───┘
 
 - [x] **Giang:** tự crawl nguồn cung từ evcs.vn → raw `data/raw/evcs/` + master interim `data/interim/stations_master_evcs.csv` (28.417 trạm, 0 orphan, QA PASS/WARN). Code `src/ev_siting/data/evcs/`, xem [crawler-evcs.md](crawler-evcs.md).
 - [ ] 🔴 **Giang (chặn mới):** transform master (`station_code`, CSV) → parquet canonical `stations`/`connectors` (`station_id`) đúng schema mục 3 + layout mục 2.1 (H3, tiền tố `vn-`, map cột như trên).
-- [ ] 🔴 **Giang:** tự xây `demand_h3` từ WorldPop/OSM/POI theo H3 res 8; chốt tập cột cuối → cập nhật mục 3 + đổi trạng thái sang ✅.
+- [x] **Giang:** tầng **OSM POI + road (trắc địa)** của `demand_h3` → `data/interim/osm/osm_demand_components_h3.parquet` (262.054 ô: `n_poi`/`n_parking`/`n_fuel` + `road_len_m`/`road_len_mt_m`, QA PASS). Code `src/ev_siting/data/osm/`, xem [crawler-osm.md](crawler-osm.md).
+- [ ] 🔴 **Giang:** ghép `pop` (WorldPop) vào bảng thành phần OSM → `demand_h3` đầy đủ theo H3 res 8; chốt tập cột cuối → cập nhật mục 3 + đổi trạng thái sang ✅.
 - [ ] **Giang:** chốt công thức `demand_weight = f(pop, road_len_mt_m, n_poi, n_parking, n_fuel, …)` — trọng số từng thành phần (đưa vào Sprint 2).
 - [ ] **Giang:** tính coverage với bán kính R = tham số MCLP (thay ngưỡng `has_station_5km` cố định).
 - [ ] **Giang + Kỳ:** thống nhất tập **candidate sites** cho MCLP (trạm hiện có `stations` + tâm các ô H3 gap?) — điểm chạm interop.
