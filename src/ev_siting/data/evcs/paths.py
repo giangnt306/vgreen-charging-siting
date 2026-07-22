@@ -28,3 +28,10 @@ INTERIM_DIR = DATA / "interim"
 TS_DIR = INTERIM_DIR / "evcs_timeseries"
 MASTER_CSV = INTERIM_DIR / "stations_master_evcs.csv"
 QUALITY_REPORT = INTERIM_DIR / "quality_report.json"
+
+# --- canonical, contract-shaped output (SCHEMA_CONTRACT muc 2/3) ---
+# Parquet Hive-partitioned theo province_code la canonical (doc thang vao PostGIS /
+# GeoPandas). Mo hinh 2 tang: stations (1 dong/tram) -> connectors (1 dong/nhom cong suat).
+CANONICAL_DIR = INTERIM_DIR / "canonical"
+STATIONS_DIR = CANONICAL_DIR / "stations"        # dataset partition province_code=*
+CONNECTORS_DIR = CANONICAL_DIR / "connectors"    # dataset partition province_code=*

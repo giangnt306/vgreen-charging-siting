@@ -34,7 +34,7 @@ Chia làm 2 nhóm chính. Nguyên tắc phân loại (đã cập nhật **sau kh
 - **Nhóm 1 — Có sẵn:** **có nguồn công khai** chất lượng, đầy đủ, rõ ràng, phủ khu vực Việt Nam (không phụ thuộc công ty).
 - **Nhóm 2 — Không có sẵn / phải tự thu thập:** không có nguồn công khai đủ tốt → phải crawl, khảo sát thị trường, ước lượng từ proxy, hoặc đặt giả định. Mỗi bộ được đánh giá **cách thu thập**, **tính khả thi** và **độ chính xác**.
 
-### Nhóm 1: Dữ liệu có nguồn công khai (không cần công ty)
+### Nhóm 1: Dữ liệu có nguồn công khai
 
 | # | Dữ liệu                                            | Nội dung / vai trò                                                                                                | Nguồn                                                                                                                                                              | Ghi chú                                                                            |
 | - | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
