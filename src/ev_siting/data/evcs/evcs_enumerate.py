@@ -62,12 +62,31 @@ async ([lat,lng,type]) => {
   return {data: j.data.map(s => ({
     code:s.locationId, name:s.stationName, addr:s.stationAddress, lat:s.latitude,
     lng:s.longitude, dist:s.distance, evse:s.evse, tot:s.totalCharging,
-    verified:s.verified, depot:s.depotStatus, evsePowers:s.evsePowers
+    verified:s.verified, depot:s.depotStatus,
+    // evsePowers = cấu hình súng sạc: [{type:<W>, totalEvse:<số súng>, numberOfAvailableEvse:<đang trống>}]
+    // -> nguồn DUY NHẤT của num_connectors / power / current_type / connector_types (mục SCHEMA_CONTRACT).
+    evsePowers:s.evsePowers,
+    workingTime:s.workingTimeDescription, isPublic:s.isPublic, isFreeParking:s.isFreeParking,
+    nBattery:s.numberBattery, nBatteryAvail:s.numberBatteryAvailable   // chỉ BSS (đổi pin)
   }))};
 }
 """
 
-FIELDS = ["code", "name", "addr", "lat", "lng", "evse", "tot", "verified", "depot"]
+# evse_powers = JSON thô của evsePowers (giữ nguyên vẹn để build_master dẫn xuất cột schema).
+FIELDS = ["code", "name", "addr", "lat", "lng", "evse", "tot", "verified", "depot",
+          "evse_powers", "working_time", "is_public", "is_free_parking",
+          "n_battery", "n_battery_avail"]
+
+
+def rec_from_search(s):
+    """1 bản ghi /search (đã map trong SEARCH_JS) -> dict theo FIELDS của catalog."""
+    return {"code": s.get("code"), "name": s.get("name"), "addr": s.get("addr"),
+            "lat": s.get("lat"), "lng": s.get("lng"), "evse": s.get("evse"),
+            "tot": s.get("tot"), "verified": s.get("verified"), "depot": s.get("depot"),
+            "evse_powers": json.dumps(s.get("evsePowers") or [], ensure_ascii=False),
+            "working_time": s.get("workingTime"), "is_public": s.get("isPublic"),
+            "is_free_parking": s.get("isFreeParking"),
+            "n_battery": s.get("nBattery"), "n_battery_avail": s.get("nBatteryAvail")}
 
 
 def haversine_km(lat1, lng1, lat2, lng2):
@@ -114,6 +133,124 @@ def bootstrap(page, ctx, nav_gate):
     nav_gate["on"] = False                   # sau đó KHÓA: chặn interstitial/redirect phá context
 
 
+def run_enrich(args):
+    """Bổ sung cột mới cho các trạm ĐÃ BIẾT (KHÔNG discovery).
+
+    Truy vấn /search tại toạ độ từng trạm mục tiêu; mỗi lần trả tối đa 50 trạm lân cận
+    -> lấp dữ liệu cho mọi trạm trong tập mục tiêu rồi BỎ QUA trạm đã lấy. Nhờ vậy số
+    truy vấn ~ (số trạm / mật độ), KHÔNG bùng nổ 1-truy-vấn-mỗi-trạm như discovery.
+    Ghi tăng dần (atomic temp+replace) nên resume được nếu gián đoạn.
+    """
+    codes_path = os.path.splitext(args.out)[0] + "_codes.txt"
+
+    # 1) toạ độ mục tiêu (lọc theo --type qua cột 'tab' nếu catalog có)
+    targets, order = {}, []
+    with open(args.enrich_from, encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            code = row.get("code")
+            if not code:
+                continue
+            tab = row.get("tab")
+            if tab not in (None, "", args.type):
+                continue
+            try:
+                lat, lng = float(row["lat"]), float(row["lng"])
+            except (TypeError, ValueError, KeyError):
+                continue
+            if code not in targets:
+                targets[code] = (lat, lng); order.append(code)
+    print(f"[0] {len(targets)} trạm mục tiêu (type={args.type}) từ {args.enrich_from}")
+
+    # 2) resume: giữ nguyên hàng đã có trong --out; trạm CÓ evse_powers coi như đã lấy
+    enriched, seen = {}, set()
+    if not args.overwrite and os.path.exists(args.out):
+        for row in csv.DictReader(open(args.out, encoding="utf-8")):
+            c = row.get("code")
+            if not c:
+                continue
+            enriched[c] = {k: row.get(k, "") for k in FIELDS}
+            if (row.get("evse_powers") or "").strip() not in ("", "[]"):
+                seen.add(c)
+        print(f"    resume: {len(enriched)} hàng trong {args.out}, {len(seen)} đã có evse_powers")
+
+    def flush_out():
+        tmp = args.out + ".tmp"
+        with open(tmp, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore")
+            w.writeheader()
+            for rrow in enriched.values():
+                w.writerow(rrow)
+        os.replace(tmp, args.out)
+
+    n_queries, t0 = 0, time.time()
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        ctx = browser.new_context(locale="vi-VN",
+            user_agent="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0")
+        ctx.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>false})")
+        page = ctx.new_page()
+        nav_gate = {"on": True}
+        def _guard(route):
+            req = route.request
+            if (not nav_gate["on"] and req.is_navigation_request()
+                    and req.frame == page.main_frame):
+                return route.abort()
+            return route.continue_()
+        ctx.route("**/*", _guard)
+        print("[1] Bootstrap qua Cloudflare...")
+        bootstrap(page, ctx, nav_gate)
+
+        def query_point(lat, lng, max_attempts=6):
+            for attempt in range(max_attempts):
+                try:
+                    res = page.evaluate(SEARCH_JS, [lat, lng, args.type])
+                    if isinstance(res, dict) and "data" in res:
+                        return res["data"]
+                except Exception:
+                    pass
+                try:
+                    bootstrap(page, ctx, nav_gate)
+                except Exception:
+                    pass
+                time.sleep(min(3 + attempt * 3, 15))
+            return None
+
+        print(f"[2] Bổ sung (sleep={args.sleep}s)...")
+        for i, code in enumerate(order):
+            if code in seen:
+                continue
+            lat, lng = targets[code]
+            data = query_point(lat, lng)
+            n_queries += 1
+            if data is None:
+                seen.add(code)              # bỏ qua trạm không truy vấn được (tránh kẹt)
+                continue
+            for s in data:
+                c = s.get("code")
+                if c:
+                    enriched[c] = rec_from_search(s)
+                    seen.add(c)             # đánh dấu đã lấy (kể cả evsePowers rỗng)
+            if n_queries % 25 == 0:
+                flush_out()
+                rate = n_queries / max(time.time() - t0, 1e-9)
+                remaining = sum(1 for c in order if c not in seen)
+                print(f"    q={n_queries}  mục {i+1}/{len(order)}  "
+                      f"đã lấp={len(targets) - remaining}/{len(targets)}  còn≈{remaining}  ({rate:.2f} q/s)")
+            time.sleep(args.sleep + np.random.uniform(0, args.sleep))
+            if args.max_queries and n_queries >= args.max_queries:
+                print("    [dừng: đạt --max-queries]"); break
+
+        browser.close()
+
+    flush_out()
+    with open(codes_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(sorted(enriched)) + "\n")
+    got = sum(1 for c in targets
+              if c in enriched and (enriched[c].get("evse_powers") or "") not in ("", "[]"))
+    print(f"[3] Xong: {n_queries} truy vấn; {len(enriched)} hàng -> {args.out}")
+    print(f"    {got}/{len(targets)} trạm mục tiêu có evse_powers")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(CATALOG_DIR, "evcs_stations.csv"))
@@ -128,7 +265,16 @@ def main():
     ap.add_argument("--no-resume", action="store_true")
     ap.add_argument("--overwrite", action="store_true",
                     help="Bắt đầu catalog mới: ghi đè CSV và checkpoint của --out")
+    ap.add_argument("--enrich-from", metavar="CATALOG_CSV",
+                    help="CHẾ ĐỘ BỔ SUNG (không discovery): nạp toạ độ các trạm ĐÃ BIẾT từ "
+                         "CATALOG_CSV (cột code/lat/lng[/tab]) rồi truy vấn /search tại từng toạ độ "
+                         "để lấp cột mới (evse_powers…) cho ĐÚNG các station_code đó — bounded, "
+                         "bỏ qua trạm đã lấy nên rẻ hơn discovery nhiều. Resume theo --out.")
     args = ap.parse_args()
+
+    if args.enrich_from:
+        run_enrich(args)
+        return
 
     ckpt_path = args.out + ".ckpt.json"
     codes_path = os.path.splitext(args.out)[0] + "_codes.txt"
@@ -219,9 +365,7 @@ def main():
                 code = s.get("code")
                 if not code or code in found:
                     continue
-                found[code] = {"code": code, "name": s.get("name"), "addr": s.get("addr"),
-                               "lat": s.get("lat"), "lng": s.get("lng"), "evse": s.get("evse"),
-                               "tot": s.get("tot"), "verified": s.get("verified"), "depot": s.get("depot")}
+                found[code] = rec_from_search(s)
                 writer.writerow(found[code]); new += 1
                 # A nationwide grid can discover a dense cluster, but one /search
                 # response is capped at 50 results.  Expand from every discovered

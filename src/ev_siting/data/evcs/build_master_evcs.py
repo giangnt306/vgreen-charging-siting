@@ -14,7 +14,7 @@ SPARSE / COORD_INVALID). Báo cáo toàn tập ở ev_siting.data.evcs.validate.
 - Input : data/raw/evcs/catalog/evcs_catalog.csv , data/interim/evcs_timeseries/<code>.csv
 - Output: data/interim/stations_master_evcs.csv
 """
-import csv, os, re
+import csv, json, os, re
 from datetime import datetime, timezone, timedelta
 
 from .paths import CATALOG_CSV as CATALOG, TS_DIR, MASTER_CSV as OUT, PROJECT_ROOT
@@ -23,6 +23,52 @@ VN_TZ = timezone(timedelta(hours=7))
 TAB_LABEL = {"cs": "VINFAST_CS", "bss": "BATTERY_SWAP", "other": "OTHER"}
 VN_BBOX = (8.0, 23.6, 102.0, 110.0)   # lat_min, lat_max, lng_min, lng_max
 SPARSE_MIN = 24                        # < 24 điểm/7 ngày coi là thưa
+AC_MAX_W = 25000                       # ≤25 kW = AC, >25 kW = DC (khe quan sát: 20 kW vs 30 kW)
+
+
+def derive_power(evse_powers_json):
+    """evsePowers thô (JSON) -> cột schema cung.
+
+    evsePowers = [{type:<W>, totalEvse:<số súng lắp đặt>, numberOfAvailableEvse:<đang trống>}].
+    `totalEvse` là số súng THẬT (khác `totalCharging`= số xe đang sạc — biến động).
+    Trả về (num_connectors, connector_types, max_power_kw, total_power_kw, current_type).
+    connector_types = nhãn công suất/dòng điện (`AC-3.5kW|DC-120kW`) — evcs.vn KHÔNG
+    lộ chuẩn cắm (CCS2/Type2), chỉ có công suất, nên đây là nhãn tier chứ không phải chuẩn cắm.
+    """
+    try:
+        groups = json.loads(evse_powers_json) if evse_powers_json else []
+    except (ValueError, TypeError):
+        groups = []
+    if not isinstance(groups, list) or not groups:
+        return "", "", "", "", ""
+    n_conn = total_w = max_w = 0
+    labels = []                              # giữ thứ tự, khử trùng
+    has_ac = has_dc = False
+    for g in groups:
+        if not isinstance(g, dict):
+            continue
+        try:
+            w = int(g.get("type") or 0)
+            n = int(g.get("totalEvse") or 0)
+        except (ValueError, TypeError):
+            continue
+        if w <= 0 and n <= 0:
+            continue
+        cur = "AC" if 0 < w <= AC_MAX_W else "DC"
+        if w > 0:
+            has_ac = has_ac or cur == "AC"
+            has_dc = has_dc or cur == "DC"
+            max_w = max(max_w, w)
+        n = max(n, 0)
+        n_conn += n
+        total_w += w * n
+        lbl = f"{cur}-{w / 1000:g}kW"
+        if lbl not in labels:
+            labels.append(lbl)
+    current = "MIXED" if (has_ac and has_dc) else ("AC" if has_ac else "DC" if has_dc else "")
+    return (n_conn or "", "|".join(labels),
+            round(max_w / 1000, 1) if max_w else "",
+            round(total_w / 1000, 1) if total_w else "", current)
 
 def iso(ms):
     if ms is None:
@@ -126,7 +172,11 @@ os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
 OUT_FIELDS = [
     "station_code", "station_type", "network", "name", "address",
-    "lat", "lng", "province_code", "num_ports", "verified", "status",
+    "lat", "lng", "province_code",
+    # --- cấu hình cung (dẫn xuất từ evsePowers, khớp SCHEMA_CONTRACT) ---
+    "num_connectors", "connector_types", "current_type",
+    "max_power_kw", "total_power_kw",
+    "num_ports", "verified", "status", "working_time", "is_public", "evse_powers",
     "has_timeseries", "ts_n_rows",
     "ts_time_start_ms", "ts_time_end_ms", "ts_time_start", "ts_time_end",
     "ts_val_min", "ts_val_max", "ts_n_null", "ts_n_dup", "ts_monotonic",
@@ -156,6 +206,7 @@ with open(CATALOG, newline="", encoding="utf-8") as fin, \
             n_flagged += 1
         for fl in filter(None, flag.split(";")):
             flag_counter[fl] = flag_counter.get(fl, 0) + 1
+        num_conn, conn_types, max_kw, total_kw, cur_type = derive_power(row.get("evse_powers"))
         w.writerow({
             "station_code": code,
             "station_type": TAB_LABEL.get(tab, tab.upper()),
@@ -165,9 +216,17 @@ with open(CATALOG, newline="", encoding="utf-8") as fin, \
             "lat": row.get("lat", ""),
             "lng": row.get("lng", ""),
             "province_code": province_code(code),
+            "num_connectors": num_conn,
+            "connector_types": conn_types,
+            "current_type": cur_type,
+            "max_power_kw": max_kw,
+            "total_power_kw": total_kw,
             "num_ports": row.get("tot", ""),
             "verified": row.get("verified", ""),
             "status": row.get("depot", ""),
+            "working_time": row.get("working_time", ""),
+            "is_public": row.get("is_public", ""),
+            "evse_powers": row.get("evse_powers", ""),
             "has_timeseries": has_ts,
             "ts_n_rows": st["n"] if has_ts else "",
             "ts_time_start_ms": st["tmin"] if has_ts else "",

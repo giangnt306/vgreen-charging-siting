@@ -74,7 +74,13 @@ theo kiểu **streaming**, không nạp cả file vào pandas.
 ```bash
 # Toàn bộ pipeline (cần Playwright + mạng cho bước enum/scrape):
 make crawl                       # = bash src/ev_siting/data/evcs/run_pipeline.sh
-EVCS_FRESH=1 bash src/ev_siting/data/evcs/run_pipeline.sh   # crawl mới hoàn toàn (ghi đè cũ)
+EVCS_FRESH=1 bash src/ev_siting/data/evcs/run_pipeline.sh   # crawl mới hoàn toàn (ghi đè catalog + telemetry)
+
+# Bổ sung cột cung mới (num_connectors/power/current_type…) mà KHÔNG cào lại 4h time-series:
+#   chế độ --enrich-from: truy vấn /search tại toạ độ từng trạm ĐÃ BIẾT, lấp evsePowers vào
+#   đúng station_code cũ. Số query ~ mật độ trạm (bounded) nên nhanh hơn discovery nhiều;
+#   telemetry giữ nguyên, master ghép lại theo station_code. Cần evcs_catalog.csv sẵn có.
+EVCS_REENUM=1 bash src/ev_siting/data/evcs/run_pipeline.sh
 
 # Chạy từng bước (từ repo root):
 PYTHONPATH=src python -m ev_siting.data.evcs.split_timeseries
@@ -97,7 +103,13 @@ theo tên file → **ghép 1-1, không orphan**. Cột chính:
 | `network` | Nhà mạng: VinFast, Honda, … |
 | `name`, `address`, `lat`, `lng` | Thông tin trạm |
 | `province_code` | Tiền tố tỉnh suy từ mã (chỉ trạm VinFast) |
-| `num_ports`, `verified`, `status` | Số cổng, cờ verified, trạng thái |
+| `num_connectors` | **Số súng sạc lắp đặt** = `sum(totalEvse)` của `evsePowers` (khớp `stations.num_connectors` SCHEMA_CONTRACT) |
+| `connector_types` | Nhãn tier công suất/dòng điện, `|`-joined, vd `DC-120kW\|AC-3.5kW`. ⚠️ evcs.vn **không lộ chuẩn cắm** (CCS2/Type2) — đây là nhãn công suất, không phải chuẩn cắm |
+| `current_type` | `AC` / `DC` / `MIXED` (suy từ ngưỡng ≤25 kW = AC) |
+| `max_power_kw`, `total_power_kw` | Công suất súng cao nhất + tổng công suất lắp đặt (`Σ type·totalEvse`) |
+| `num_ports` | = `totalCharging` thô. ⚠️ Thực chất là **số xe đang sạc** (biến động), KHÔNG phải số cổng lắp đặt — dùng `num_connectors` cho cấu hình cung |
+| `verified`, `status`, `working_time`, `is_public` | Cờ verified, trạng thái depot, giờ hoạt động, công khai |
+| `evse_powers` | JSON thô `evsePowers` (giữ nguyên vẹn để audit/dẫn xuất lại) |
 | `has_timeseries` | Có time-series hay không (19.218 = True) |
 | `ts_n_rows`, `ts_time_start/end(_ms)` | Số điểm + mốc thời gian (epoch-ms + ISO giờ VN) |
 | `ts_val_min/max`, `ts_n_null`, `ts_n_dup`, `ts_monotonic` | QA giá trị/thời gian |
@@ -118,5 +130,13 @@ theo tên file → **ghép 1-1, không orphan**. Cột chính:
 - Trang sau **Cloudflare** (JS challenge) → phải mở bằng Playwright headful để lấy `cf_clearance`;
   **KHÔNG** chạy 2 trình duyệt headful cùng lúc (crash X display) → pipeline chạy tuần tự.
 - Enumerate = `POST /search` (cap cứng 50 trạm gần nhất/truy vấn) → phủ đĩa tham lam trên lưới VN.
+  Mỗi bản ghi `/search` đã kèm `evsePowers` (`[{type:<W>, totalEvse, numberOfAvailableEvse}]`) +
+  `workingTimeDescription`/`isPublic`/`isFreeParking` (BSS: `numberBattery*`) → **toàn bộ cột cung
+  của SCHEMA_CONTRACT (connector/power/current_type) lấy được ngay ở bước enumerate**, KHÔNG cần
+  tải trang chi tiết từng trạm. Vì thế bổ sung schema chỉ cần lấp lại catalog (`EVCS_REENUM=1`),
+  KHÔNG đụng 4h telemetry.
+- **Discovery vs Enrich:** discovery (mặc định) append 1 seed force-query cho MỖI trạm phát hiện
+  → số query ~ số trạm (chậm). `--enrich-from` chỉ truy vấn tại toạ độ trạm ĐÃ BIẾT và bỏ qua trạm
+  đã lấy → số query ~ mật độ (nhanh), lý tưởng để backfill cột mới lên tập station_code cũ.
 - Time-series = Socket.IO `emit('subscribe')` + `emit('history',{stationId,hours})`; chỉ trạm VinFast
   (`C.XXX`) có telemetry; bss/other không có. `timestamp` = epoch-ms, `value` = số xe đang sạc.

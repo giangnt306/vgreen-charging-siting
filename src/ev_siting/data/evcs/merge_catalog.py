@@ -26,7 +26,8 @@ for tab, path in SRC:
     print(f"  {tab:6} {path}: {n} dòng")
 
 fields = ["code", "tab", "name", "addr", "lat", "lng", "evse", "tot",
-          "verified", "depot"]
+          "verified", "depot", "evse_powers", "working_time", "is_public",
+          "is_free_parking", "n_battery", "n_battery_avail"]
 with open(OUT_CSV, "w", newline="", encoding="utf-8") as f:
     w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
     w.writeheader()
