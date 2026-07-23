@@ -20,6 +20,13 @@ STATIONS_PARQUET = INTERIM_DIR / "official_stations.parquet"     # registry tram
 CONNECTORS_PARQUET = INTERIM_DIR / "official_connectors.parquet"  # tu detail (evses/connectors)
 ADMIN_PARQUET = INTERIM_DIR / "official_admin.parquet"           # province/district/commune per store_id
 
+# --- cross-reference: doi chieu evcs.vn <-> nguon chinh thuc (matcher output) ---
+XREF_PARQUET = INTERIM_DIR / "official_xref.parquet"             # 1 dong/station_code evcs
+XREF_REPORT = INTERIM_DIR / "official_xref_report.json"         # thong ke match
+
+# --- master evcs (input doi chieu) ---
+MASTER_CSV = DATA / "interim" / "stations_master_evcs.csv"
+
 
 def ensure_dirs():
     for d in (RAW_DIR, DETAIL_DIR, INTERIM_DIR):

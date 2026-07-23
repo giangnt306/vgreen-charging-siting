@@ -30,8 +30,16 @@ import h3
 import pandas as pd
 
 from .paths import MASTER_CSV, STATIONS_DIR, CONNECTORS_DIR, CANONICAL_DIR, PROJECT_ROOT
+from ..vinfast_official.paths import XREF_PARQUET
 
 H3_RES = 8
+
+# Cot provenance/doi chieu nguon chinh thuc (match_official.py), join theo station_code.
+XREF_COLS = [
+    "official_matched", "match_method", "official_store_id",
+    "match_dist_m", "match_name_sim", "official_charging_status",
+    "official_access_type", "provenance",
+]
 AC_MAX_W = 25000                       # <=25 kW = AC, >25 kW = DC (khop build_master_evcs)
 VN_BBOX = (8.0, 23.6, 102.0, 110.0)    # lat_min, lat_max, lng_min, lng_max
 # Cot admin chua co nguon ranh gioi (Step B) -> tao san de dung schema, dien sau.
@@ -105,9 +113,13 @@ def explode_connectors(evse_powers_json, sid, code, prov):
     return rows
 
 
-def confidence(row) -> float:
+def completeness(row) -> float:
     """Diem hoan chinh du lieu 0..1 (trung binh 4 chi bao, tai lieu hoa ro):
-    toa do hop le | biet nguon cung (evse_powers) | co status | co telemetry."""
+    toa do hop le | biet nguon cung (evse_powers) | co status | co telemetry.
+
+    Day la thanh phan HOAN CHINH. `confidence` cuoi cung = tron completeness voi
+    tin hieu XAC MINH nguon chinh thuc (match_official.py) — xem `redefine_confidence`.
+    Dung lam fallback khi chua co official_xref.parquet."""
     ind = [
         coord_ok(row["lat"], row["lng"]),
         isinstance(row.get("evse_powers"), str) and row["evse_powers"] not in ("", "[]"),
@@ -115,6 +127,39 @@ def confidence(row) -> float:
         bool(row.get("has_timeseries")),
     ]
     return round(sum(ind) / len(ind), 3)
+
+
+def join_xref(df: pd.DataFrame) -> pd.DataFrame:
+    """Left-join provenance tu official_xref.parquet theo `station_code`.
+
+    Neu chua co xref -> tra cot provenance rong (pipeline van chay doc lap)."""
+    # bo cot cung ten tu master (verified/confidence tho) de xref lam chu.
+    df = df.drop(columns=[c for c in ("verified", "confidence", *XREF_COLS)
+                          if c in df.columns])
+    if XREF_PARQUET.exists():
+        xref = pd.read_parquet(XREF_PARQUET)
+        keep = ["station_code", "confidence", "verified"] + XREF_COLS
+        xref = xref[[c for c in keep if c in xref.columns]]
+        df = df.merge(xref, on="station_code", how="left")
+        df["_has_xref"] = df["official_matched"].notna()
+    else:
+        for c in ["confidence", "verified", *XREF_COLS]:
+            df[c] = pd.NA
+        df["_has_xref"] = False
+    return df
+
+
+def redefine_confidence(df: pd.DataFrame) -> pd.DataFrame:
+    """`confidence`/`verified` = tu official_xref (da tron completeness + xac minh
+    first-party). Fallback ve `completeness` cho tram khong co trong xref."""
+    comp = df.apply(completeness, axis=1)
+    has = df["_has_xref"].fillna(False)
+    df["confidence"] = df["confidence"].where(has, comp).astype(float).round(3)
+    df["verified"] = df["verified"].where(has, False).fillna(False).astype(bool)
+    df["provenance"] = df["provenance"].where(has, "evcs.vn").fillna("evcs.vn")
+    df["official_matched"] = df["official_matched"].fillna(False).astype(bool)
+    df["match_method"] = df["match_method"].fillna("none")
+    return df
 
 
 def run(keep_bss: bool = False):
@@ -139,7 +184,6 @@ def run(keep_bss: bool = False):
     as_of = pd.to_numeric(df["ts_time_end_ms"], errors="coerce").max()
     end_ms = pd.to_numeric(df["ts_time_end_ms"], errors="coerce")
     df["freshness"] = ((as_of - end_ms) / 86_400_000).round(2)
-    df["confidence"] = df.apply(confidence, axis=1)
     df["quality_flags"] = df["quality_flag"].map(flags_to_list)
     df["connector_types"] = df["connector_types"].map(types_to_list)
     df["operator"] = df["network"].fillna("")
@@ -148,10 +192,14 @@ def run(keep_bss: bool = False):
     df["num_connectors"] = num_conn
     for c in ("max_power_kw", "total_power_kw"):
         df[c] = pd.to_numeric(df[c], errors="coerce")
-    for b in ("verified", "is_public"):
-        df[b] = df[b].map({True: True, False: False, "True": True, "False": False})
+    df["is_public"] = df["is_public"].map(
+        {True: True, False: False, "True": True, "False": False})
     for c in ADMIN_COLS:
         df[c] = pd.NA                       # dien o Step B (enrich ranh gioi)
+
+    # --- provenance/verified/confidence tu doi chieu nguon chinh thuc ---
+    df = join_xref(df)
+    df = redefine_confidence(df)
 
     stations_cols = [
         "station_id", "station_code", "lat", "lng", "h3_r8",
@@ -160,6 +208,9 @@ def run(keep_bss: bool = False):
         "current_type", "max_power_kw", "total_power_kw", "num_connectors", "connector_types",
         "status", "is_public", "verified", "has_timeseries",
         "confidence", "freshness", "quality_flags",
+        # provenance / doi chieu nguon chinh thuc (vinfastauto.com)
+        "provenance", "official_matched", "match_method", "official_store_id",
+        "match_dist_m", "match_name_sim", "official_charging_status", "official_access_type",
     ]
     stations = df[stations_cols].reset_index(drop=True)
 
@@ -199,6 +250,9 @@ def run(keep_bss: bool = False):
     print(f"  tram khong co connector : {(stations['num_connectors'] == 0).sum():,}")
     print(f"  connector orphan (FK)   : {n_orphan}")
     print(f"  confidence trung binh   : {stations['confidence'].mean():.3f}")
+    print(f"  verified (first-party)  : {int(stations['verified'].sum()):,} / {len(stations):,}")
+    print(f"  match_method            : {stations['match_method'].value_counts().to_dict()}")
+    print(f"  provenance              : {stations['provenance'].value_counts().to_dict()}")
     print("Con lai (Step B): enrich admin_l1_code/province_name/commune_* tu ranh gioi.")
     print("=============================================================")
     return stations, connectors
