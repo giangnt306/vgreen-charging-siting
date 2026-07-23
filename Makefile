@@ -1,4 +1,4 @@
-.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical
+.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official
 
 help:  ## Show this help (list all commands)
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -19,6 +19,9 @@ crawl-validate:  ## Re-run only the EVCS QA gate over existing data/interim
 
 canonical:  ## Transform master CSV -> canonical parquet (stations/connectors, car-only)
 	PYTHONPATH=src python -m ev_siting.data.evcs.transform_canonical
+
+official:  ## Fetch official VinFast source registry (verified cross-ref) -> data/interim/vinfast_official/
+	PYTHONPATH=src python -m ev_siting.data.vinfast_official.fetch_locators bulk
 
 proxy:  ## Build or refresh demand proxy
 	@echo "Build or refresh demand proxy"
