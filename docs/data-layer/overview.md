@@ -96,7 +96,7 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 
 ## 4. Schema (trạng thái thực tế)
 
-Hợp đồng đầy đủ: [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md) · từ điển trường: [data-dictionary.md](data-dictionary.md).
+Hợp đồng đầy đủ: [SCHEMA_CONTRACT.md](../schema/schema-contract.md) · từ điển trường: [data-dictionary.md](../schema/data-dictionary.md).
 Dưới đây là **trạng thái thực tế của file hiện tại** (đã inspect 2026-07-23):
 
 ### 🟢 `stations` — 34 cột, 19.507 dòng
@@ -158,26 +158,28 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 
 ---
 
-## 7. Vấn đề chất lượng dữ liệu đã phát hiện
+## 7. Vấn đề chất lượng dữ liệu đã phát hiện → theo dõi ở register
 
-Rà soát trên snapshot 2026-07-23, ánh xạ theo trường. Đây là các lỗi **chưa được làm sạch** —
-kế hoạch xử lý theo thứ tự ở [§8](#8-kế-hoạch-làm-sạch-theo-thứ-tự). Nguyên tắc: **flag dòng,
-không xoá**; đối soát `input = output + quarantined + merged` ở mọi bước.
+> **Đã di chuyển (2026-07-24).** Các lỗi chất lượng dữ liệu (evidence, mức độ, trạng thái) giờ theo dõi
+> tập trung ở **[known-issues.md](../known-issues.md)** nhóm **E** (`E-DQ*`) — tránh theo dõi trùng ở 2 nơi.
+> Bảng dưới chỉ còn là **chỉ mục ánh xạ** `#N` (dùng trong [§8](#8-kế-hoạch-làm-sạch-theo-thứ-tự))
+> ↔ ID register ↔ trường ảnh hưởng. Nguyên tắc giữ nguyên: **flag dòng, không xoá**; đối soát
+> `input = output + quarantined + merged` ở mọi bước.
 
-| #  | Vấn đề                              | Trường ảnh hưởng                                                                                       | Bằng chứng                                                                                           | Hướng xử lý                                              |
-| -- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| 1  | Toạ độ placeholder / trùng         | `lat`, `lng`                                                                                            | 274 toạ độ trùng khít; 35 trạm chồng 1 điểm HCM nhưng địa chỉ ở HN/Bắc Ninh → phủ ảo | flag`DUP_COORD` / `COORD_ADDR_MISMATCH`                  |
-| 2  | Trùng chéo nguồn (evcs vs official) | `station_id`, `lat`/`lng`                                                                             | cùng 1 trạm lệch toạ độ nhẹ → đếm trùng cung                                                | dedup không gian,**không** cộng dồn công suất    |
-| 3  | Cột admin trống                      | `admin_l1_code`, `province_name`, `commune_name`, `commune_kind` (cả `stations` & `demand_h3`) | null 100%                                                                                              | spatial-join enrich (kiểm**vintage ranh giới 2025**) |
-| 4  | Cấu hình khuyết                     | `current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0`                                | 282 trạm, không có dòng connector                                                                  | backfill từ connector rồi flag`INCOMPLETE_CONFIG`        |
-| 5  | Null trạng thái / truy cập          | `status` (72), `is_public` (80)                                                                         | null                                                                                                   | quyết định tường minh,**không** default ngầm    |
-| 6  | Trường`operator` bẩn              | `operator`                                                                                                | lẫn nhãn không phải operator ("Tiền mặt", "Hỗ trợ cộng đồng")                               | vocab kiểm soát + cờ VGreen sạch                         |
-| 7  | Text tự do bẩn                       | `name`, `address`                                                                                       | casing lộn xộn, tên operator nằm trong name                                                        | chuẩn hoá, giữ bản`*_raw`                              |
-| 8  | Cầu chưa audit                       | `pop`, POI/road                                                                                           | tổng pop khớp ✓ nhưng**phân bố không gian**/POI chưa kiểm                               | hồi quy tổng cấp xã vs**GSO**; kiểm bias OSM      |
-| 9  | Dân cư không có đường           | `pop` vs `road_len_m`                                                                                   | 6.352 ô`pop>0` mà `road=0`                                                                       | flag, loại khỏi trọng số road                            |
-| 10 | Grid toàn quốc / MVP 1 thành phố   | `demand_h3` (toàn bảng)                                                                                 | 164k ô rỗng, không có admin để cắt                                                              | clip về MVP city + buffer 5 km                              |
-| 11 | Chưa định nghĩa candidate site     | —                                                                                                          | **đã xử lý (P5, 24/07)**                                                                             | mô hình lai ≤1/ô + T0–T4 + `buildable_h3` + QA gate → [candidate-sites.md](candidate-sites.md) |
-| 12 | Chưa freeze snapshot / provenance     | nguồn raw                                                                                                  | chưa hash / ghi ngày crawl                                                                           | freeze + hash raw, ghi ngày crawl                           |
+| #  | ID register                     | Vấn đề                              | Trường ảnh hưởng                                       |
+| -- | ------------------------------- | -------------------------------------- | ---------------------------------------------------------- |
+| 1  | `E-DQ1`                        | Toạ độ placeholder / trùng         | `lat`, `lng`                                            |
+| 2  | `E-DQ2` (↔ `P6`)             | Trùng chéo nguồn (evcs vs official) | `station_id`, `lat`/`lng`                             |
+| 3  | `E-DQ3`                        | Cột admin trống                      | `admin_l1_code`, `province_name`, `commune_*`         |
+| 4  | `E-DQ4`                        | Cấu hình khuyết                     | `current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0` |
+| 5  | **`P8`** (đã có sẵn)      | Null trạng thái / truy cập          | `status` (72), `is_public` (80)                        |
+| 6  | `E-DQ5`                        | Trường `operator` bẩn             | `operator`                                               |
+| 7  | `E-DQ6`                        | Text tự do bẩn                       | `name`, `address`                                       |
+| 8  | `E-DQ7`                        | Cầu chưa audit                       | `pop`, POI/road                                          |
+| 9  | `E-DQ8`                        | Dân cư không có đường           | `pop` vs `road_len_m`                                   |
+| 10 | `E-DQ9`                        | Grid toàn quốc / MVP 1 thành phố   | `demand_h3` (toàn bảng)                                 |
+| 11 | **`P5`** (Done 24/07)      | Chưa định nghĩa candidate site     | — → [candidate-sites.md](candidate-sites.md)          |
+| 12 | `E-DQ10`                       | Chưa freeze snapshot / provenance     | nguồn raw                                                 |
 
 > **Lưu ý:** #2, #10 và #8 là 3 điểm **thiếu trong kế hoạch gốc** — và #8 (audit cầu) là nơi khả năng lộ vấn đề thật cao nhất vì demand chính là hàm mục tiêu.
 
@@ -185,7 +187,7 @@ không xoá**; đối soát `input = output + quarantined + merged` ở mọi b�
 
 ## 8. Kế hoạch làm sạch (theo thứ tự)
 
-Thứ tự có chủ đích — mỗi bước làm nhỏ tập lỗi cho bước sau. Đồng bộ [SCHEMA_CONTRACT.md §6](SCHEMA_CONTRACT.md).
+Thứ tự có chủ đích — mỗi bước làm nhỏ tập lỗi cho bước sau. Đồng bộ [SCHEMA_CONTRACT.md §6](../schema/schema-contract.md).
 
 1. **Freeze inputs.** Hash mọi file raw, ghi ngày crawl + nguồn. Raw **bất biến**, không ghi đè. *(→ #12)*
 2. **Clip về MVP city + buffer 5 km** (để demand rìa không bị coi là "chưa phủ" oan). **Đếm lại toàn bộ lỗi trên subset** — phần lớn sẽ co ≥90%, cho biết cái gì thực sự đáng lo. *(→ #10 · bước mới)*
@@ -202,7 +204,7 @@ Thứ tự có chủ đích — mỗi bước làm nhỏ tập lỗi cho bước
 
 ## 9. Còn thiếu — build tasks (sau làm sạch)
 
-Các hạng mục **xây thêm** (ngoài làm sạch ở §8), đồng bộ [SCHEMA_CONTRACT.md §6](SCHEMA_CONTRACT.md):
+Các hạng mục **xây thêm** (ngoài làm sạch ở §8), đồng bộ [SCHEMA_CONTRACT.md §6](../schema/schema-contract.md):
 
 - [ ] **`demand_weight = f(pop, road_len_mt_m, n_poi, n_parking, n_fuel, …)`** (`features/build_demand_proxy.py`).
 - [ ] **`demand_commune`** rollup (sau enrich admin — §8 bước 8).

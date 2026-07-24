@@ -1,6 +1,6 @@
 # CANDIDATE SITES & LAND-USE FILTER (P5)
 
-> Cập nhật: **2026-07-24** · Nhánh `data/giang` · Xử lý **[P5](known-issues.md)** (candidate set + lọc land-use).
+> Cập nhật: **2026-07-24** · Nhánh `data/giang` · Xử lý **[P5](../known-issues.md)** (candidate set + lọc land-use).
 >
 > Điểm chạm interop thứ 3 giữa **Giang → Kỳ** (ngoài demand proxy & GeoJSON kết quả).
 
@@ -52,7 +52,7 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | **T2** | `shop=mall`, `retail`, `building=apartments` | dwell time dài, có bãi đỗ đi kèm | `mid` |
 | **T4** | **gap-fill tổng hợp** — centroid ô demand cao **không** có anchor T0–T2 | chống thiên vị đô thị của OSM | `high` |
 
-- **T0 là incumbent bắt buộc mở** (thoả **P22**) và `is_existing=True` → Sprint 3 tính CapEx=0 / loại khỏi ngân sách;
+- **T0 là incumbent bắt buộc mở** (ràng buộc thiết kế MCLP) và `is_existing=True` → Sprint 3 tính CapEx=0 / loại khỏi ngân sách;
   cũng để DoD Sprint 2 so sánh "mạng hiện tại vs. model đề xuất".
 - **T4 bắt buộc, không phải nice-to-have.** POI OSM thưa ở vùng ven → nếu chỉ POI-anchored thì MCLP *không thể*
   chọn ở đó → kết quả tự động thiên vị đô thị, mâu thuẫn mục tiêu "phủ công bằng" của Nhà nước
@@ -125,7 +125,7 @@ FAIL bất kỳ gate nào (mặc định) → exit ≠ 0, **không bàn giao K�
 | `tier` | string | T0–T4 |
 | `anchor_type` | string | `existing_station`/`parking`/`fuel`/`mall`/`retail`/`apartments`/`gapfill_synthetic` |
 | `source_ref` | string | `station_id` \| `osm_type/osm_id` \| `synthetic:<h3>` |
-| `is_existing` | bool | T0 → CapEx=0 ở Sprint 3 (**P22**) |
+| `is_existing` | bool | T0 → CapEx=0 ở Sprint 3 (incumbent bắt buộc mở) |
 | `built_up_frac` | double | tỷ lệ đô thị hoá của ô |
 | `dist_substation_m` | double | proxy đấu nối lưới |
 | `penalty` | double | phạt mềm land-use ∈ [0,1] |

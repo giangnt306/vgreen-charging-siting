@@ -13,10 +13,13 @@ ev-charging-siting/
 ├── pyproject.toml             # dự án Python
 ├── Makefile                   # lệnh tái lập: make data, make proxy, make model
 │
-├── docs/                      # tài liệu
-│   ├── problem-analysis.md    # report này
-│   ├── data-dictionary.md     # mô tả trường dữ liệu (schema bàn giao Kỳ↔Giang)
-│   ├── schema/                # ERD + tài liệu schema PostGIS
+├── docs/                      # tài liệu (xem docs/README.md để điều hướng)
+│   ├── README.md              # mục lục tài liệu
+│   ├── problem-analysis.md    # report define bài toán + roadmap
+│   ├── known-issues.md        # register vấn đề P1–P11 + E-DQ (nguồn chân lý)
+│   ├── sources/               # tài liệu từng nguồn crawl (evcs/osm/vinfast/worldpop)
+│   ├── data-layer/            # overview tầng dữ liệu + candidate sites
+│   ├── schema/                # SCHEMA_CONTRACT + data-dictionary + ERD + schema-review
 │   └── sprint-reviews/        # slide/ghi chú mỗi buổi review
 │
 ├── data/                      # (gitignored — trừ .gitkeep)

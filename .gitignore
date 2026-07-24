@@ -11,6 +11,7 @@ ENV/
 .python-version
 
 /data/
+/vgreen-charging-siting-data/
 /outputs/
 
 # Jupyter

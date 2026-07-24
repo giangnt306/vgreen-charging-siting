@@ -12,7 +12,7 @@ số xe đang sạc** theo thời gian thực. Dùng để phân tích nhu cầu
 - Bảng master `stations_master_evcs.csv` khóa theo `station_code` (mã evcs.vn), ghép **1-1**
   với các file time-series → **0 orphan**.
 
-> ⚠️ **Quan hệ với [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md):** đây là tầng **raw + interim**.
+> ⚠️ **Quan hệ với [SCHEMA_CONTRACT.md](../schema/schema-contract.md):** đây là tầng **raw + interim**.
 > Master khóa `station_code` (occupancy) **chưa phải** schema canonical `stations`/`connectors`
 > parquet khóa `station_id`. Bước transform sang parquet đúng contract vẫn còn cần làm.
 
@@ -122,7 +122,7 @@ theo tên file → **ghép 1-1, không orphan**. Cột chính:
 
 - ✅ Crawl evcs.vn — catalog 28.417 trạm + time-series ~18,6M điểm (19.218 trạm VinFast).
 - ✅ **Master độc lập** `stations_master_evcs.csv` — 28.417 trạm, ghép 1-1 time-series, **0 orphan**.
-- ⬜ Transform master → parquet `stations`/`connectors` đúng [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md).
+- ⬜ Transform master → parquet `stations`/`connectors` đúng [SCHEMA_CONTRACT.md](../schema/schema-contract.md).
 - ⬜ Nạp vào PostgreSQL + PostGIS (`db/schema_postgis.sql` có thể cần chỉnh theo schema master).
 
 ## Ghi chú kỹ thuật crawl evcs.vn

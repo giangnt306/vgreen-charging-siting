@@ -1,7 +1,7 @@
 # OSM — POI (điểm quan tâm) & Road network (trắc địa) cho Việt Nam
 
-> Nguồn công khai cho **tầng cầu** (`demand_h3`) theo [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md)
-> mục 3. Đây là bộ #5 "POI & Trắc địa" trong [problem-analysis.md](problem-analysis.md) mục 2.
+> Nguồn công khai cho **tầng cầu** (`demand_h3`) theo [SCHEMA_CONTRACT.md](../schema/schema-contract.md)
+> mục 3. Đây là bộ #5 "POI & Trắc địa" trong [problem-analysis.md](../problem-analysis.md) mục 2.
 > Code ở `src/ev_siting/data/osm/`, dữ liệu thô ở `data/raw/osm/`, đã xử lý ở `data/interim/osm/`.
 
 Hai nguồn OSM độc lập, gộp về **lưới H3 res 8**:
@@ -75,7 +75,7 @@ PYTHONPATH=src python -m ev_siting.data.osm.roads_pbf --force-download
 | `retail` | `shop=supermarket`, `amenity=marketplace` | `n_poi` | Siêu thị / chợ (điểm đến đông) |
 
 > `n_poi` = POI **sinh cầu** (mall + apartments + retail). `fuel`/`parking` tách riêng
-> để khớp đúng 3 cột đếm của [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md#🟡-demand_h3--nhu-cầu-theo-ô-h3-11-cột--key-h3_r8).
+> để khớp đúng 3 cột đếm của [SCHEMA_CONTRACT.md](../schema/schema-contract.md#🟡-demand_h3--nhu-cầu-theo-ô-h3-11-cột--key-h3_r8).
 
 ## Ánh xạ loại đường → `road_len_*`
 
