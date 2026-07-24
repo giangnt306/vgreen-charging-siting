@@ -7,7 +7,8 @@
 Dataset **ĐỘC LẬP** tự crawl từ **evcs.vn**: danh mục trạm sạc EV toàn quốc + **time-series
 số xe đang sạc** theo thời gian thực. Dùng để phân tích nhu cầu/độ phủ và tối ưu vị trí trạm.
 
-- **28.417 trạm** trong catalog (VinFast 19.219 / battery-swap 9.118 / other 80).
+- **28.625 trạm** trong catalog (VinFast_CS 19.427 / battery-swap 9.118 / other 80) — snapshot crawl **2026-07-21/22**.
+  (Con số cũ **28.417** trong tài liệu là snapshot trước; chênh **+208** là do crawl lại tab `cs` — xem **P6** ở [known-issues.md](../known-issues.md).)
 - **19.218 trạm có time-series** (~18,6M điểm, cửa sổ 7 ngày), lấy qua Socket.IO của evcs.vn.
 - Bảng master `stations_master_evcs.csv` khóa theo `station_code` (mã evcs.vn), ghép **1-1**
   với các file time-series → **0 orphan**.
@@ -36,7 +37,7 @@ vgreen-charging-siting/
 │
 ├── data/                                   # (gitignored)
 │   ├── raw/evcs/                           # crawl thô, BẤT BIẾN
-│   │   ├── catalog/                        #   evcs_catalog.csv (28.417 trạm) = gộp cs/bss/other
+│   │   ├── catalog/                        #   evcs_catalog.csv (28.625 trạm) = gộp cs/bss/other
 │   │   │                                   #   + evcs_{stations,bss,other}.csv (từng tab)
 │   │   │                                   #   + *_codes.txt + *.ckpt.json (checkpoint resume)
 │   │   ├── load_ts.csv                     #   dump occupancy gốc: station_code,timestamp,n_cars_charging
@@ -115,13 +116,13 @@ theo tên file → **ghép 1-1, không orphan**. Cột chính:
 | `ts_val_min/max`, `ts_n_null`, `ts_n_dup`, `ts_monotonic` | QA giá trị/thời gian |
 | `quality_flag` | Cờ QA gộp: `NO_TS`/`DUP_TS`/`NONMONOTONIC`/`NEG_VALUE`/`NONNUMERIC`/`ALL_ZERO`/`SPARSE`/`COORD_INVALID` |
 
-> 9.199 trạm `has_timeseries=False` = toàn bộ battery-swap/other + 2 trạm VinFast — nhóm này
-> vốn **không có telemetry** trên evcs.vn (đúng thiết kế nguồn).
+> 9.407 trạm `has_timeseries=False` = toàn bộ battery-swap/other (9.198) + 209 trạm VinFast_CS
+> chưa có telemetry — nhóm này vốn **không có telemetry** trên evcs.vn (đúng thiết kế nguồn).
 
 ## Tình trạng hiện tại
 
-- ✅ Crawl evcs.vn — catalog 28.417 trạm + time-series ~18,6M điểm (19.218 trạm VinFast).
-- ✅ **Master độc lập** `stations_master_evcs.csv` — 28.417 trạm, ghép 1-1 time-series, **0 orphan**.
+- ✅ Crawl evcs.vn — catalog 28.625 trạm + time-series ~18,6M điểm (19.218 trạm VinFast).
+- ✅ **Master độc lập** `stations_master_evcs.csv` — 28.625 trạm, ghép 1-1 time-series, **0 orphan**, **PK `station_code` unique** (cổng CRITICAL ở `validate.py`).
 - ⬜ Transform master → parquet `stations`/`connectors` đúng [SCHEMA_CONTRACT.md](../schema/schema-contract.md).
 - ⬜ Nạp vào PostgreSQL + PostGIS (`db/schema_postgis.sql` có thể cần chỉnh theo schema master).
 

@@ -35,7 +35,7 @@
 | **P3**     | A     | Cửa sổ 7,15 ngày → bỏ qua mùa vụ/lễ/thời tiết                                                                                      | ⚪   | DOC → FUTURE         | Giang       | —                   | ⊘           | Accepted limitation.                                                                                                                                                                                                                                                                                                                                                                                        |
 | **P4**     | B     | **Bán kính suy biến:** R = 500 m < khoảng cách tâm 2 ô kề (0,98 km) → MCLP = sort top-p; 500 m không phải catchment lái xe | 🔴   | **FIX (chặn)** | Kỳ + Giang | **2026-07-24** | ☑           | Lỗi ở**tỷ lệ** `R/d` (d = khoảng cách tâm 2 ô H3 kề). Cấu hình cũ `R=500 m / d=0,98 km` → tỷ lệ **0,51 < 1** ⇒ mỗi trạm chỉ phủ ô chứa nó ⇒ suy biến `sort top-p`. Giữ **H3 res 8**, chốt **R = 3 km** (tỷ lệ 3,07) + quét {1,5 · 2 · 3 · 5} km.                                                                                             |
 | **P5**     | B     | Candidate set chưa định nghĩa; thiếu lọc land-use (hồ/núi/đất cấm)                                                                | 🟡   | SIMPLIFY              | Giang       | **2026-07-24** | ☑           | **Đã xử lý 24/07.** Candidate lai (điểm thực, ≤1/ô H3) phân tầng T0–T4 + bộ lọc `buildable_h3` (ESA WorldCover 10m + OSM cấm + road access) + QA gate 5 cổng. Code `data/landuse/` + `features/build_candidates.py`. MVP Hà Nội: 1.672 candidate, mọi gate PASS. Xem [candidate-sites.md](data-layer/candidate-sites.md).                                                     |
-| **P6**     | C     | Trùng PK (236 dòng); số trạm lệch giữa doc/report (28.417 vs 28.625)                                                                   | 🟡   | FIX                   | Giang       | —                   | ☐           | Dữ liệu cào từ nhiều nguồn bị trùng ID + số liệu báo cáo cũ không thống nhất. Xem**E-DQ2** (dedup chéo nguồn).                                                                                                                                                                                                                                                                      |
+| **P6**     | C     | Trùng PK (236 dòng); số trạm lệch giữa doc/report (28.417 vs 28.625)                                                                   | 🟡   | FIX                   | Giang       | **2026-07-24** | ☑           | **Đã xử lý 24/07.** (1) **Trùng PK:** dedup first-wins trong `merge_catalog.py` (đếm rõ trong-tab/chéo-tab, **KHÔNG cộng công suất**) + cổng CRITICAL PK-unique ở `validate.py` → master hiện **0 trùng** `station_code`. (2) **Lệch số trạm:** **28.417** là snapshot cũ, **28.625** là snapshot chốt 2026-07-21/22 (chênh **+208** do crawl lại tab `cs`: 19.219→19.427). Đã đồng bộ mọi doc + neo chuỗi đối soát **28.625 raw − 9.118 BSS = 19.507 canonical car-only**. Dedup **chéo nguồn** (evcs↔official) là việc riêng → **E-DQ2** vẫn open. |
 | **P7**     | C     | Nhiễm xe máy điện: dùng power tier chung thay vì chuẩn cắm (CCS2)                                                                    | 🟠   | FIX                   | Giang       | **2026-07-24** | ☑           | **Đã xử lý 24/07.** Dùng chuẩn cắm chính thức (`official_connectors.standard`) thay power tier: thêm `connector_standard`/`vehicle_class`, sửa **1.588 connector 20-22 kW** bị gán nhầm AC→**DC CCS2** (1.079 trạm). 100% connector khớp là chuẩn ô tô (CCS2/Type2) ⇒ không còn nhiễm 2 bánh sau lọc BSS; 7 trạm evcs-only gắn cờ `STD_UNVERIFIED`. |
 | **P8**     | C     | Thiếu lọc trạng thái vận hành & access (private vs public)                                                                             | 🟡   | FIX                   | Giang       | —                   | ☐           | ≡ §7#5 cũ (`status` 72 null, `is_public` 80 null). Quyết định tường minh, **không** default ngầm.                                                                                                                                                                                                                                                                                       |
 | **P9**     | C     | Lệch thời điểm giữa các đợt crawl (occupancy 2026 · WorldPop 2020 · OSM)                                                           | 🟡   | FIX + DOC             | Giang       | —                   | ☐           | Khóa mốc cung chính thức**2026-07-20**, telemetry occupancy **07/2026**.                                                                                                                                                                                                                                                                                                                    |
@@ -127,7 +127,38 @@
 
 ### C. Master Data & Entity Resolution
 
-**P6 (Trùng PK & Số trạm lệch giữa các báo cáo):**
+**P6 (Trùng PK & Số trạm lệch giữa các báo cáo)** — *chốt 24/07/2026*
+
+**Chẩn đoán:** hai triệu chứng **độc lập**, đều là *master-data hygiene trong nội bộ evcs*
+(khác với dedup **chéo nguồn** evcs↔official = **E-DQ2**):
+
+1. **Trùng PK (236 dòng).** Catalog evcs gộp từ 3 tab (`cs`/`other`/`bss`); enumerate quét lưới
+   chồng lấn → cùng `station_code` xuất hiện nhiều lần (trong-tab) hoặc ở >1 tab (chéo-tab).
+2. **Số trạm lệch (28.417 vs 28.625).** Không phải lỗi dữ liệu mà là **doc-drift**: tài liệu ghi
+   snapshot cũ **28.417**, còn file thực tế là snapshot chốt **28.625** (crawl lại 2026-07-21/22).
+
+**Cách xử lý:**
+
+- **Dedup có kiểm soát, không ngầm.** `merge_catalog.py` giữ **first-wins** (ưu tiên `cs > other > bss`),
+  **đếm rõ** số dòng trùng bị bỏ (tách trong-tab vs chéo-tab) và in ra — **không bao giờ gộp/cộng
+  công suất** giữa các bản trùng (nguyên tắc E-DQ2). `validate.py` có **cổng CRITICAL** bắt buộc
+  `station_code` unique → pipeline **fail** nếu trùng PK tái xuất. Master hiện: **0 trùng**.
+- **Đối soát số trạm về một snapshot chốt.** Neo **28.625** (snapshot 2026-07-21/22) là con số chính
+  thức; chênh **+208** so với 28.417 = crawl lại tab `cs` (19.219 → 19.427). Đồng bộ mọi tài liệu
+  ([evcs.md](sources/evcs.md), [schema-contract.md](schema/schema-contract.md)) + neo **chuỗi đối soát tầng**
+  để dứt điểm câu hỏi "số nào đúng":
+
+  $$
+  \underbrace{28.625}_{\text{raw catalog}} \;-\; \underbrace{9.118}_{\text{BSS (lọc, --keep-bss để giữ)}}
+  \;=\; \underbrace{19.507}_{\text{canonical car-only}} \;=\; \underbrace{19.427}_{cs} + \underbrace{80}_{other}
+  $$
+
+**Kết quả.** Master 28.625 trạm, PK `station_code` **unique** (0 CRITICAL), lineage ghi ở
+`quality_report.json`. `by_station_type`: VINFAST_CS 19.427 · BATTERY_SWAP 9.118 · OTHER 80.
+
+**Limitation (`DOC`):** đây chỉ giải **trùng PK nội bộ evcs** + đối soát số. Trùng **chéo nguồn**
+(cùng 1 trạm vật lý lệch toạ độ giữa evcs và registry official) vẫn là **E-DQ2** (dedup không gian
+bằng H3) — **chưa** đóng.
 
 **P7 (Nhiễm xe máy điện - dùng chung power tier)** — *chốt 24/07/2026
 

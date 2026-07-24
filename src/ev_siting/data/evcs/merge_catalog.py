@@ -12,18 +12,38 @@ OUT_CSV = os.path.join(CAT, "evcs_catalog.csv")
 OUT_CODES = os.path.join(CAT, "evcs_all_codes.txt")
 
 rows = {}   # code -> record (+ tab)
+# P6 — kiểm soát trùng PK: đếm rõ số dòng bị dedup (KHÔNG bao giờ gộp/cộng
+# công suất giữa các bản trùng — chỉ giữ lần gặp đầu). Tách trong-tab vs chéo-tab
+# để mọi trùng station_code đều quan sát được (không dedup ngầm). Xem known-issues P6.
+dup_within = 0            # cùng code lặp trong cùng 1 tab (enumerate lưới chồng lấn)
+dup_cross = {}            # code -> (tab_giữ, tab_bỏ) khi 1 trạm xuất hiện ở >1 tab
 for tab, path in SRC:
     if not os.path.exists(path):
         print(f"  (bỏ qua, chưa có {path})"); continue
     n = 0
+    seen_in_tab = set()
     for r in csv.DictReader(open(path, encoding="utf-8")):
         code = r.get("code")
         if not code:
             continue
         r["tab"] = tab
-        rows.setdefault(code, r)   # ưu tiên lần gặp đầu (cs > other > bss theo thứ tự SRC)
+        if code in rows:                       # đã có từ tab trước / lần trước
+            if code in seen_in_tab:
+                dup_within += 1
+            else:
+                dup_cross[code] = (rows[code]["tab"], tab)
+        else:
+            rows[code] = r                     # ưu tiên lần gặp đầu (cs > other > bss theo thứ tự SRC)
+        seen_in_tab.add(code)
         n += 1
     print(f"  {tab:6} {path}: {n} dòng")
+
+n_dup = dup_within + len(dup_cross)
+print(f"  dedup PK: {n_dup} dòng trùng bị bỏ "
+      f"(trong-tab {dup_within} · chéo-tab {len(dup_cross)}) — giữ first-wins, KHÔNG cộng công suất")
+if dup_cross:
+    ex = list(dup_cross.items())[:5]
+    print(f"    vd chéo-tab: {[(c, '%s<-%s' % kv) for c, kv in ex]}")
 
 fields = ["code", "tab", "name", "addr", "lat", "lng", "evse", "tot",
           "verified", "depot", "evse_powers", "working_time", "is_public",

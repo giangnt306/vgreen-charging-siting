@@ -161,6 +161,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | **2 khóa khác nhau** (`station_code` vs `station_id`) | master occupancy ≠ canonical                                              | `transform_canonical` sinh `station_id` `vn-…`, giữ `station_code` để truy vết.              |
 | **BSS lẫn trong catalog**                                  | 9.118 trạm đổi pin không phải sạc ô tô                             | Mặc định lọc bỏ ở transform; cờ`--keep-bss` để giữ.                                           |
 | **Power tier gán sai AC/DC** *(P7)*                        | evcs.vn chỉ có công suất → 20-22 kW bị gán nhầm AC (thực tế DC CCS2) | Dùng chuẩn cắm chính thức (`official_connectors.standard`) sửa **1.588 connector**; thêm `connector_standard`/`vehicle_class`. |
+| **Trùng PK & lệch số trạm** *(P6)*                         | enumerate lưới chồng lấn → trùng `station_code`; doc ghi 28.417, file 28.625 | Dedup first-wins có đếm (không cộng công suất) ở `merge_catalog.py` + cổng CRITICAL PK-unique ở `validate.py` (0 trùng); chốt snapshot **28.625** (+208 do crawl lại `cs`), đối soát 28.625 − 9.118 BSS = 19.507 canonical. |
 | **Toạ độ placeholder** *(mới phát hiện)*            | 35 trạm chồng 1 điểm HCM nhưng địa chỉ ở HN; 274 toạ độ trùng | **Chưa xử lý** → đưa vào kế hoạch làm sạch (flag `DUP_COORD`/`COORD_ADDR_MISMATCH`). |
 
 ---
