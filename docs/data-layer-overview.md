@@ -49,7 +49,7 @@ flowchart TD
 | `data/raw/`       | Nguồn thô,**BẤT BIẾN** (crawl/tải nguyên bản) | evcs 500M · osm 318M · vinfast_official 268M · worldpop 26M |
 | `data/interim/`   | Đã làm sạch / trung gian                               | canonical, demand, osm, worldpop, vinfast_official             |
 | `data/external/`  | Nguồn ngoài không qua crawl                             | biểu giá điện OpEx                                         |
-| `data/processed/` | Model-ready (demand_weight, candidate sites)               | **chưa có gì** — bước tiếp theo                   |
+| `data/processed/` | Model-ready (demand_weight, candidate sites)               | **`candidate_sites.{parquet,geojson}`** (P5, DONE) · `demand_weight` TODO |
 
 ---
 
@@ -68,10 +68,12 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 |                       | `match_official.py`                                                             | Matcher 2 tầng`exact_code` + `spatial_fuzzy` → `official_xref.parquet`                       |
 | `osm/`              | `overpass_poi.py` · `roads_pbf.py` · `build_osm_h3.py` · `validate.py` | POI (Overpass) + đường (osmium/.pbf) →`demand_h3` phần OSM                                    |
 | `worldpop/`         | `worldpop_pop.py` · `build_demand_h3.py`                                     | Dân số .tif →`pop` theo H3, rồi **ghép OSM → `demand_h3`**                           |
+| `landuse/`          | `worldcover.py` · `osm_exclusion.py` · `build_buildable_h3.py` · `validate.py` | **Bộ lọc khả thi candidate (P5)** — WorldCover + OSM cấm + road access → `buildable_h3` |
 | `data/`             | `opex_electricity.py`                                                           | Biểu giá điện OpEx (nguồn pháp lý) →`data/external/`                                       |
 
-> Ngoài `data/`: ` features/build_demand_proxy.py` (demand_weight — TODO), `models/mclp.py` (Kỳ),
-> `viz/export_geojson.py` (GeoJSON hiện trạng — TODO).
+> Ngoài `data/`: `aoi.py` (vùng nghiên cứu MVP dùng chung), `features/build_candidates.py`
+> (**candidate sites — P5, DONE**), `features/build_demand_proxy.py` (demand_weight — TODO),
+> `models/mclp.py` (Kỳ), `viz/export_geojson.py` (GeoJSON hiện trạng — TODO).
 
 ---
 
@@ -174,7 +176,7 @@ không xoá**; đối soát `input = output + quarantined + merged` ở mọi b�
 | 8  | Cầu chưa audit                       | `pop`, POI/road                                                                                           | tổng pop khớp ✓ nhưng**phân bố không gian**/POI chưa kiểm                               | hồi quy tổng cấp xã vs**GSO**; kiểm bias OSM      |
 | 9  | Dân cư không có đường           | `pop` vs `road_len_m`                                                                                   | 6.352 ô`pop>0` mà `road=0`                                                                       | flag, loại khỏi trọng số road                            |
 | 10 | Grid toàn quốc / MVP 1 thành phố   | `demand_h3` (toàn bảng)                                                                                 | 164k ô rỗng, không có admin để cắt                                                              | clip về MVP city + buffer 5 km                              |
-| 11 | Chưa định nghĩa candidate site     | —                                                                                                          | chưa có                                                                                              | POI-anchored + trạm hiện có + gap fill                    |
+| 11 | Chưa định nghĩa candidate site     | —                                                                                                          | **đã xử lý (P5, 24/07)**                                                                             | mô hình lai ≤1/ô + T0–T4 + `buildable_h3` + QA gate → [candidate-sites.md](candidate-sites.md) |
 | 12 | Chưa freeze snapshot / provenance     | nguồn raw                                                                                                  | chưa hash / ghi ngày crawl                                                                           | freeze + hash raw, ghi ngày crawl                           |
 
 > **Lưu ý:** #2, #10 và #8 là 3 điểm **thiếu trong kế hoạch gốc** — và #8 (audit cầu) là nơi khả năng lộ vấn đề thật cao nhất vì demand chính là hàm mục tiêu.
@@ -193,7 +195,7 @@ Thứ tự có chủ đích — mỗi bước làm nhỏ tập lỗi cho bước
 6. **Xử lý khuyết.** Backfill từ connector, phần còn lại flag `INCOMPLETE_CONFIG` — giữ làm điểm coverage, loại khỏi charger-config. `is_public` null: quyết tường minh (đề xuất **giữ + chạy model cả 2 chiều**). *(→ #4, #5)*
 7. **Chuẩn hoá categorical.** Map operator về danh sách kiểm soát, tách nhãn thanh toán ra, dựng boolean VGreen sạch. Đóng vocab connector-type. Làm sạch name/address, giữ bản raw. *(→ #6, #7)*
 8. **Enrich admin.** Spatial-join trạm + tâm ô H3. **Quan trọng: kiểm vintage layer ranh giới** — VN sáp nhập tỉnh & bỏ cấp huyện 2025, GADM/OSM thường cũ → layer cũ sinh mismatch trông như lỗi data. Rồi dựng `demand_commune`. *(→ #3)*
-9. **Sinh candidate.** Chọn strategy (mặc định hợp lý: POI-anchored + trạm hiện có + gap fill). Loại mọi điểm mang cờ toạ độ, ép giãn cách tối thiểu ~200 m. *(→ #11)*
+9. **Sinh candidate.** ✅ **Đã làm (P5, 24/07)** — mô hình lai (điểm thực, **≤1 candidate/ô H3** để tránh tie-degenerate của MCLP), phân tầng anchor **T0 trạm hiện có · T1 parking/fuel · T2 mall/retail/apartments · T4 gap-fill synthetic**, lọc qua `buildable_h3` (WorldCover + OSM cấm + road access), loại cờ toạ độ bẩn, QA gate 5 cổng. Output `data/processed/candidate_sites.{parquet,geojson}`. Chi tiết [candidate-sites.md](candidate-sites.md). *(→ #11)*
 10. **Gate mọi bước.** Assert PK unique, 0 orphan FK, VN bbox, và — cái hay bị bỏ — **đối soát dòng:** `input = output + quarantined + merged`. **Flag dòng, không xoá.**
 
 ---
@@ -204,6 +206,8 @@ Các hạng mục **xây thêm** (ngoài làm sạch ở §8), đồng bộ [SCH
 
 - [ ] **`demand_weight = f(pop, road_len_mt_m, n_poi, n_parking, n_fuel, …)`** (`features/build_demand_proxy.py`).
 - [ ] **`demand_commune`** rollup (sau enrich admin — §8 bước 8).
+- [x] **Candidate sites (P5)** — `data/processed/candidate_sites.{parquet,geojson}` (mô hình lai ≤1/ô +
+  T0–T4 + `buildable_h3` + QA gate 5 cổng). Chi tiết [candidate-sites.md](candidate-sites.md).
 - [ ] **Coverage/gap** theo bán kính **R = 3 km (baseline)**, quét {1,5 · 2 · 3 · 5} km (bỏ ngưỡng
   `has_station_5km` cố định). **Phải cài gate `R > d` trước khi tính** (**P4**).
 - [ ] **Load PostGIS** + GIST index (`db/migrations` + `db/seeds` đang trống).

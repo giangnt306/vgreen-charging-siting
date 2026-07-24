@@ -42,6 +42,27 @@
 
 > Bảng này **chưa có một con số "trọng số demand" duy nhất** cho mỗi ô — đó chính là phần Giang bổ sung (mục 4): `demand_weight = f(pop, road, poi, …)`.
 
+### 🟢 `candidate_sites` — tập điểm ứng viên cho MCLP (14 cột) · PK: `candidate_id`
+
+**Đầu vào candidate cho MCLP** (`data/processed/candidate_sites.parquet` + `.geojson`). Mỗi dòng = 1 điểm thực,
+**unique theo `h3_r8`** (≤1 candidate/ô — tránh tie-degenerate, biến thể ẩn **P4**).
+
+| Cột | Kiểu | Vai trò |
+| --- | --- | --- |
+| `candidate_id` | string | **PK** (`cand-<city>-<idx>`) |
+| `lat`, `lng` | double | toạ độ thật (explainability) |
+| `h3_r8` | string | ô coverage (**unique**) |
+| `province_code` | string | null → enrich khi có admin |
+| `tier` | string | T0–T4 (nguồn anchor) |
+| `anchor_type` | string | `existing_station`/`parking`/`fuel`/`mall`/`retail`/`apartments`/`gapfill_synthetic` |
+| `source_ref` | string | `station_id` \| `osm_type/osm_id` \| `synthetic:<h3>` |
+| `is_existing` | bool | T0 → CapEx=0 Sprint 3 (**P22**) |
+| `built_up_frac`, `dist_substation_m`, `penalty` | double | tín hiệu land-use / đấu nối lưới |
+| `capex_class` | string | `low`/`mid`/`high` — ràng buộc ngân sách Sprint 3 |
+| `exclusion_flags` | list | audit (rỗng — đã loại ô cấm) |
+
+> Bộ lọc khả thi trung gian: `data/interim/landuse/buildable_h3.parquet`. Chi tiết [candidate-sites.md](candidate-sites.md).
+
 ### Quan hệ khóa
 
 ---
@@ -71,7 +92,7 @@
 - [X] **Giang (23/07):** crawl **nguồn chính thức VinFast** (vinfastauto.com, first-party) → `data/interim/vinfast_official/` (registry 23.247 trạm + 71.174 connector + admin). Xây **matcher 2 tầng** (`match_official.py`): `exact_code` (`station_code==store_id`, 19.427 trạm khớp tuyệt đối, toạ độ lệch ≤0,3 m) + `spatial_fuzzy` (BallTree haversine + rapidfuzz). Output `official_xref.parquet`. `transform_canonical` join vào `stations`: thêm cột **provenance** (`provenance`/`official_matched`/`match_method`/`official_store_id`/`match_dist_m`/`match_name_sim`/`official_charging_status`/`official_access_type`) + **định nghĩa lại** `verified` (corroboration first-party) và `confidence` (`0.4·completeness + 0.6·verification` cho trạm VinFast; `completeness` cho trạm ngoài phạm vi). Canonical: 19.432/19.507 verified, confidence TB 0,995. Doc [crawler-vinfast-official.md](crawler-vinfast-official.md).
 - [ ] **Giang:** chốt công thức `demand_weight = f(pop, road_len_mt_m, n_poi, n_parking, n_fuel, …)` — trọng số từng thành phần (đưa vào Sprint 2). ⚠️ Cân nhắc **calibrate trọng số bằng 18,6M điểm occupancy** thay vì đặt tay (**P1**); weight `pop` theo proxy sở hữu ô tô, không dùng tổng dân số thô (**P16**); giữ demand **ngoại sinh** — không đưa hiện diện trạm vào feature (**P17**). Xem [known-issues.md](known-issues.md).
 - [ ] **Giang:** tính coverage với bán kính **R = 3 km (baseline)**, quét {1,5 · 2 · 3 · 5} km (thay ngưỡng `has_station_5km` cố định). ⚠️ **Gate bắt buộc: FAIL nếu `R ≤ d` (0,98 km) · WARN nếu `R < 2d` (1,95 km)** — dưới ngưỡng đó mỗi candidate chỉ phủ chính ô nó → MCLP suy biến thành `sort top-p`. Xem **P4** trong [known-issues.md](known-issues.md).
-- [ ] **Giang + Kỳ:** thống nhất tập **candidate sites** cho MCLP (trạm hiện có `stations` + tâm các ô H3 gap?) — điểm chạm interop. ⚠️ Lọc **khả thi** (loại ô `road_len_m≈0`/`pop≈0` ~ hồ/núi) (**P9**); trạm hiện có phải là **incumbent bắt buộc mở** để model tìm khoảng trống (**P22**). Xem [known-issues.md](known-issues.md).
+- [X] **Giang (24/07):** tập **candidate sites** cho MCLP → `data/processed/candidate_sites.{parquet,geojson}` (điểm chạm interop thứ 3). Mô hình **lai**: điểm thực nhưng **≤1 candidate/ô H3** (tránh tie-degenerate — biến thể ẩn **P4**); phân tầng **T0 trạm hiện có** (`is_existing=True`, incumbent bắt buộc mở — **P22**) · T1 parking/fuel · T2 mall/retail/apartments · T4 gap-fill synthetic. Lọc **khả thi** qua `buildable_h3` (ESA WorldCover 10m + OSM military/protected/water + `road_len_m≤0`) — loại hồ/núi/đất cấm/không đường (**P5**, **P9**). QA gate 5 cổng (upper-bound coverage ≥90% · freedom ≥5×p · size ≤3000 · anti-degenerate ≥0,9 · `R>d`). MVP Hà Nội: 1.672 candidate, 5/5 PASS. Schema đầy đủ + cột (`is_existing`/`capex_class` cho ràng buộc ngân sách Sprint 3) → [candidate-sites.md](candidate-sites.md).
 - [X] **Giang (24/07):** **chốt xử lý P4** — giữ lưới `H3 res 8`, chốt **R = 3 km**. Đã dựng thử `res 7` (`demand_h3` 54.618 ô) rồi **rollback**: res 7 làm ô to gấp 7× (`d` 0,98 → 2,59 km), đẩy tỷ lệ `R/d` sai hướng và làm **mọi R trong (2,59; 4,48) km cho kết quả y hệt nhau** → mất khả năng quét độ nhạy theo R. Toàn bộ dataset đã rebuild lại ở res 8 và **khớp bit-level** với snapshot gốc (`demand_h3` 268.404 ô · `pop` 99,63M · road 730.718 km); QA OSM PASS. Đồng thời sửa lỗi hình học: "800 m" cũ là do **nhầm bán kính nội tiếp với cạnh** lục giác — giá trị đúng `d = a·√3 = 2r = 0,98 km`.
 - [X] **Giang:** viết data documentation mới cho tầng cung → [crawler-evcs.md](crawler-evcs.md). Còn lại: doc cho demand/coverage khi build xong.
 
