@@ -14,6 +14,10 @@ PROCESSED_DIR = DATA / "processed"
 CANDIDATE_SITES = PROCESSED_DIR / "candidate_sites.parquet"
 CANDIDATE_GEOJSON = PROCESSED_DIR / "candidate_sites.geojson"
 
+# --- covered0: baseline coverage từ trạm hiện có (active + public) ---
+COVERED0_SITES = PROCESSED_DIR / "covered0.parquet"
+COVERED0_GEOJSON = PROCESSED_DIR / "covered0.geojson"
+
 # --- demand proxy (Sprint 2) ---
 DEMAND_WEIGHT = PROCESSED_DIR / "demand_weight.parquet"
 

@@ -1,4 +1,4 @@
-.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national
+.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0
 
 CITY ?= hanoi
 
@@ -33,6 +33,12 @@ landuse:  ## Build buildable_h3 land-use filter for CITY (WorldCover + OSM + roa
 
 candidates:  ## Build MCLP candidate sites for CITY (needs `make landuse` first)  [P5]
 	PYTHONPATH=src python -m ev_siting.features.build_candidates --city $(CITY)
+
+covered0:  ## Build covered0 baseline (active+public existing stations) for CITY  [P8]
+	PYTHONPATH=src python -m ev_siting.features.build_covered0 --city $(CITY)
+
+covered0-national:  ## Build covered0 baseline for ALL Vietnam  [P8]
+	PYTHONPATH=src python -m ev_siting.features.build_covered0 --national
 
 landuse-national:  ## Build buildable_h3 for ALL Vietnam (national grid, ~1.5GB WorldCover)  [P5]
 	PYTHONPATH=src python -m ev_siting.data.landuse.worldcover --national
