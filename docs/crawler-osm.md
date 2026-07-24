@@ -97,5 +97,9 @@ PYTHONPATH=src python -m ev_siting.data.osm.roads_pbf --force-download
   thẳng về H3 nên **không giữ segment trong RAM**.
 - **Phân bổ chiều dài theo ô:** node đường thưa (đoạn thẳng có thể >1 km) → lấy mẫu dọc
   polyline mỗi ~150 m, cộng chiều dài đoạn con vào ô H3 của **điểm giữa**. Ở res 8
-  (cạnh ~0,46 km) sai số biên nhỏ, đủ tốt cho demand proxy.
+  (cạnh 0,56 km, bán kính nội tiếp 0,49 km) bước lấy mẫu 150 m ≪ kích thước ô → sai số
+  biên nhỏ, đủ tốt cho demand proxy.
+  > ⚠️ Con số "cạnh ~0,46 km" ở bản trước là **bán kính nội tiếp**, không phải cạnh — bảng
+  > H3 v3 ghi nhầm hai đại lượng này (v4 đã sửa). Với lục giác đều: cạnh `a` = bán kính
+  > **ngoại tiếp**; bán kính **nội tiếp** `r = a·√3/2`; tâm–tâm `d = a·√3 = 2r`. Xem **P4**.
 - **CRS:** WGS84 (EPSG:4326) xuyên suốt, khớp contract.

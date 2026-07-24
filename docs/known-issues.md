@@ -1,4 +1,3 @@
-
 # KNOWN ISSUES & LIMITATIONS REGISTER
 
 *Danh sách vấn đề của bài toán tối ưu vị trí trạm sạc VGreen. Đây là **nguồn chân lý để monitor & xử lý** — mỗi vấn đề có: kết luận (verdict), mức độ, phạm vi xử lý trong internship, chủ sở hữu, hướng khắc phục, trạng thái. Cập nhật cột **Trạng thái** khi tiến triển.*
@@ -30,32 +29,32 @@
 
 | ID           | Vấn đề                                                                 | Verdict | Mức | Phạm vi      | Owner     | Trạng thái | Ghi chú                                                                                                                                                   |
 | ------------ | ------------------------------------------------------------------------- | ------- | ---- | ------------- | --------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **P1** | Heuristic weights thay vì fit model có giám sát trên 18,6M occupancy | ✅      | 🟠   | SIMPLIFY      | Giang     | ☑           | - Công thức tính demand proxy hiện không sử dụng occupancy polling dataset.<br />- Heuristic weights thủ công thay vì fit model thông qua ML |
+| **P1** | Heuristic weights thay vì fit model có giám sát trên 18,6M occupancy | ✅      | 🟠   | SIMPLIFY      | Kỳ       | ☐           | - Công thức tính demand proxy hiện không sử dụng occupancy polling dataset.<br />- Heuristic weights thủ công thay vì fit model thông qua ML |
 | **P2** | Selection bias: chỉ quan sát demand nơi**đã có** trạm        | ✅      | ⚪   | DOC → FUTURE | Giang/Kỳ | ⊘           |                                                                                                                                                            |
 | **P3** | Cửa sổ 7,15 ngày → bỏ qua mùa vụ/lễ/thời tiết                   | ✅      | ⚪   | DOC → FUTURE | Giang     | ⊘           |                                                                                                                                                            |
 
 ### B. Spatial Geometry & Siting Mechanics
 
-| ID           | Vấn đề                                                                                                                                           | Verdict | Mức | Phạm vi              | Owner       | Trạng thái | Ghi chú                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ---- | --------------------- | ----------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **P4** | **- Bán kính suy biến:** 500 m < 800 m (tâm ô res 8) → MCLP = sort top-p<br />- 500 m không phải khoảng cách đo đạc cho xe hơi | ✅      | 🔴   | **FIX (chặn)** | Kỳ + Giang | ☑           | Mỗi ô đất H3 res 8 rộng ~800m. Nếu bán kính sạc chỉ là 500m thì trạm sạc chỉ phủ đúng ô chứa nó mà không phủ sang ô bên cạnh. Bài toán tối ưu bị "hỏng" (suy biến) thành việc chỉ chọn các ô đông nhất từ trên xuống dưới (`sort top-p`). Ngoài ra, người đi ô tô điện không sạc trong bán kính đi bộ 500m. |
-| **P5** | Candidate set chưa định nghĩa; thiếu lọc land-use (hồ/núi/đất cấm)                                                                       | ✅      | 🟡   | SIMPLIFY              | Giang       | ◐           |                                                                                                                                                                                                                                                                                                                                                                             |
+| ID           | Vấn đề                                                                                                                                                                   | Verdict | Mức | Phạm vi              | Owner       | Trạng thái | Ghi chú                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ---- | --------------------- | ----------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **P4** | **- Bán kính suy biến:** R = 500 m < khoảng cách tâm 2 ô kề nhau (0,98 km) → MCLP = sort top-p<br />- 500 m không phải khoảng cách đo đạc cho xe hơi | ✅      | 🔴   | **FIX (chặn)** | Kỳ + Giang | ☑           | Lỗi nằm ở**tỷ lệ** `R / d` (d = khoảng cách tâm 2 ô H3 kề nhau), không phải ở R hay ở lưới riêng lẻ. Cấu hình cũ `R=500 m / d=0,98 km` → tỷ lệ **0,51 < 1** ⇒ mỗi trạm chỉ phủ đúng ô chứa nó ⇒ bài toán suy biến thành "chọn các ô đông nhất từ trên xuống" (`sort top-p`). Ngoài ra 500 m là bán kính **đi bộ**, không phải catchment lái xe.<br /> giữ lưới **H3 res 8**, chốt **R = 3 km** (tỷ lệ 3,07) + quét {1,5 · 2 · 3 · 5} km.  |
+| **P5** | Candidate set chưa định nghĩa; thiếu lọc land-use (hồ/núi/đất cấm)                                                                                               | ✅      | 🟡   | SIMPLIFY              | Giang       | ☐           |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ### C. Master Data & Entity Resolution
 
 | ID           | Vấn đề                                                                          | Verdict | Mức | Phạm vi  | Owner | Trạng thái | Ghi chú                                                                                                                                                                              |
 | ------------ | ---------------------------------------------------------------------------------- | ------- | ---- | --------- | ----- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **P6** | Trùng PK (236 dòng); số trạm lệch giữa doc/report (28.417 vs 28.625)         | ✅      | 🟡   | FIX       | Giang | ☑           | Dữ liệu trạm sạc cào từ nhiều nguồn bị trùng ID (cùng 1 trạm nhưng ghi nhận nhiều lần) và số liệu trong các báo cáo cũ không thống nhất (28.417 vs 28.625). |
-| **P7** | Nhiễm xe máy điện: dùng power tier chung thay vì chuẩn cắm (CCS2)          | ✅      | 🟠   | FIX       | Giang | ☑           | Xe máy và ô tô cùng dùng loại sạc AC nhưng với công suất khác nhau                                                                                                      |
-| **P8** | Thiếu lọc trạng thái vận hành & access (private vs public)                   | ✅      | 🟡   | FIX       | Giang | ☑           |                                                                                                                                                                                       |
-| **P9** | Lệch thời điểm giữa các đợt crawl (occupancy 2026 · WorldPop 2020 · OSM) | ✅      | 🟡   | FIX + DOC | Giang | ☑           |                                                                                                                                                                                       |
+| **P6** | Trùng PK (236 dòng); số trạm lệch giữa doc/report (28.417 vs 28.625)         | ✅      | 🟡   | FIX       | Giang | ☐           | Dữ liệu trạm sạc cào từ nhiều nguồn bị trùng ID (cùng 1 trạm nhưng ghi nhận nhiều lần) và số liệu trong các báo cáo cũ không thống nhất (28.417 vs 28.625). |
+| **P7** | Nhiễm xe máy điện: dùng power tier chung thay vì chuẩn cắm (CCS2)          | ✅      | 🟠   | FIX       | Giang | ☐           | Xe máy và ô tô cùng dùng loại sạc AC nhưng với công suất khác nhau                                                                                                      |
+| **P8** | Thiếu lọc trạng thái vận hành & access (private vs public)                   | ✅      | 🟡   | FIX       | Giang | ☐           |                                                                                                                                                                                       |
+| **P9** | Lệch thời điểm giữa các đợt crawl (occupancy 2026 · WorldPop 2020 · OSM) | ✅      | 🟡   | FIX + DOC | Giang | ☐           |                                                                                                                                                                                       |
 
 ### D. Covariates & Feature Engineering
 
 | ID            | Vấn đề                                                                     | Verdict | Mức | Phạm vi | Owner | Trạng thái | Ghi chú                                                                     |
 | ------------- | ----------------------------------------------------------------------------- | ------- | ---- | -------- | ----- | ------------ | ---------------------------------------------------------------------------- |
 | **P10** | WorldPop 2020 lỗi thời (6 năm)                                             | ✅      | 🟡   | DOC      | Giang | ⊘           | Accepted limitation. Dùng WorldPop spatial ratio + GSO province scaling.    |
-| **P11** | Model tổng dân số thay vì mật độ**sở hữu ô tô** (~5–9% hộ) | ✅      | 🟠   | SIMPLIFY | Giang | ☑           | Demand Proxy A/B với POI/Roads + Meta RWI wealth index (robustness r=0.91). |
+| **P11** | Model tổng dân số thay vì mật độ**sở hữu ô tô** (~5–9% hộ) | ✅      | 🟠   | SIMPLIFY | Giang | ☐           | Demand Proxy A/B với POI/Roads + Meta RWI wealth index (robustness r=0.91). |
 
 ---
 
@@ -71,9 +70,21 @@
 
 ### B. Spatial Geometry & Siting Mechanics
 
-* **P4 (Bán kính suy biến 500m & không phù hợp với ô tô)**
+* **P4 (Bán kính suy biến & không phù hợp với ô tô)** — *chốt 24/07/2026*
 
-  * Chuyển bán kính phục vụ $R$ sang khoảng cách lái xe ô tô đô thị: **1.5 km, 2 km và 3 km**.
+  **Chẩn đoán:** lỗi nằm ở **tỷ lệ** giữa bán kính phục vụ và độ mịn lưới, không phải ở một trong hai:
+
+  $$
+  \text{tỷ lệ} = \frac{R}{d}, \quad d = \text{khoảng cách giữa tâm 2 ô H3 kề nhau}
+  $$
+
+  Tỷ lệ < 1 ⇒ mỗi trạm chỉ phủ đúng ô chứa nó ⇒ mọi trạm trong cùng 1 ô là như nhau ⇒ MCLP suy biến thành
+  `sort top-p`. Cấu hình cũ: `R = 500 m`, `d(res 8) = 0,98 km` → **tỷ lệ 0,51**.
+  Chỉ có **2 đòn bẩy**: (i) tăng `R`, hoặc (ii) **thu nhỏ ô** (đi xuống res mịn hơn).
+
+  * GIỮ lưới `H3 res 8`
+
+  * Quyết định 2 — CHỐT `R = 3 km` (baseline), quét km
 * **P5 (Candidate set chưa định nghĩa & thiếu lọc land-use hồ/núi/đất cấm):**
 
 ### C. Master Data & Entity Resolution
@@ -89,7 +100,7 @@
 
 * **P10 (WorldPop 2020 lỗi thời 6 năm):**
 
-  * Thừa nhận hạn chế (`DOC`). 
+  * Thừa nhận hạn chế (`DOC`).
   * **Hiệu chỉnh Pha 5:** Kết hợp WorldPop với số liệu dân số chính thức mới nhất của Tổng cục Thống kê (GSO) cấp tỉnh để tính toán chỉ số `coverage_pop` (% dân số được phủ trạm sạc thực tế).
 * **P11 (Model tổng dân số vs Mật độ sở hữu ô tô):**
 

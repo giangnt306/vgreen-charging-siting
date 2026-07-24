@@ -111,7 +111,7 @@ Phân vai tổng quát:
 
 > **Phụ thuộc:** **demand proxy (01/08)** là mốc chặn — Kỳ không chạy được MCLP "thật" nếu chưa có nó. Vì vậy Kỳ làm **toy example trước** để dựng khung model, còn Giang ưu tiên xong proxy giữa sprint. *Giang tự xây demand từ nguồn công khai (WorldPop/OSM/POI) → chủ động hoàn toàn tiến độ proxy.*
 
-> **Lưu ý coverage:** coverage/gap do **Giang tự tính** theo **bán kính R của MCLP** (không dùng ngưỡng cố định 5 km), đồng bộ giữa demand proxy của Giang và bước đo coverage của Kỳ.
+> **Lưu ý coverage:** coverage/gap do **Giang tự tính** theo **bán kính R của MCLP** — chốt **R = 3 km (baseline)**, quét {1,5 · 2 · 3 · 5} km (không dùng ngưỡng cố định 5 km), đồng bộ giữa demand proxy của Giang và bước đo coverage của Kỳ. ⚠️ **R phải > 0,98 km** (khoảng cách tâm–tâm ô res 8), nếu không MCLP suy biến thành `sort top-p` (**P4**).
 
 ### Sprint 3 — Ràng buộc, tích hợp & report cuối *(review 22/08)*
 
@@ -184,14 +184,14 @@ Trong phạm vi internship, frontend = **map demo** do **Giang** đảm nhiệm,
 
 ## Phụ lục — Assumptions & Limitations (đề xuất bổ sung)
 
-> **⚠️ Rủi ro & vấn đề đã biết (23 mục P1–P23):** theo dõi & xử lý ở **[known-issues.md](known-issues.md)** — đã kiểm chứng thực nghiệm 22/23 là đúng; **P7 là lỗi FATAL** (bán kính 500 m suy biến MCLP thành sort top-p); quyết định cốt lõi: có dùng 18,6M điểm occupancy để calibrate demand hay không.
+> **⚠️ Rủi ro & vấn đề đã biết (23 mục P1–P23):** theo dõi & xử lý ở **[known-issues.md](known-issues.md)** — đã kiểm chứng thực nghiệm 22/23 là đúng; **P4 là lỗi FATAL** (bán kính 500 m suy biến MCLP thành sort top-p) — **đã chốt cách xử lý 24/07: giữ lưới H3 res 8, chốt R = 3 km**; quyết định cốt lõi: có dùng 18,6M điểm occupancy để calibrate demand hay không.
 
 
 - Phạm vi internship là **model MCLP end-to-end (Kỳ) + toàn bộ data layer & map demo (Giang)**; hạ tầng production (API đầy đủ, auth, CI/CD, monitoring) là hướng mở rộng sau. *(Cần chốt lại với mentor.)*
 - **Đổi phân vai (21/07):** dataset gold của Kỳ bị lỗi → bỏ hẳn; **Giang tự xây toàn bộ tầng dữ liệu** (crawl station/connector + demand + coverage). Kỳ chỉ còn model. `DATASET_EXPLAINED.md` (của Kỳ) **deprecated**.
 - POI (OSM) và mật độ dân cư (WorldPop) là dữ liệu mở, độ chính xác đủ cho MVP nhưng có thể lệch ở khu vực cập nhật thưa → giai đoạn sau nên đối chiếu dữ liệu nội bộ.
-- **Đơn vị không gian là H3 res 8** (~0,74 km²) — chuẩn hóa demand/coverage/candidate về cùng lưới (xem [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md)). Demand do **Giang tự xây** từ WorldPop/OSM/POI theo H3 (không dùng dataset của Kỳ). Mỗi lần rebuild tạo snapshot mới.
-- **Coverage/gap được Giang tự tính theo bán kính R của MCLP**, không dùng ngưỡng `has_station_5km` cố định. Trọng số demand (`f(pop, road, POI…)`) do Giang định nghĩa.
+- **Đơn vị không gian là H3 res 8** — ô ở VN: cạnh 0,56 km, **tâm 2 ô kề nhau cách `d` = 0,98 km**, diện tích 0,83 km² — chuẩn hóa demand/coverage/candidate về cùng lưới (xem [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md)). Đi kèm: **bán kính phục vụ R = 3 km**, bắt buộc `R > d` nếu không MCLP suy biến (**P4**). Demand do **Giang tự xây** từ WorldPop/OSM/POI theo H3 (không dùng dataset của Kỳ). Mỗi lần rebuild tạo snapshot mới.
+- **Coverage/gap được Giang tự tính theo bán kính R của MCLP** (**R = 3 km baseline**, gate `R > 0,98 km` — **P4**), không dùng ngưỡng `has_station_5km` cố định. Trọng số demand (`f(pop, road, POI…)`) do Giang định nghĩa.
 - Biểu giá điện có thể thay đổi khi EVN điều chỉnh giá bình quân → pipeline cần cho phép cập nhật `pricing_tiers`.
 - Dữ liệu GPS/traffic và grid constraints phụ thuộc thương lượng nội bộ / bên thứ ba → là rủi ro tiến độ chính của Demand Map.
 - Không có log vận hành thực → các metric hiệu quả doanh nghiệp (utilization, ROI, bottleneck) chỉ ước lượng/mô phỏng, không phải số thật (xem mục 2 #1 & mục 4).

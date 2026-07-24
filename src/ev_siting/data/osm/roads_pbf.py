@@ -8,7 +8,8 @@ tiếp chiều dài đường về ô H3 res 8 — không giữ toàn bộ segme
 Với mỗi `way` có tag `highway` (loại lái xe được):
   - Tính chiều dài từng đoạn giữa 2 node (haversine).
   - Lấy mẫu dọc polyline mỗi ~SAMPLE_M mét, cộng chiều dài đoạn con vào ô H3
-    của điểm giữa -> phân bổ chiều dài theo ô khá sát ở res 8 (cạnh ~0,46 km).
+    của điểm giữa -> phân bổ chiều dài theo ô khá sát ở res 8 (cạnh 0,56 km; 0,46 km
+    ghi ở bản trước là bán kính nội tiếp, không phải cạnh — xem P4).
 
 Output:
   road_len_m    : tổng chiều dài đường (mọi loại lái xe được) trong ô

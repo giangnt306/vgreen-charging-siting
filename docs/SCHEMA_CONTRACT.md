@@ -4,11 +4,11 @@
 
 ## 1. Các quyết định đã chốt
 
-| # | Vấn đề                              | Quyết định                                                                                                               | Hệ quả                                                                                                                     |
-| - | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| 1 | **Demand proxy**                 | **Giang xây demand proxy từ nguồn công khai** (WorldPop + OSM + POI) theo lưới H3.                             | Giang sở hữu trọn khâu: crawl/tải nguồn → tính`demand_h3` → định nghĩa trọng số → trực quan hóa (mục 4). |
-| 2 | **Đơn vị lưới không gian** | **H3 res 8** (~0,74 km²) là đơn vị chuẩn cho demand, candidate site và coverage.                               | Mọi join không gian dùng`h3_r8`. `h3_r9` chỉ để tham chiếu chi tiết hơn khi cần.                               |
-| 3 | **Format bàn giao**             | **Parquet (Hive-partitioned) là canonical.** Đọc thẳng vào PostGIS / GeoPandas. CSV chỉ để xem nhanh (Excel). | Pipeline load đọc parquet, không phụ thuộc CSV export.                                                                  |
+| # | Vấn đề                              | Quyết định                                                                                                                                                                                                                                                                                                                                                | Hệ quả                                                                                                                                                                                                                                                     |
+| - | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1 | **Demand proxy**                 | **Giang xây demand proxy từ nguồn công khai** (WorldPop + OSM + POI) theo lưới H3.                                                                                                                                                                                                                                                              | Giang sở hữu trọn khâu: crawl/tải nguồn → tính`demand_h3` → định nghĩa trọng số → trực quan hóa (mục 4).                                                                                                                                 |
+| 2 | **Đơn vị lưới không gian** | **H3 res 8** — ô ở VN: cạnh (= bán kính ngoại tiếp) **0,56 km**, bán kính nội tiếp 0,49 km, **tâm 2 ô kề nhau cách `d` = 0,98 km**, diện tích 0,83 km² — là đơn vị chuẩn cho demand, candidate site và coverage. *(Xác nhận giữ nguyên 24/07/2026 sau khi thử res 7 và rollback — xem **P4**.)* | Mọi join không gian dùng`h3_r8`. `h3_r9` chỉ để tham chiếu chi tiết hơn khi cần. ⚠️ **Ràng buộc kèm theo: bán kính MCLP `R` phải > `d` = 0,98 km** (chốt **R = 3 km**) — nếu không, MCLP suy biến (**P4**). |
+| 3 | **Format bàn giao**             | **Parquet (Hive-partitioned) là canonical.** Đọc thẳng vào PostGIS / GeoPandas. CSV chỉ để xem nhanh (Excel).                                                                                                                                                                                                                                  | Pipeline load đọc parquet, không phụ thuộc CSV export.                                                                                                                                                                                                  |
 
 ---
 
@@ -20,31 +20,27 @@
 
 ### 🟢 `stations`
 
-| Cột                                                   | Kiểu                 | Vai trò trong bài toán                                 |
-| ------------------------------------------------------ | --------------------- | --------------------------------------------------------- |
-| `station_id`                                         | string                | **PK** (`vn-xxxx`)                                |
-| `lat`, `lng`                                       | double                | Vị trí — candidate site & tính khoảng cách coverage |
-| `admin_l1_code`, `province_name`                   | string                | Nối`agg_admin`, lọc theo tỉnh                        |
-| `commune_name`, `commune_kind`                     | string                | Nối cấp xã                                             |
-| `operator`                                           | string                | Phân biệt VGreen vs đối thủ                          |
-| `current_type`                                       | string                | `AC`/`DC`                                             |
-| `station_type`, `max_power_kw`, `total_power_kw` | string/double         | Cấu hình công suất                                    |
-| `num_connectors`                                     | int                   | Số súng (đối chiếu với bảng`connectors`)         |
-| `connector_types`                                    | list<string></string> | Chuẩn cắm                                               |
-| `status`                                             | string                | Lọc trạm đang hoạt động                             |
-| `confidence`, `freshness`, `quality_flags`       | double/list           | **Tín hiệu chất lượng**                        |
-| `verified`, `provenance`, `match_method`, `official_*` | bool/string     | **Đối chiếu nguồn chính thức** (vinfastauto.com) — xác minh + xuất xứ |
-| `h3_r8`                                              | string                | **Nối lưới** demand/coverage                     |
+| Cột                                                           | Kiểu                 | Vai trò trong bài toán                                                             |
+| -------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------- |
+| `station_id`                                                 | string                | **PK** (`vn-xxxx`)                                                            |
+| `lat`, `lng`                                               | double                | Vị trí — candidate site & tính khoảng cách coverage                             |
+| `admin_l1_code`, `province_name`                           | string                | Nối`agg_admin`, lọc theo tỉnh                                                    |
+| `commune_name`, `commune_kind`                             | string                | Nối cấp xã                                                                         |
+| `operator`                                                   | string                | Phân biệt VGreen vs đối thủ                                                      |
+| `current_type`                                               | string                | `AC`/`DC`                                                                         |
+| `station_type`, `max_power_kw`, `total_power_kw`         | string/double         | Cấu hình công suất                                                                |
+| `num_connectors`                                             | int                   | Số súng (đối chiếu với bảng`connectors`)                                     |
+| `connector_types`                                            | list<string></string> | Chuẩn cắm                                                                           |
+| `status`                                                     | string                | Lọc trạm đang hoạt động                                                         |
+| `confidence`, `freshness`, `quality_flags`               | double/list           | **Tín hiệu chất lượng**                                                    |
+| `verified`, `provenance`, `match_method`, `official_*` | bool/string           | **Đối chiếu nguồn chính thức** (vinfastauto.com) — xác minh + xuất xứ |
+| `h3_r8`                                                      | string                | **Nối lưới** demand/coverage                                                 |
 
 ### 🟡 `demand_h3` — nhu cầu theo ô H3 (11 cột) · key: `h3_r8`
 
 **Nguồn demand chính thức cho MCLP.** Chứa **thành phần thô** theo ô: `pop`, `road_len_m`, `road_len_mt_m`, `n_poi`, `n_parking`, `n_fuel` (+ `admin_l1_code`, `province_name`, `commune_name`, `commune_kind`).
 
 > Bảng này **chưa có một con số "trọng số demand" duy nhất** cho mỗi ô — đó chính là phần Giang bổ sung (mục 4): `demand_weight = f(pop, road, poi, …)`.
-
-### 🟡 `demand_commune` — nhu cầu theo xã(11 cột)/phường
-
-Rollup cấp xã của `demand_h3` (+ `n_cells`). Dùng cho tổng hợp/kiểm tra, không phải đơn vị model.
 
 ### Quan hệ khóa
 
@@ -74,8 +70,9 @@ Rollup cấp xã của `demand_h3` (+ `n_cells`). Dùng cho tổng hợp/kiểm 
 - [X] **Giang:** ghép `pop` (WorldPop 2020 constrained, ~100m) → `data/interim/worldpop/worldpop_pop_h3.parquet` (99,63M người / 104.171 ô) → **`demand_h3` thô** `data/interim/demand/demand_h3.parquet` (268.404 ô: `pop` + `road_len_*` + `n_poi/parking/fuel`). Code `src/ev_siting/data/worldpop/`, xem [crawler-worldpop.md](crawler-worldpop.md). **Còn lại:** enrich cột admin (`admin_l1_code`, `province_name`, `commune_*`) + chốt tập cột cuối → cập nhật mục 3.
 - [X] **Giang (23/07):** crawl **nguồn chính thức VinFast** (vinfastauto.com, first-party) → `data/interim/vinfast_official/` (registry 23.247 trạm + 71.174 connector + admin). Xây **matcher 2 tầng** (`match_official.py`): `exact_code` (`station_code==store_id`, 19.427 trạm khớp tuyệt đối, toạ độ lệch ≤0,3 m) + `spatial_fuzzy` (BallTree haversine + rapidfuzz). Output `official_xref.parquet`. `transform_canonical` join vào `stations`: thêm cột **provenance** (`provenance`/`official_matched`/`match_method`/`official_store_id`/`match_dist_m`/`match_name_sim`/`official_charging_status`/`official_access_type`) + **định nghĩa lại** `verified` (corroboration first-party) và `confidence` (`0.4·completeness + 0.6·verification` cho trạm VinFast; `completeness` cho trạm ngoài phạm vi). Canonical: 19.432/19.507 verified, confidence TB 0,995. Doc [crawler-vinfast-official.md](crawler-vinfast-official.md).
 - [ ] **Giang:** chốt công thức `demand_weight = f(pop, road_len_mt_m, n_poi, n_parking, n_fuel, …)` — trọng số từng thành phần (đưa vào Sprint 2). ⚠️ Cân nhắc **calibrate trọng số bằng 18,6M điểm occupancy** thay vì đặt tay (**P1**); weight `pop` theo proxy sở hữu ô tô, không dùng tổng dân số thô (**P16**); giữ demand **ngoại sinh** — không đưa hiện diện trạm vào feature (**P17**). Xem [known-issues.md](known-issues.md).
-- [ ] **Giang:** tính coverage với bán kính R = tham số MCLP (thay ngưỡng `has_station_5km` cố định). ⚠️ **R phải ≥ ~1,6 km (catchment lái xe)** — nếu ~500 m thì mỗi candidate chỉ phủ chính ô nó (tâm ô res 8 cách ~0,8 km) → MCLP suy biến. Xem **P7/P8** trong [known-issues.md](known-issues.md).
+- [ ] **Giang:** tính coverage với bán kính **R = 3 km (baseline)**, quét {1,5 · 2 · 3 · 5} km (thay ngưỡng `has_station_5km` cố định). ⚠️ **Gate bắt buộc: FAIL nếu `R ≤ d` (0,98 km) · WARN nếu `R < 2d` (1,95 km)** — dưới ngưỡng đó mỗi candidate chỉ phủ chính ô nó → MCLP suy biến thành `sort top-p`. Xem **P4** trong [known-issues.md](known-issues.md).
 - [ ] **Giang + Kỳ:** thống nhất tập **candidate sites** cho MCLP (trạm hiện có `stations` + tâm các ô H3 gap?) — điểm chạm interop. ⚠️ Lọc **khả thi** (loại ô `road_len_m≈0`/`pop≈0` ~ hồ/núi) (**P9**); trạm hiện có phải là **incumbent bắt buộc mở** để model tìm khoảng trống (**P22**). Xem [known-issues.md](known-issues.md).
+- [X] **Giang (24/07):** **chốt xử lý P4** — giữ lưới `H3 res 8`, chốt **R = 3 km**. Đã dựng thử `res 7` (`demand_h3` 54.618 ô) rồi **rollback**: res 7 làm ô to gấp 7× (`d` 0,98 → 2,59 km), đẩy tỷ lệ `R/d` sai hướng và làm **mọi R trong (2,59; 4,48) km cho kết quả y hệt nhau** → mất khả năng quét độ nhạy theo R. Toàn bộ dataset đã rebuild lại ở res 8 và **khớp bit-level** với snapshot gốc (`demand_h3` 268.404 ô · `pop` 99,63M · road 730.718 km); QA OSM PASS. Đồng thời sửa lỗi hình học: "800 m" cũ là do **nhầm bán kính nội tiếp với cạnh** lục giác — giá trị đúng `d = a·√3 = 2r = 0,98 km`.
 - [X] **Giang:** viết data documentation mới cho tầng cung → [crawler-evcs.md](crawler-evcs.md). Còn lại: doc cho demand/coverage khi build xong.
 
 *Thay đổi schema sau ngày chốt → cập nhật bảng mục 1 & 3, ghi ngày, báo người còn lại.*

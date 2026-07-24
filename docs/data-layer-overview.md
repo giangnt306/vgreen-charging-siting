@@ -1,6 +1,8 @@
 # DATA LAYER — Tổng quan tầng dữ liệu (Giang)
 
-> Cập nhật lần cuối: **2026-07-23** · Nhánh `data/giang`.
+> Cập nhật lần cuối: **2026-07-24** · Nhánh `data/giang`.
+>
+> **24/07 — chốt xử lý P4:** giữ lưới **H3 res 8**, chốt **bán kính MCLP R = 3 km**.
 
 ---
 
@@ -95,7 +97,7 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 Hợp đồng đầy đủ: [SCHEMA_CONTRACT.md](SCHEMA_CONTRACT.md) · từ điển trường: [data-dictionary.md](data-dictionary.md).
 Dưới đây là **trạng thái thực tế của file hiện tại** (đã inspect 2026-07-23):
 
-### 🟢 `stations` — 33 cột, 19.507 dòng
+### 🟢 `stations` — 34 cột, 19.507 dòng
 
 - **Khóa:** `station_id` (`vn-…`, unique) · `station_code` (evcs.vn, unique).
 - **Vị trí:** `lat`/`lng` (0 null, 100% trong bbox VN), `h3_r8`.
@@ -128,7 +130,10 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 
 ## 5. Quy ước & quyết định đã chốt
 
-- **Đơn vị lưới:** H3 **res 8** (~0,74 km²) cho demand/coverage/candidate. `h3_r9` chỉ tham chiếu.
+- **Đơn vị lưới:** H3 **res 8** cho demand/coverage/candidate. `h3_r9` chỉ tham chiếu.
+  Hình học ô ở VN: cạnh `a` (= bán kính ngoại tiếp) **0,56 km** · bán kính nội tiếp `r = a·√3/2` **0,49 km** ·
+  **khoảng cách tâm–tâm `d = a·√3 = 2r`** = **0,98 km** · diện tích **0,83 km²**.
+- **Bán kính phục vụ:** **R = 3 km (baseline)**, quét {1,5 · 2 · 3 · 5} km. ⚠️ **R phải > `d`** - nếu không mỗi trạm chỉ phủ đúng ô của nó và MCLP suy biến thành `sort top-p` (**P4**).
 - **Format canonical:** **Parquet** (Hive-partitioned theo `province_code`). CSV chỉ để xem nhanh.
 - **Phạm vi cung:** **chỉ trạm sạc ô tô** — mặc định bỏ `BATTERY_SWAP` (9.118 trạm); giữ bằng `--keep-bss`.
 - **Join key official:** `station_code == store_id` (exact, lệch toạ độ ≤0,3 m) là ground-truth xác minh
@@ -151,29 +156,28 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 
 ---
 
-## 7. Vấn đề chất lượng dữ liệu đã phát hiện (chưa xử lý)
+## 7. Vấn đề chất lượng dữ liệu đã phát hiện
 
 Rà soát trên snapshot 2026-07-23, ánh xạ theo trường. Đây là các lỗi **chưa được làm sạch** —
 kế hoạch xử lý theo thứ tự ở [§8](#8-kế-hoạch-làm-sạch-theo-thứ-tự). Nguyên tắc: **flag dòng,
 không xoá**; đối soát `input = output + quarantined + merged` ở mọi bước.
 
-| # | Vấn đề | Trường ảnh hưởng | Bằng chứng | Hướng xử lý |
-| - | --- | --- | --- | --- |
-| 1 | Toạ độ placeholder / trùng | `lat`, `lng` | 274 toạ độ trùng khít; 35 trạm chồng 1 điểm HCM nhưng địa chỉ ở HN/Bắc Ninh → phủ ảo | flag `DUP_COORD` / `COORD_ADDR_MISMATCH` |
-| 2 | Trùng chéo nguồn (evcs vs official) | `station_id`, `lat`/`lng` | cùng 1 trạm lệch toạ độ nhẹ → đếm trùng cung | dedup không gian, **không** cộng dồn công suất |
-| 3 | Cột admin trống | `admin_l1_code`, `province_name`, `commune_name`, `commune_kind` (cả `stations` & `demand_h3`) | null 100% | spatial-join enrich (kiểm **vintage ranh giới 2025**) |
-| 4 | Cấu hình khuyết | `current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0` | 282 trạm, không có dòng connector | backfill từ connector rồi flag `INCOMPLETE_CONFIG` |
-| 5 | Null trạng thái / truy cập | `status` (72), `is_public` (80) | null | quyết định tường minh, **không** default ngầm |
-| 6 | Trường `operator` bẩn | `operator` | lẫn nhãn không phải operator ("Tiền mặt", "Hỗ trợ cộng đồng") | vocab kiểm soát + cờ VGreen sạch |
-| 7 | Text tự do bẩn | `name`, `address` | casing lộn xộn, tên operator nằm trong name | chuẩn hoá, giữ bản `*_raw` |
-| 8 | Cầu chưa audit | `pop`, POI/road | tổng pop khớp ✓ nhưng **phân bố không gian**/POI chưa kiểm | hồi quy tổng cấp xã vs **GSO**; kiểm bias OSM |
-| 9 | Dân cư không có đường | `pop` vs `road_len_m` | 6.352 ô `pop>0` mà `road=0` | flag, loại khỏi trọng số road |
-| 10 | Grid toàn quốc / MVP 1 thành phố | `demand_h3` (toàn bảng) | 164k ô rỗng, không có admin để cắt | clip về MVP city + buffer 5 km |
-| 11 | Chưa định nghĩa candidate site | — | chưa có | POI-anchored + trạm hiện có + gap fill |
-| 12 | Chưa freeze snapshot / provenance | nguồn raw | chưa hash / ghi ngày crawl | freeze + hash raw, ghi ngày crawl |
+| #  | Vấn đề                              | Trường ảnh hưởng                                                                                       | Bằng chứng                                                                                           | Hướng xử lý                                              |
+| -- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| 1  | Toạ độ placeholder / trùng         | `lat`, `lng`                                                                                            | 274 toạ độ trùng khít; 35 trạm chồng 1 điểm HCM nhưng địa chỉ ở HN/Bắc Ninh → phủ ảo | flag`DUP_COORD` / `COORD_ADDR_MISMATCH`                  |
+| 2  | Trùng chéo nguồn (evcs vs official) | `station_id`, `lat`/`lng`                                                                             | cùng 1 trạm lệch toạ độ nhẹ → đếm trùng cung                                                | dedup không gian,**không** cộng dồn công suất    |
+| 3  | Cột admin trống                      | `admin_l1_code`, `province_name`, `commune_name`, `commune_kind` (cả `stations` & `demand_h3`) | null 100%                                                                                              | spatial-join enrich (kiểm**vintage ranh giới 2025**) |
+| 4  | Cấu hình khuyết                     | `current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0`                                | 282 trạm, không có dòng connector                                                                  | backfill từ connector rồi flag`INCOMPLETE_CONFIG`        |
+| 5  | Null trạng thái / truy cập          | `status` (72), `is_public` (80)                                                                         | null                                                                                                   | quyết định tường minh,**không** default ngầm    |
+| 6  | Trường`operator` bẩn              | `operator`                                                                                                | lẫn nhãn không phải operator ("Tiền mặt", "Hỗ trợ cộng đồng")                               | vocab kiểm soát + cờ VGreen sạch                         |
+| 7  | Text tự do bẩn                       | `name`, `address`                                                                                       | casing lộn xộn, tên operator nằm trong name                                                        | chuẩn hoá, giữ bản`*_raw`                              |
+| 8  | Cầu chưa audit                       | `pop`, POI/road                                                                                           | tổng pop khớp ✓ nhưng**phân bố không gian**/POI chưa kiểm                               | hồi quy tổng cấp xã vs**GSO**; kiểm bias OSM      |
+| 9  | Dân cư không có đường           | `pop` vs `road_len_m`                                                                                   | 6.352 ô`pop>0` mà `road=0`                                                                       | flag, loại khỏi trọng số road                            |
+| 10 | Grid toàn quốc / MVP 1 thành phố   | `demand_h3` (toàn bảng)                                                                                 | 164k ô rỗng, không có admin để cắt                                                              | clip về MVP city + buffer 5 km                              |
+| 11 | Chưa định nghĩa candidate site     | —                                                                                                          | chưa có                                                                                              | POI-anchored + trạm hiện có + gap fill                    |
+| 12 | Chưa freeze snapshot / provenance     | nguồn raw                                                                                                  | chưa hash / ghi ngày crawl                                                                           | freeze + hash raw, ghi ngày crawl                           |
 
-> **Lưu ý:** #2, #10 và #8 là 3 điểm **thiếu trong kế hoạch gốc** — và #8 (audit cầu) là nơi
-> khả năng lộ vấn đề thật cao nhất vì demand chính là hàm mục tiêu.
+> **Lưu ý:** #2, #10 và #8 là 3 điểm **thiếu trong kế hoạch gốc** — và #8 (audit cầu) là nơi khả năng lộ vấn đề thật cao nhất vì demand chính là hàm mục tiêu.
 
 ---
 
@@ -185,7 +189,7 @@ Thứ tự có chủ đích — mỗi bước làm nhỏ tập lỗi cho bước
 2. **Clip về MVP city + buffer 5 km** (để demand rìa không bị coi là "chưa phủ" oan). **Đếm lại toàn bộ lỗi trên subset** — phần lớn sẽ co ≥90%, cho biết cái gì thực sự đáng lo. *(→ #10 · bước mới)*
 3. **Dedup chéo nguồn.** Block không gian bằng H3, chấm điểm theo distance + name-sim + address-sim. Auto-merge cặp high-confidence, review tay dải giữa. **Không bao giờ cộng công suất giữa các bản trùng.** *(→ #2 · bước mới)*
 4. **Sửa toạ độ.** Flag điểm dùng chung bởi ≥3 trạm; ≥10 = placeholder → loại hẳn. Chuẩn hoá địa chỉ trước, parse tỉnh từ địa chỉ rồi so với tỉnh từ toạ độ. Sửa từ toạ độ VinFast-official khi có; nếu không → đánh dấu unusable, **không snap về centroid**. *(→ #1)*
-5. **Audit cầu.** Xác định product/năm/method raster→H3 của pop. **Hồi quy tổng cấp xã vs GSO** — fail thì làm sạch trạm cũng vô nghĩa. Kiểm kích thước ô H3 ≤ ⅓ bán kính coverage. Dedup POI, kiểm bias OSM. Flag ô `pop>0/road=0` và loại khỏi trọng số road. *(→ #8, #9 · bước mới)*
+5. **Audit cầu.** Xác định product/năm/method raster→H3 của pop. **Hồi quy tổng cấp xã vs GSO** — fail thì làm sạch trạm cũng vô nghĩa. **Gate lưới ↔ bán kính: FAIL nếu `R ≤ d` (0,98 km), WARN nếu `R < 2d` (1,95 km)** — đây là tiêu chí chặn thật, thay cho quy tắc gần đúng "ô ≤ ⅓ R" (res 8 + R=3 km thoả cả hai: cạnh 0,56 km = 0,19·R). Xem **P4**. Dedup POI, kiểm bias OSM. Flag ô `pop>0/road=0` và loại khỏi trọng số road. *(→ #8, #9 · bước mới)*
 6. **Xử lý khuyết.** Backfill từ connector, phần còn lại flag `INCOMPLETE_CONFIG` — giữ làm điểm coverage, loại khỏi charger-config. `is_public` null: quyết tường minh (đề xuất **giữ + chạy model cả 2 chiều**). *(→ #4, #5)*
 7. **Chuẩn hoá categorical.** Map operator về danh sách kiểm soát, tách nhãn thanh toán ra, dựng boolean VGreen sạch. Đóng vocab connector-type. Làm sạch name/address, giữ bản raw. *(→ #6, #7)*
 8. **Enrich admin.** Spatial-join trạm + tâm ô H3. **Quan trọng: kiểm vintage layer ranh giới** — VN sáp nhập tỉnh & bỏ cấp huyện 2025, GADM/OSM thường cũ → layer cũ sinh mismatch trông như lỗi data. Rồi dựng `demand_commune`. *(→ #3)*
@@ -200,6 +204,7 @@ Các hạng mục **xây thêm** (ngoài làm sạch ở §8), đồng bộ [SCH
 
 - [ ] **`demand_weight = f(pop, road_len_mt_m, n_poi, n_parking, n_fuel, …)`** (`features/build_demand_proxy.py`).
 - [ ] **`demand_commune`** rollup (sau enrich admin — §8 bước 8).
-- [ ] **Coverage/gap** theo bán kính R của MCLP (bỏ ngưỡng `has_station_5km` cố định).
+- [ ] **Coverage/gap** theo bán kính **R = 3 km (baseline)**, quét {1,5 · 2 · 3 · 5} km (bỏ ngưỡng
+  `has_station_5km` cố định). **Phải cài gate `R > d` trước khi tính** (**P4**).
 - [ ] **Load PostGIS** + GIST index (`db/migrations` + `db/seeds` đang trống).
 - [ ] **GeoJSON hiện trạng + heatmap** (`viz/export_geojson.py`).

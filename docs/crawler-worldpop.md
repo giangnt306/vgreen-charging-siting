@@ -63,7 +63,7 @@ PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop --force-download
 - **pop:** 99,63 triệu người / **104.171 ô** — khớp dân số VN 2020 (~97–98 triệu; WorldPop
   UN-unadjusted thường nhỉnh hơn thống kê). ✅ sanity pass.
 - **demand_h3:** **268.404 ô** (union pop ∪ đường ∪ POI); 97.819 ô có **cả** dân & đường.
-- Spot-check lõi đô thị (0,74 km²/ô): HCMC Q1 ≈ 27.600 người, Hà Nội Hoàn Kiếm ≈ 31.200,
+- Spot-check lõi đô thị (0,83 km²/ô ở VN): HCMC Q1 ≈ 27.600 người, Hà Nội Hoàn Kiếm ≈ 31.200,
   Đà Nẵng ≈ 15.800 — đúng bậc độ dày dân.
 - Không có giá trị âm ở mọi cột.
 
@@ -73,5 +73,6 @@ PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop --force-download
   chỉ giữ pixel `> 0` và `!= nodata (-99999)`; tâm pixel → H3 → gộp dồn (dict) → không giữ
   toàn bộ ảnh trong RAM.
 - **Tâm pixel:** raster north-up (EPSG:4326) nên `lon = c + a·(col+0.5)`, `lat = f + e·(row+0.5)`
-  (`e < 0`). Sai số ≪ cạnh ô res 8 (~0,46 km) → an toàn cho demand proxy.
+  (`e < 0`). Sai số ≪ kích thước ô res 8 (cạnh 0,56 km, bán kính nội tiếp 0,49 km) → an toàn cho
+  demand proxy. *(Bản trước ghi "cạnh ~0,46 km" — đó là bán kính nội tiếp, không phải cạnh; xem **P4**.)*
 - **CRS:** WGS84 (EPSG:4326) xuyên suốt, khớp contract.
