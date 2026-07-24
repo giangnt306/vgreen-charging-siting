@@ -13,6 +13,10 @@ crawl tho) thanh HAI bang canonical dung SCHEMA_CONTRACT muc 2/3:
 PHAM VI (Step A): du an chi nham vao O TO -> MAC DINH BO `BATTERY_SWAP`
 (tram doi pin khong phai tram sac oto). Co the keo lai bang `--keep-bss`.
 
+P7 (nhiem xe may / power tier): evcs.vn chi lo cong suat, khong lo chuan cam ->
+gan `connector_standard`/`vehicle_class` + sua AC/DC tu registry chinh thuc
+(`official_connectors.standard`, join store_id==station_code). Xem `load_official_std`.
+
 Output: Parquet Hive-partitioned theo `province_code`:
   data/interim/canonical/stations/province_code=<XX>/*.parquet
   data/interim/canonical/connectors/province_code=<XX>/*.parquet
@@ -30,9 +34,17 @@ import h3
 import pandas as pd
 
 from .paths import MASTER_CSV, STATIONS_DIR, CONNECTORS_DIR, CANONICAL_DIR, PROJECT_ROOT
-from ..vinfast_official.paths import XREF_PARQUET
+from ..vinfast_official.paths import XREF_PARQUET, CONNECTORS_PARQUET as OFFICIAL_CONNECTORS
 
 H3_RES = 8
+
+# --- P7: chuan cam (plug standard) tu registry chinh thuc, KHONG suy tu power tier ---
+# evcs.vn chi lo cong suat (kW), khong lo chuan cam -> power tier khong tach duoc
+# xe may/o to va gan sai AC/DC o dai 20-22 kW (thuc te la DC CCS2). VinFast official
+# (`official_connectors.standard`) la nguon su that; join theo store_id==station_code
+# (xem memory vinfast-official-join-key). Chi CCS2/Type2 moi la chuan O TO.
+STD_SHORT = {"IEC_62196_T2_COMBO": "CCS2", "IEC_62196_T2": "TYPE2"}
+CAR_STANDARDS = {"CCS2", "TYPE2"}
 
 # Cot provenance/doi chieu nguon chinh thuc (match_official.py), join theo station_code.
 XREF_COLS = [
@@ -74,11 +86,38 @@ def types_to_list(conn_types: str) -> list:
     return [t for t in conn_types.split("|") if t]
 
 
-def explode_connectors(evse_powers_json, sid, code, prov):
+def load_official_std():
+    """Lookup `(station_code, power_kw)` -> `(connector_standard, current_type)`.
+
+    Xay tu `official_connectors` (VinFast first-party) — nguon DUY NHAT lo `standard`
+    (chuan cam). Dung de gan `vehicle_class` va SUA AC/DC (P7): power tier cua evcs
+    gan sai 20-22 kW la AC, thuc te la DC CCS2. `power_type` (`AC_3_PHASE`/`DC`) la
+    AC/DC dung theo first-party. Tra {} neu chua co registry -> fallback power tier."""
+    if not OFFICIAL_CONNECTORS.exists():
+        return {}
+    oc = pd.read_parquet(
+        OFFICIAL_CONNECTORS,
+        columns=["store_id", "standard", "power_type", "max_electric_power_kw"],
+    )
+    lut = {}
+    for code, kw, std, pt in zip(oc["store_id"], oc["max_electric_power_kw"],
+                                 oc["standard"], oc["power_type"]):
+        try:
+            key = (code, round(float(kw), 1))
+        except (TypeError, ValueError):
+            continue
+        cur = "AC" if str(pt).startswith("AC") else "DC"
+        lut.setdefault(key, (STD_SHORT.get(std, "OTHER"), cur))
+    return lut
+
+
+def explode_connectors(evse_powers_json, sid, code, prov, std_lut):
     """`evse_powers` (JSON) -> list dong connector (tang 2).
 
     evsePowers = [{type:<W>, totalEvse:<so sung lap>, numberOfAvailableEvse:<trong>}].
-    Moi nhom cong suat -> 1 connector. current_type suy tu nguong AC_MAX_W.
+    Moi nhom cong suat -> 1 connector. `current_type` + `connector_standard` +
+    `vehicle_class` lay tu registry chinh thuc (`std_lut`) khi khop; neu khong khop
+    (tram evcs-only) -> fallback power tier + `UNKNOWN`/`UNVERIFIED` (P7).
     """
     try:
         groups = json.loads(evse_powers_json) if isinstance(evse_powers_json, str) else []
@@ -98,14 +137,23 @@ def explode_connectors(evse_powers_json, sid, code, prov):
         if w <= 0 and n_total <= 0:
             continue
         idx += 1
-        cur = "AC" if 0 < w <= AC_MAX_W else "DC"
+        pw = round(w / 1000, 1) if w else None
+        official = std_lut.get((code, pw)) if pw is not None else None
+        if official:
+            std_short, cur = official                 # chuan cam + AC/DC first-party
+        else:
+            std_short = "UNKNOWN"                       # evcs-only: khong xac minh duoc
+            cur = "AC" if 0 < w <= AC_MAX_W else "DC"   # fallback power tier
+        veh = "CAR" if std_short in CAR_STANDARDS else "UNVERIFIED"
         rows.append({
             "connector_id": f"{sid}-c{idx}",
             "station_id": sid,
             "station_code": code,
             "province_code": prov,
-            "power_kw": round(w / 1000, 1) if w else None,
+            "power_kw": pw,
             "current_type": cur if w > 0 else None,
+            "connector_standard": std_short,
+            "vehicle_class": veh,
             "connector_label": f"{cur}-{w / 1000:g}kW" if w > 0 else None,
             "count_total": n_total,
             "count_available": n_avail,
@@ -204,7 +252,7 @@ def run(keep_bss: bool = False):
     stations_cols = [
         "station_id", "station_code", "lat", "lng", "h3_r8",
         "admin_l1_code", "province_name", "province_code", "commune_name", "commune_kind",
-        "name", "address", "operator", "station_type",
+        "name", "address", "operator", "station_type", "vehicle_class",
         "current_type", "max_power_kw", "total_power_kw", "num_connectors", "connector_types",
         "status", "is_public", "verified", "has_timeseries",
         "confidence", "freshness", "quality_flags",
@@ -212,19 +260,42 @@ def run(keep_bss: bool = False):
         "provenance", "official_matched", "match_method", "official_store_id",
         "match_dist_m", "match_name_sim", "official_charging_status", "official_access_type",
     ]
-    stations = df[stations_cols].reset_index(drop=True)
 
-    # --- tang 2: no connectors ---
+    # --- tang 2: no connectors (kem chuan cam + vehicle_class tu registry chinh thuc) ---
+    std_lut = load_official_std()
     conn_rows = []
     for _, r in df.iterrows():
         conn_rows.extend(
             explode_connectors(r["evse_powers"], r["station_id"], r["station_code"],
-                               r["province_code"])
+                               r["province_code"], std_lut)
         )
     connectors = pd.DataFrame(conn_rows, columns=[
         "connector_id", "station_id", "station_code", "province_code",
-        "power_kw", "current_type", "connector_label", "count_total", "count_available",
+        "power_kw", "current_type", "connector_standard", "vehicle_class",
+        "connector_label", "count_total", "count_available",
     ])
+
+    # --- P7: roll-up tu connector da sua chuan cam ve station ---
+    # current_type dung (AC/DC/MIXED) suy tu connector, ghi de nhan power-tier cu.
+    def _roll_current(s):
+        has_ac, has_dc = (s == "AC").any(), (s == "DC").any()
+        return "MIXED" if has_ac and has_dc else ("AC" if has_ac else "DC" if has_dc else None)
+    cur_by_st = connectors.groupby("station_id")["current_type"].apply(_roll_current)
+    # vehicle_class: CAR neu moi connector la chuan o to; UNVERIFIED neu con connector
+    # chua co chuan chinh thuc (evcs-only); UNKNOWN neu tram khong co connector nao.
+    veh_by_st = connectors.groupby("station_id")["vehicle_class"].apply(
+        lambda s: "CAR" if (s == "CAR").all() else "UNVERIFIED")
+    n_wrong_ct = int((df["station_id"].map(cur_by_st).notna()
+                      & (df["current_type"] != df["station_id"].map(cur_by_st))).sum())
+    df["current_type"] = df["station_id"].map(cur_by_st).fillna(df["current_type"])
+    df["vehicle_class"] = df["station_id"].map(veh_by_st).fillna("UNKNOWN")
+    # flag tuong minh cho tram CO connector nhung chua xac minh duoc chuan cam
+    # (khong default ngam). Tram khong co connector da co INCOMPLETE_CONFIG rieng.
+    unv = df["vehicle_class"] == "UNVERIFIED"
+    df.loc[unv, "quality_flags"] = df.loc[unv, "quality_flags"].apply(
+        lambda l: l if "STD_UNVERIFIED" in l else l + ["STD_UNVERIFIED"])
+
+    stations = df[stations_cols].reset_index(drop=True)
 
     # --- ghi Parquet Hive-partitioned theo province_code (ghi de sach) ---
     for d in (STATIONS_DIR, CONNECTORS_DIR):
@@ -249,6 +320,11 @@ def run(keep_bss: bool = False):
     print(f"  h3_r8 null (toa do xau) : {stations['h3_r8'].isna().sum():,}")
     print(f"  tram khong co connector : {(stations['num_connectors'] == 0).sum():,}")
     print(f"  connector orphan (FK)   : {n_orphan}")
+    print("--- P7 (chuan cam thay power tier) ------------------------")
+    print(f"  connector_standard      : {connectors['connector_standard'].value_counts().to_dict()}")
+    print(f"  vehicle_class (station) : {stations['vehicle_class'].value_counts().to_dict()}")
+    print(f"  current_type sua tu tier : {n_wrong_ct:,} tram (20-22 kW: AC->DC CCS2)")
+    print(f"  STD_UNVERIFIED (evcs-only): {int(stations['quality_flags'].apply(lambda l: 'STD_UNVERIFIED' in l).sum()):,}")
     print(f"  confidence trung binh   : {stations['confidence'].mean():.3f}")
     print(f"  verified (first-party)  : {int(stations['verified'].sum()):,} / {len(stations):,}")
     print(f"  match_method            : {stations['match_method'].value_counts().to_dict()}")

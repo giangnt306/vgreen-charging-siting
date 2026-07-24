@@ -147,7 +147,7 @@ Schema không đề cập `candidate_sites` là điểm bàn giao thứ 3 (đã 
 
 - Schema dùng **`h3_r8` / `h3_r9`** — nhất quán với dự án ✅
 - `current_type` AC/DC/MIXED — nhất quán ✅
-- Phân biệt `vehicle_class` ô tô/2 bánh — nhất quán với quyết định lọc BSS ✅
+- Phân biệt `vehicle_class` ô tô/2 bánh — nhất quán với quyết định lọc BSS ✅ (đã hiện thực hoá 24/07 từ chuẩn cắm chính thức — **P7**)
 - `quality_flags` trong stations — nhất quán ✅
 
 ---
@@ -159,7 +159,7 @@ Schema không đề cập `candidate_sites` là điểm bàn giao thứ 3 (đã 
 | **P4** Bán kính suy biến R/d | ✅ Có đề cập gate `R > d` | OK |
 | **P5** Candidate set / land-use | ⚠️ Đề cập qua A4 nhưng không nhắc `buildable_h3`, QA gate 5 cổng | Schema A4 ở D2 — nhưng thực tế candidate đã xong ở Sprint 1 |
 | **P6** Trùng PK / dedup | ❌ Không nhắc | |
-| **P7** Nhiễm xe máy / BSS | ⚠️ Có `vehicle_class` nhưng không nói BSS 9.118 trạm đã lọc | |
+| **P7** Nhiễm xe máy / BSS | ✅ **Đã xử lý (24/07).** `vehicle_class` + `connector_standard` suy từ chuẩn cắm chính thức (CCS2/Type2); BSS 9.118 đã lọc; sửa 1.588 connector 20-22 kW AC→DC CCS2 | |
 | **P8** Null status/is_public | ❌ Không nhắc — nhưng `status` đưa vào "solver tối thiểu" | Nguy hiểm: null 72 dòng mà coi là tối thiểu |
 | **P9** Lệch thời điểm crawl | ❌ Không nhắc | |
 | **P10** WorldPop 2020 lỗi thời | ❌ Không nhắc | |

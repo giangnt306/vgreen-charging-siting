@@ -27,14 +27,26 @@
 | `admin_l1_code`, `province_name`                           | string                | Nối`agg_admin`, lọc theo tỉnh                                                    |
 | `commune_name`, `commune_kind`                             | string                | Nối cấp xã                                                                         |
 | `operator`                                                   | string                | Phân biệt VGreen vs đối thủ                                                      |
-| `current_type`                                               | string                | `AC`/`DC`                                                                         |
+| `vehicle_class`                                              | string                | **`CAR`/`UNVERIFIED`/`UNKNOWN`** — lọc nhiễm xe máy (**P7**); `CAR` = mọi connector là chuẩn ô tô (CCS2/Type2) theo registry chính thức |
+| `current_type`                                               | string                | `AC`/`DC`/`MIXED` — **suy từ chuẩn cắm chính thức**, không từ power tier (**P7**: 20-22 kW là DC CCS2, không phải AC) |
 | `station_type`, `max_power_kw`, `total_power_kw`         | string/double         | Cấu hình công suất                                                                |
 | `num_connectors`                                             | int                   | Số súng (đối chiếu với bảng`connectors`)                                     |
-| `connector_types`                                            | list<string></string> | Chuẩn cắm                                                                           |
+| `connector_types`                                            | list<string></string> | Nhãn tier công suất (evcs.vn không lộ chuẩn cắm — xem `connectors.connector_standard`) |
 | `status`                                                     | string                | Lọc trạm đang hoạt động                                                         |
 | `confidence`, `freshness`, `quality_flags`               | double/list           | **Tín hiệu chất lượng**                                                    |
 | `verified`, `provenance`, `match_method`, `official_*` | bool/string           | **Đối chiếu nguồn chính thức** (vinfastauto.com) — xác minh + xuất xứ |
 | `h3_r8`                                                      | string                | **Nối lưới** demand/coverage                                                 |
+
+### 🟢 `connectors` — tầng 2, 1 dòng/nhóm công suất · FK `station_id`
+
+`connector_id`, `station_id` (FK), `power_kw`, `current_type`, `connector_label`, `count_total`, `count_available` + **2 cột chuẩn cắm (P7):**
+
+| Cột | Kiểu | Vai trò |
+| --- | --- | --- |
+| `connector_standard` | string | `CCS2` (`IEC_62196_T2_COMBO`) / `TYPE2` (`IEC_62196_T2`) / `UNKNOWN` (trạm evcs-only) — **chuẩn cắm chính thức** từ `official_connectors.standard`, join `store_id==station_code` |
+| `vehicle_class` | string | `CAR` (CCS2/Type2) / `UNVERIFIED` — chống nhiễm xe máy điện (**P7**) |
+
+> **P7 — chuẩn cắm thay power tier:** evcs.vn chỉ lộ **công suất**, không lộ chuẩn cắm → tier `AC/DC` theo ngưỡng 25 kW gán **sai** 20-22 kW thành AC (thực tế DC CCS2). Nguồn sự thật là VinFast official (`official_connectors.standard`); 100% connector khớp là chuẩn **ô tô** (CCS2/Type2) → không còn nhiễm 2 bánh sau khi lọc BSS.
 
 ### 🟡 `demand_h3` — nhu cầu theo ô H3 (11 cột) · key: `h3_r8`
 

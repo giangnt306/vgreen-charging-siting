@@ -99,21 +99,25 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 Hợp đồng đầy đủ: [SCHEMA_CONTRACT.md](../schema/schema-contract.md) · từ điển trường: [data-dictionary.md](../schema/data-dictionary.md).
 Dưới đây là **trạng thái thực tế của file hiện tại** (đã inspect 2026-07-23):
 
-### 🟢 `stations` — 34 cột, 19.507 dòng
+### 🟢 `stations` — 35 cột, 19.507 dòng
 
 - **Khóa:** `station_id` (`vn-…`, unique) · `station_code` (evcs.vn, unique).
 - **Vị trí:** `lat`/`lng` (0 null, 100% trong bbox VN), `h3_r8`.
-- **Cấu hình:** `current_type`, `max_power_kw`, `total_power_kw`, `num_connectors`, `connector_types` (list).
+- **Cấu hình:** `current_type` (AC/DC/**MIXED**, suy từ chuẩn cắm chính thức — **P7**), `max_power_kw`, `total_power_kw`, `num_connectors`, `connector_types` (list).
+- **Phương tiện (P7):** `vehicle_class` ∈ {`CAR` 19.218 · `UNVERIFIED` 7 (evcs-only, cờ `STD_UNVERIFIED`) · `UNKNOWN` 282 (không connector)}.
 - **Provenance/verify:** `verified` (19.432 True), `provenance`, `official_matched`, `match_method`,
   `official_store_id`, `match_dist_m`, `match_name_sim`, `official_charging_status`, `official_access_type`.
 - **Chất lượng:** `confidence` (TB 0,995), `freshness`, `quality_flags` (list: `ALL_ZERO` 3.343, `NO_TS` 289…).
 - ⚠️ **Null cần xử lý:** `admin_l1_code`/`province_name`/`commune_name`/`commune_kind` **= null 100%**;
   `current_type`/`max_power_kw`/`total_power_kw` null 282; `status` null 72; `is_public` null 80.
 
-### 🟢 `connectors` — 8 cột, 24.415 dòng
+### 🟢 `connectors` — 10 cột, 24.415 dòng
 
-- `connector_id`, `station_id` (FK, **0 orphan**), `power_kw`, `current_type`, `connector_label`,
+- `connector_id`, `station_id` (FK, **0 orphan**), `power_kw`, `current_type`,
+  `connector_standard` (**CCS2/TYPE2/UNKNOWN — P7**), `vehicle_class`, `connector_label`,
   `count_total`, `count_available`. **0 null.** `num_connectors == Σ count_total` ✓.
+- **P7:** `connector_standard` lấy từ registry chính thức (`official_connectors.standard`),
+  đã sửa **1.588 connector 20-22 kW** bị power tier gán nhầm AC → **DC CCS2**.
 
 ### 🟡 `demand_h3` — 7 cột, 268.404 ô (key `h3_r8`)
 
@@ -138,6 +142,8 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 - **Bán kính phục vụ:** **R = 3 km (baseline)**, quét {1,5 · 2 · 3 · 5} km. ⚠️ **R phải > `d`** - nếu không mỗi trạm chỉ phủ đúng ô của nó và MCLP suy biến thành `sort top-p` (**P4**).
 - **Format canonical:** **Parquet** (Hive-partitioned theo `province_code`). CSV chỉ để xem nhanh.
 - **Phạm vi cung:** **chỉ trạm sạc ô tô** — mặc định bỏ `BATTERY_SWAP` (9.118 trạm); giữ bằng `--keep-bss`.
+  Sau lọc BSS, **chuẩn cắm chính thức** (`connector_standard` CCS2/Type2) xác nhận 100% connector khớp
+  là chuẩn ô tô → `vehicle_class=CAR` (**P7**). `current_type` suy từ chuẩn cắm, **không** từ ngưỡng kW.
 - **Join key official:** `station_code == store_id` (exact, lệch toạ độ ≤0,3 m) là ground-truth xác minh
   → xem memory [[vinfast-official-join-key]].
 - **`confidence`:** `0.4·completeness + 0.6·verification` cho trạm VinFast; `completeness` cho trạm ngoài phạm vi.
@@ -154,6 +160,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | **Road network file lớn**                                  | .pbf 318M không load hết vào RAM                                        | Stream bằng**osmium** theo way, cộng dồn `road_len` theo H3.                                   |
 | **2 khóa khác nhau** (`station_code` vs `station_id`) | master occupancy ≠ canonical                                              | `transform_canonical` sinh `station_id` `vn-…`, giữ `station_code` để truy vết.              |
 | **BSS lẫn trong catalog**                                  | 9.118 trạm đổi pin không phải sạc ô tô                             | Mặc định lọc bỏ ở transform; cờ`--keep-bss` để giữ.                                           |
+| **Power tier gán sai AC/DC** *(P7)*                        | evcs.vn chỉ có công suất → 20-22 kW bị gán nhầm AC (thực tế DC CCS2) | Dùng chuẩn cắm chính thức (`official_connectors.standard`) sửa **1.588 connector**; thêm `connector_standard`/`vehicle_class`. |
 | **Toạ độ placeholder** *(mới phát hiện)*            | 35 trạm chồng 1 điểm HCM nhưng địa chỉ ở HN; 274 toạ độ trùng | **Chưa xử lý** → đưa vào kế hoạch làm sạch (flag `DUP_COORD`/`COORD_ADDR_MISMATCH`). |
 
 ---
