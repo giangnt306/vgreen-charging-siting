@@ -31,7 +31,9 @@
       "Bash(sed -i -e 's#]\\(candidate-sites\\\\.md#]\\(../data-layer/candidate-sites.md#g' -e 's#]\\(problem-analysis\\\\.md#]\\(../problem-analysis.md#g' -e 's#]\\(crawler-evcs\\\\.md#]\\(../sources/evcs.md#g' -e 's#]\\(crawler-osm\\\\.md#]\\(../sources/osm.md#g' -e 's#]\\(crawler-worldpop\\\\.md#]\\(../sources/worldpop.md#g' -e 's#]\\(crawler-vinfast-official\\\\.md#]\\(../sources/vinfast-official.md#g' -e 's#]\\(known-issues\\\\.md#]\\(../known-issues.md#g' docs/schema/schema-contract.md)",
       "Bash(PYTHONPATH=src python3 -c ' *)",
       "Bash(PYTHONPATH=src python -m ev_siting.features.build_covered0)",
-      "Bash(PYTHONPATH=src python -m ev_siting.data.evcs.merge_catalog)"
+      "Bash(PYTHONPATH=src python -m ev_siting.data.evcs.merge_catalog)",
+      "Bash(make candidates-national *)",
+      "Bash(git -C /home/wanderer210/Documents/AI/vgreen-charging-siting status --short)"
     ]
   }
 }

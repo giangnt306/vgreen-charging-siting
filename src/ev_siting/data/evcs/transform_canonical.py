@@ -57,6 +57,58 @@ VN_BBOX = (8.0, 23.6, 102.0, 110.0)    # lat_min, lat_max, lng_min, lng_max
 # Cot admin chua co nguon ranh gioi (Step B) -> tao san de dung schema, dien sau.
 ADMIN_COLS = ["admin_l1_code", "province_name", "commune_name", "commune_kind"]
 
+# --- P8: loc trang thai van hanh & access (private vs public) — QUYET DINH TUONG MINH ---
+# Hai truc DOC LAP, deu resolve OFFICIAL-FIRST (registry VinFast la ground truth,
+# xem memory vinfast-official-join-key), fallback evcs chi khi tram evcs-only.
+# LY DO official-first: `status` cua evcs la SNAPSHOT telemetry (trang thai tuc thoi
+# luc polling occupancy) -> "Available" mot khoanh khac KHONG lat nguoc registry ghi
+# INACTIVE. `official_charging_status` la trang thai lifecycle on dinh (crawl 2026-07-20).
+# op_status: gom telemetry occupancy (Available/AllBusy/BUSY) ve OPERATIONAL; maintenance
+# la tam thoi; OUT_OF_SERVICE la da ngung. access: Public/Restricted/Unknown.
+OFFICIAL_OP_STATUS = {
+    "ACTIVE": "OPERATIONAL", "BUSY": "OPERATIONAL",
+    "INACTIVE": "MAINTENANCE",
+    "OUTOFSERVICE": "OUT_OF_SERVICE", "UNAVAILABLE": "OUT_OF_SERVICE",
+}
+EVCS_OP_STATUS = {
+    "Available": "OPERATIONAL", "AllBusy": "OPERATIONAL",
+    "Maintaining": "MAINTENANCE", "OutOfService": "OUT_OF_SERVICE",
+}
+# Co P8 gan vao quality_flags theo op_status/access -> model (Ky) tu quyet loc them.
+OP_STATUS_FLAG = {"OUT_OF_SERVICE": "NOT_OPERATIONAL",
+                  "MAINTENANCE": "UNDER_MAINTENANCE", "UNKNOWN": "STATUS_UNKNOWN"}
+ACCESS_FLAG = {"RESTRICTED": "NON_PUBLIC", "UNKNOWN": "ACCESS_UNKNOWN"}
+
+
+def resolve_status_access(df: pd.DataFrame) -> pd.DataFrame:
+    """P8: sinh cot canonical `op_status`/`access`/`is_operational` (official-first)
+    + gan co P8 vao `quality_flags`. KHONG xoa dong, KHONG default ngam — chi phoi
+    bay tuong minh de model quyet dinh (chay ca 2 chieu voi UNKNOWN/MAINTENANCE).
+
+    - op_status  : OPERATIONAL / MAINTENANCE / OUT_OF_SERVICE / UNKNOWN
+    - access     : PUBLIC / RESTRICTED / UNKNOWN
+    - is_operational : loc cung DUY NHAT — loai OUT_OF_SERVICE (tram da ngung, khong
+      con la cung thuc). MAINTENANCE/UNKNOWN GIU (co ha tang vat ly; flag de model
+      loc them neu muon)."""
+    off_st = df["official_charging_status"].map(OFFICIAL_OP_STATUS)
+    evcs_st = df["status"].map(EVCS_OP_STATUS)
+    df["op_status"] = off_st.fillna(evcs_st).fillna("UNKNOWN")
+
+    off_ac = df["official_access_type"].map({"Public": "PUBLIC", "Restricted": "RESTRICTED"})
+    evcs_ac = df["is_public"].map({True: "PUBLIC", False: "RESTRICTED"})
+    df["access"] = off_ac.fillna(evcs_ac).fillna("UNKNOWN")
+
+    df["is_operational"] = df["op_status"] != "OUT_OF_SERVICE"
+
+    def _add_flags(row):
+        fl = list(row["quality_flags"])
+        for cand in (OP_STATUS_FLAG.get(row["op_status"]), ACCESS_FLAG.get(row["access"])):
+            if cand and cand not in fl:
+                fl.append(cand)
+        return fl
+    df["quality_flags"] = df.apply(_add_flags, axis=1)
+    return df
+
 
 def station_id(code: str) -> str:
     """`C.AC000001` -> `vn-c-ac000001`. On dinh, tra nguoc ve `station_code`."""
@@ -254,7 +306,8 @@ def run(keep_bss: bool = False):
         "admin_l1_code", "province_name", "province_code", "commune_name", "commune_kind",
         "name", "address", "operator", "station_type", "vehicle_class",
         "current_type", "max_power_kw", "total_power_kw", "num_connectors", "connector_types",
-        "status", "is_public", "verified", "has_timeseries",
+        "status", "is_public", "op_status", "access", "is_operational",
+        "verified", "has_timeseries",
         "confidence", "freshness", "quality_flags",
         # provenance / doi chieu nguon chinh thuc (vinfastauto.com)
         "provenance", "official_matched", "match_method", "official_store_id",
@@ -295,6 +348,9 @@ def run(keep_bss: bool = False):
     df.loc[unv, "quality_flags"] = df.loc[unv, "quality_flags"].apply(
         lambda l: l if "STD_UNVERIFIED" in l else l + ["STD_UNVERIFIED"])
 
+    # --- P8: loc trang thai van hanh & access (official-first, tuong minh) ---
+    df = resolve_status_access(df)
+
     stations = df[stations_cols].reset_index(drop=True)
 
     # --- ghi Parquet Hive-partitioned theo province_code (ghi de sach) ---
@@ -325,6 +381,12 @@ def run(keep_bss: bool = False):
     print(f"  vehicle_class (station) : {stations['vehicle_class'].value_counts().to_dict()}")
     print(f"  current_type sua tu tier : {n_wrong_ct:,} tram (20-22 kW: AC->DC CCS2)")
     print(f"  STD_UNVERIFIED (evcs-only): {int(stations['quality_flags'].apply(lambda l: 'STD_UNVERIFIED' in l).sum()):,}")
+    print("--- P8 (trang thai van hanh & access, official-first) ------")
+    print(f"  op_status               : {stations['op_status'].value_counts().to_dict()}")
+    print(f"  access                  : {stations['access'].value_counts().to_dict()}")
+    print(f"  is_operational=False    : {int((~stations['is_operational']).sum()):,} (OUT_OF_SERVICE, loai khoi cung)")
+    n_supply = int((stations['is_operational'] & (stations['access'] == 'PUBLIC')).sum())
+    print(f"  cung cong khai kha dung : {n_supply:,} (is_operational & access=PUBLIC)")
     print(f"  confidence trung binh   : {stations['confidence'].mean():.3f}")
     print(f"  verified (first-party)  : {int(stations['verified'].sum()):,} / {len(stations):,}")
     print(f"  match_method            : {stations['match_method'].value_counts().to_dict()}")

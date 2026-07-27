@@ -32,8 +32,12 @@
 | `station_type`, `max_power_kw`, `total_power_kw`         | string/double         | Cấu hình công suất                                                                |
 | `num_connectors`                                             | int                   | Số súng (đối chiếu với bảng`connectors`)                                     |
 | `connector_types`                                            | list<string></string> | Nhãn tier công suất (evcs.vn không lộ chuẩn cắm — xem `connectors.connector_standard`) |
-| `status`                                                     | string                | Lọc trạm đang hoạt động                                                         |
-| `confidence`, `freshness`, `quality_flags`               | double/list           | **Tín hiệu chất lượng**                                                    |
+| `status`                                                     | string                | **Nguồn evcs thô** (snapshot telemetry: Available/AllBusy/Maintaining/OutOfService) — dùng `op_status` đã resolve |
+| `is_public`                                                  | bool                  | **Nguồn evcs thô** access — dùng `access` đã resolve                            |
+| `op_status`                                                  | string                | **`OPERATIONAL`/`MAINTENANCE`/`OUT_OF_SERVICE`/`UNKNOWN`** — trạng thái vận hành resolve **official-first** (**P8**) |
+| `access`                                                     | string                | **`PUBLIC`/`RESTRICTED`/`UNKNOWN`** — access resolve **official-first** (**P8**) |
+| `is_operational`                                            | bool                  | **Lọc cung cứng (P8):** `False` ⇔ `op_status=OUT_OF_SERVICE` (trạm đã ngừng, loại khỏi cung/anchor T0). MAINTENANCE/UNKNOWN giữ + flag |
+| `confidence`, `freshness`, `quality_flags`               | double/list           | **Tín hiệu chất lượng** (P8 flags: `NOT_OPERATIONAL`/`UNDER_MAINTENANCE`/`STATUS_UNKNOWN`/`NON_PUBLIC`/`ACCESS_UNKNOWN`) |
 | `verified`, `provenance`, `match_method`, `official_*` | bool/string           | **Đối chiếu nguồn chính thức** (vinfastauto.com) — xác minh + xuất xứ |
 | `h3_r8`                                                      | string                | **Nối lưới** demand/coverage                                                 |
 

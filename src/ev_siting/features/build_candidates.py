@@ -59,10 +59,18 @@ def _in_aoi(aoi, df):
 
 
 def _load_stations(aoi):
-    """T0: trạm hiện có trong AOI (is_existing=True)."""
-    cols = ["station_id", "lat", "lng", "h3_r8", "quality_flags", "operator"]
+    """T0: trạm hiện có trong AOI (is_existing=True).
+
+    P8 — chỉ nhận trạm **đang vận hành & công khai** làm anchor brownfield: T0 là
+    incumbent bị ràng buộc **bắt buộc mở** (CapEx=0) nên không được ép mở trạm đã
+    ngừng (`is_operational=False`) hay trạm tư nhân (`access=RESTRICTED`). Giữ
+    UNKNOWN (không loại ngầm — §8 bước 6)."""
+    cols = ["station_id", "lat", "lng", "h3_r8", "quality_flags", "operator",
+            "is_operational", "access"]
     df = pd.read_parquet(STATIONS_DIR, columns=cols)
     df = df[_in_aoi(aoi, df)].copy()
+    # P8: loại trạm đã ngừng vận hành / tư nhân khỏi anchor T0
+    df = df[df["is_operational"] & (df["access"] != "RESTRICTED")]
     # loại toạ độ bẩn
     def _dirty(fl):
         return bool(_DIRTY_COORD_FLAGS & set(fl)) if fl is not None else False
