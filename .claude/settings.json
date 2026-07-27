@@ -50,7 +50,9 @@
       "Bash(pkill -f \"DEMAND_H3\")",
       "Bash(PYTHONPATH=src python -m ev_siting.data.evcs.dedup_crosssource --dump)",
       "Bash(PYTHONPATH=src python -m ev_siting.features.build_candidates --city hanoi)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(python -m py_compile src/ev_siting/features/build_candidates.py)",
+      "Bash(timeout 550 env PYTHONPATH=src python -m ev_siting.features.build_candidates --national)"
     ]
   }
 }

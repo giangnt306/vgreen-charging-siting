@@ -99,20 +99,29 @@ def _load_poi(aoi):
 
 def _gapfill(aoi, buildable, occupied_cells, gapfill_q=GAPFILL_TOP_Q):
     """T4: ô demand cao, buildable, chưa có anchor -> centroid (SYNTHETIC)."""
+    empty = pd.DataFrame(columns=["lat", "lng", "h3_r8", "tier", "anchor_type",
+                                  "source_ref", "is_existing"])
     dem = pd.read_parquet(DEMAND_H3)[["h3_r8", "pop", "n_poi", "road_len_mt_m"]]
     b = buildable[buildable["buildable"]][["h3_r8"]]
     cand = b.merge(dem, on="h3_r8", how="left").fillna(0.0)
     cand = cand[~cand["h3_r8"].isin(occupied_cells)]
     if cand.empty:
-        return pd.DataFrame(columns=["lat", "lng", "h3_r8", "tier", "anchor_type",
-                                     "source_ref", "is_existing"])
-    # điểm demand thô để chọn ô đáng gap-fill (pop chủ đạo + đường trục + POI)
+        return empty
+    # CLIP VỀ AOI (như anchor T0/T1/T2): `buildable_h3` có thể là bảng QUỐC GIA
+    # (lookup dùng chung cho mọi city — xem E-DQ9). Nếu không clip, city run sẽ hút
+    # cell toàn quốc và quantile tính trên phân bố quốc gia -> T4 nổ (size_ceiling).
+    # NationalAOI.contains == toàn bbox VN nên với --national đây là no-op.
+    latlng = cand["h3_r8"].map(lambda c: h3.cell_to_latlng(c))
+    cand["lat"] = latlng.map(lambda x: x[0])
+    cand["lng"] = latlng.map(lambda x: x[1])
+    cand = cand[_in_aoi(aoi, cand)].copy()
+    if cand.empty:
+        return empty
+    # điểm demand thô để chọn ô đáng gap-fill (pop chủ đạo + đường trục + POI).
+    # Quantile tính SAU khi clip -> ngưỡng thích ứng theo demand nội vùng AOI.
     score = cand["pop"] + 50 * cand["n_poi"] + 0.05 * cand["road_len_mt_m"]
     thr = score.quantile(gapfill_q)
     pick = cand[score >= thr].copy()
-    latlng = pick["h3_r8"].map(lambda c: h3.cell_to_latlng(c))
-    pick["lat"] = latlng.map(lambda x: x[0])
-    pick["lng"] = latlng.map(lambda x: x[1])
     pick["tier"] = "T4"
     pick["anchor_type"] = "gapfill_synthetic"
     pick["source_ref"] = "synthetic:" + pick["h3_r8"]
