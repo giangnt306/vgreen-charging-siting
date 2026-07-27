@@ -166,7 +166,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | **BSS lẫn trong catalog**                                  | 9.118 trạm đổi pin không phải sạc ô tô                             | Mặc định lọc bỏ ở transform; cờ`--keep-bss` để giữ.                                           |
 | **Power tier gán sai AC/DC** *(P7)*                        | evcs.vn chỉ có công suất → 20-22 kW bị gán nhầm AC (thực tế DC CCS2) | Dùng chuẩn cắm chính thức (`official_connectors.standard`) sửa **1.588 connector**; thêm `connector_standard`/`vehicle_class`. |
 | **Trùng PK & lệch số trạm** *(P6)*                         | enumerate lưới chồng lấn → trùng `station_code`; doc ghi 28.417, file 28.625 | Dedup first-wins có đếm (không cộng công suất) ở `merge_catalog.py` + cổng CRITICAL PK-unique ở `validate.py` (0 trùng); chốt snapshot **28.625** (+208 do crawl lại `cs`), đối soát 28.625 − 9.118 BSS = 19.507 canonical. |
-| **Toạ độ placeholder** *(mới phát hiện)*            | 35 trạm chồng 1 điểm HCM nhưng địa chỉ ở HN; 274 toạ độ trùng | **Chưa xử lý** → đưa vào kế hoạch làm sạch (flag `DUP_COORD`/`COORD_ADDR_MISMATCH`). |
+| **Toạ độ placeholder** *(mới phát hiện)*            | 35 trạm chồng 1 điểm HCM nhưng địa chỉ ở HN; 274 toạ độ trùng | **Chưa xử lý** → theo dõi ở `E-DQ1` (flag `DUP_COORD`/`COORD_ADDR_MISMATCH`). |
 | **Thiếu lọc trạng thái/access** *(P8)*             | `status`/`is_public` chưa lọc → trạm ngừng/tư nhân tính là cung; 72/80 null giữ ngầm | Resolve **official-first** `op_status`/`access` + boolean `is_operational` (loại cứng 42 OUT_OF_SERVICE); cờ tường minh, giữ dòng; T0 loại 63 trạm OUT_OF_SERVICE∪RESTRICTED. |
 
 ---
@@ -175,8 +175,10 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 
 > **Đã di chuyển (2026-07-24).** Các lỗi chất lượng dữ liệu (evidence, mức độ, trạng thái) giờ theo dõi
 > tập trung ở **[known-issues.md](../known-issues.md)** nhóm **E** (`E-DQ*`) — tránh theo dõi trùng ở 2 nơi.
-> Bảng dưới chỉ còn là **chỉ mục ánh xạ** `#N` (dùng trong [§8](#8-kế-hoạch-làm-sạch-theo-thứ-tự))
-> ↔ ID register ↔ trường ảnh hưởng. Nguyên tắc giữ nguyên: **flag dòng, không xoá**; đối soát
+> Bảng dưới chỉ còn là **chỉ mục ánh xạ** `#N` ↔ ID register ↔ trường ảnh hưởng.
+> **Thứ tự xử lý** nay nằm trực tiếp ở thứ tự các dòng `E-DQ*` trong
+> [known-issues.md §2](../known-issues.md#2-bảng-tổng-hợp-vấn-đề-đã-gộp) (thay cho kế hoạch làm sạch §8
+> đã gỡ). Nguyên tắc giữ nguyên: **flag dòng, không xoá**; đối soát
 > `input = output + quarantined + merged` ở mọi bước.
 
 | #  | ID register                     | Vấn đề                              | Trường ảnh hưởng                                       |
@@ -198,29 +200,12 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 
 ---
 
-## 8. Kế hoạch làm sạch (theo thứ tự)
+## 8. Còn thiếu — build tasks (sau làm sạch)
 
-Thứ tự có chủ đích — mỗi bước làm nhỏ tập lỗi cho bước sau. Đồng bộ [SCHEMA_CONTRACT.md §6](../schema/schema-contract.md).
-
-1. **Freeze inputs.** Hash mọi file raw, ghi ngày crawl + nguồn. Raw **bất biến**, không ghi đè. *(→ #12)*
-2. **Clip về MVP city + buffer 5 km** (để demand rìa không bị coi là "chưa phủ" oan). **Đếm lại toàn bộ lỗi trên subset** — phần lớn sẽ co ≥90%, cho biết cái gì thực sự đáng lo. *(→ #10 · bước mới)*
-3. **Dedup chéo nguồn.** Block không gian bằng H3, chấm điểm theo distance + name-sim + address-sim. Auto-merge cặp high-confidence, review tay dải giữa. **Không bao giờ cộng công suất giữa các bản trùng.** *(→ #2 · bước mới)*
-4. **Sửa toạ độ.** Flag điểm dùng chung bởi ≥3 trạm; ≥10 = placeholder → loại hẳn. Chuẩn hoá địa chỉ trước, parse tỉnh từ địa chỉ rồi so với tỉnh từ toạ độ. Sửa từ toạ độ VinFast-official khi có; nếu không → đánh dấu unusable, **không snap về centroid**. *(→ #1)*
-5. **Audit cầu.** Xác định product/năm/method raster→H3 của pop. **Hồi quy tổng cấp xã vs GSO** — fail thì làm sạch trạm cũng vô nghĩa. **Gate lưới ↔ bán kính: FAIL nếu `R ≤ d` (0,98 km), WARN nếu `R < 2d` (1,95 km)** — đây là tiêu chí chặn thật, thay cho quy tắc gần đúng "ô ≤ ⅓ R" (res 8 + R=3 km thoả cả hai: cạnh 0,56 km = 0,19·R). Xem **P4**. Dedup POI, kiểm bias OSM. Flag ô `pop>0/road=0` và loại khỏi trọng số road. *(→ #8, #9 · bước mới)*
-6. **Xử lý khuyết.** Backfill từ connector, phần còn lại flag `INCOMPLETE_CONFIG` — giữ làm điểm coverage, loại khỏi charger-config. ✅ **`status`/`is_public` (P8, 27/07):** resolve **official-first** → `op_status`/`access`/`is_operational`; loại cứng chỉ OUT_OF_SERVICE, MAINTENANCE/UNKNOWN **giữ + flag** để model chạy 2 chiều — quyết tường minh, không default ngầm. *(→ #4, #5)*
-7. **Chuẩn hoá categorical.** Map operator về danh sách kiểm soát, tách nhãn thanh toán ra, dựng boolean VGreen sạch. Đóng vocab connector-type. Làm sạch name/address, giữ bản raw. *(→ #6, #7)*
-8. **Enrich admin.** Spatial-join trạm + tâm ô H3. **Quan trọng: kiểm vintage layer ranh giới** — VN sáp nhập tỉnh & bỏ cấp huyện 2025, GADM/OSM thường cũ → layer cũ sinh mismatch trông như lỗi data. Rồi dựng `demand_commune`. *(→ #3)*
-9. **Sinh candidate.** ✅ **Đã làm (P5, 24/07)** — mô hình lai (điểm thực, **≤1 candidate/ô H3** để tránh tie-degenerate của MCLP), phân tầng anchor **T0 trạm hiện có · T1 parking/fuel · T2 mall/retail/apartments · T4 gap-fill synthetic**, lọc qua `buildable_h3` (WorldCover + OSM cấm + road access), loại cờ toạ độ bẩn, QA gate 5 cổng. Output `data/processed/candidate_sites.{parquet,geojson}`. Chi tiết [candidate-sites.md](candidate-sites.md). *(→ #11)*
-10. **Gate mọi bước.** Assert PK unique, 0 orphan FK, VN bbox, và — cái hay bị bỏ — **đối soát dòng:** `input = output + quarantined + merged`. **Flag dòng, không xoá.**
-
----
-
-## 9. Còn thiếu — build tasks (sau làm sạch)
-
-Các hạng mục **xây thêm** (ngoài làm sạch ở §8), đồng bộ [SCHEMA_CONTRACT.md §6](../schema/schema-contract.md):
+Các hạng mục **xây thêm** (ngoài làm sạch nhóm `E-DQ` — xem [known-issues.md](../known-issues.md)), đồng bộ [SCHEMA_CONTRACT.md §6](../schema/schema-contract.md):
 
 - [ ] **`demand_weight = f(pop, road_len_mt_m, n_poi, n_parking, n_fuel, …)`** (`features/build_demand_proxy.py`).
-- [ ] **`demand_commune`** rollup (sau enrich admin — §8 bước 8).
+- [ ] **`demand_commune`** rollup (sau enrich admin — `E-DQ3`).
 - [x] **Candidate sites (P5)** — `data/processed/candidate_sites.{parquet,geojson}` (mô hình lai ≤1/ô +
   T0–T4 + `buildable_h3` + QA gate 5 cổng). Chi tiết [candidate-sites.md](candidate-sites.md).
 - [ ] **Coverage/gap** theo bán kính **R = 3 km (baseline)**, quét {1,5 · 2 · 3 · 5} km (bỏ ngưỡng

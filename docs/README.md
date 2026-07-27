@@ -22,7 +22,7 @@ Mục lục điều hướng tài liệu. Tổ chức theo **vai trò**: cấp d
 
 | File | Nội dung |
 | --- | --- |
-| [data-layer/overview.md](data-layer/overview.md) | Tổng quan pipeline dữ liệu (kiến trúc, code, schema thực tế, kế hoạch làm sạch). |
+| [data-layer/overview.md](data-layer/overview.md) | Tổng quan pipeline dữ liệu (kiến trúc, code, schema thực tế, build tasks còn thiếu). |
 | [data-layer/candidate-sites.md](data-layer/candidate-sites.md) | Định nghĩa & sinh candidate sites (P5) cho MCLP. |
 
 ## `schema/` — schema & hợp đồng dữ liệu

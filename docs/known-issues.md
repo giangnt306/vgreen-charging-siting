@@ -41,16 +41,16 @@
 | **P9**     | C     | Lệch thời điểm giữa các đợt crawl (occupancy 2026 · WorldPop 2020 · OSM)                                                           | 🟡   | FIX + DOC             | Giang       | —                   | ☐           |
 | **P10**    | D     | WorldPop 2020 lỗi thời (6 năm)                                                                                                            | 🟡   | DOC                   | Giang       | —                   | ⊘           |
 | **P11**    | D     | Model tổng dân số thay vì mật độ**sở hữu ô tô** (~5–9% hộ)                                                                | 🟠   | SIMPLIFY              | Giang       | —                   | ☐           |
-| **E-DQ1**  | E     | Toạ độ placeholder / trùng khít                                                                                                         | 🟠   | FIX                   | Giang       | —                   | ☐           |
+| **E-DQ10** | E     | Chưa freeze snapshot / provenance                                                                                                           | 🟡   | FIX                   | Giang       | —                   | ☐           |
+| **E-DQ9**  | E     | Grid toàn quốc vs MVP 1 thành phố (`demand_h3` toàn bảng)                                                                            | 🟡   | SIMPLIFY              | Giang       | —                   | ☐           |
 | **E-DQ2**  | E     | Trùng chéo nguồn (evcs vs official)                                                                                                       | 🟠   | FIX                   | Giang       | —                   | ☐           |
-| **E-DQ3**  | E     | Cột admin trống (`admin_l1_code`, `province_name`, `commune_name`, `commune_kind`)                                                 | 🟡   | FIX                   | Giang       | —                   | ☐           |
+| **E-DQ1**  | E     | Toạ độ placeholder / trùng khít                                                                                                         | 🟠   | FIX                   | Giang       | —                   | ☐           |
+| **E-DQ7**  | E     | Cầu chưa audit (`pop`, POI/road)                                                                                                         | 🟠   | FIX                   | Giang       | —                   | ☐           |
+| **E-DQ8**  | E     | Dân cư không có đường (`pop>0 & road=0`)                                                                                            | 🟡   | FIX                   | Giang       | —                   | ☐           |
 | **E-DQ4**  | E     | Cấu hình khuyết (`current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0`)                                            | 🟡   | FIX                   | Giang       | —                   | ☐           |
 | **E-DQ5**  | E     | Trường`operator` bẩn                                                                                                                    | 🟡   | FIX                   | Giang       | —                   | ☐           |
 | **E-DQ6**  | E     | Text tự do bẩn (`name`, `address`)                                                                                                     | ⚪   | SIMPLIFY              | Giang       | —                   | ☐           |
-| **E-DQ7**  | E     | Cầu chưa audit (`pop`, POI/road)                                                                                                         | 🟠   | FIX                   | Giang       | —                   | ☐           |
-| **E-DQ8**  | E     | Dân cư không có đường (`pop>0 & road=0`)                                                                                            | 🟡   | FIX                   | Giang       | —                   | ☐           |
-| **E-DQ9**  | E     | Grid toàn quốc vs MVP 1 thành phố (`demand_h3` toàn bảng)                                                                            | 🟡   | SIMPLIFY              | Giang       | —                   | ☐           |
-| **E-DQ10** | E     | Chưa freeze snapshot / provenance                                                                                                           | 🟡   | FIX                   | Giang       | —                   | ☐           |
+| **E-DQ3**  | E     | Cột admin trống (`admin_l1_code`, `province_name`, `commune_name`, `commune_kind`)                                                 | 🟡   | FIX                   | Giang       | —                   | ☐           |
 
 ---
 
@@ -189,7 +189,7 @@ một khoảnh khắc vs official `INACTIVE` → theo official). Thêm 3 cột c
 - **`access`** ∈ {`PUBLIC`, `RESTRICTED`, `UNKNOWN`} — official-first (Public/Restricted), fallback `is_public`.
 - **`is_operational`** (bool) — **lọc cứng DUY NHẤT:** loại `OUT_OF_SERVICE` (trạm đã ngừng, không
   còn là cung thực). **MAINTENANCE + UNKNOWN GIỮ** (có hạ tầng vật lý / không có ground-truth) — chỉ
-  flag để model quyết loc thêm (**chạy 2 chiều**, §8 bước 6).
+  flag để model quyết loc thêm (**chạy 2 chiều** ở bước xử lý khuyết, `E-DQ4`).
 
 Cờ tường minh gắn vào `quality_flags`: `NOT_OPERATIONAL` · `UNDER_MAINTENANCE` · `STATUS_UNKNOWN` ·
 `NON_PUBLIC` · `ACCESS_UNKNOWN`. `build_candidates._load_stations` loại **OUT_OF_SERVICE ∪ RESTRICTED**
@@ -225,6 +225,10 @@ năm coi hạ tầng bảo trì là brownfield hiện hữu); model có thể lo
 
 - Giả thuyết: dữ liệu mật độ dân số chính là proxy cho dữ liệu mật độ sở hữu ô tô.
 
-### E. Data Quality & Cleaning (từ `data-layer-overview.md §7–§8`)
+### E. Data Quality & Cleaning (từ `data-layer-overview.md §7`)
 
-Toàn bộ nhóm E (**E-DQ1–E-DQ10**, xem [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn-đề-đã-gộp)) chia sẻ **kế hoạch làm sạch có thứ tự** ở [data-layer-overview.md §8](data-layer/overview.md) — mỗi bước đã tham chiếu ID `E-DQ*` tương ứng. Nguyên tắc chung: **flag dòng, không xoá**; đối soát `input = output + quarantined + merged` ở mọi bước.
+Các dòng **E-DQ** trong [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn-đề-đã-gộp) đã được **sắp theo thứ tự xử lý** (trên → dưới) — mỗi bước làm nhỏ tập lỗi cho bước sau:
+
+> `E-DQ10` freeze inputs → `E-DQ9` clip MVP city → `E-DQ2` dedup chéo nguồn → `E-DQ1` sửa toạ độ → `E-DQ7`+`E-DQ8` audit cầu → `E-DQ4` xử lý khuyết → `E-DQ5`+`E-DQ6` chuẩn hoá categorical → `E-DQ3` enrich admin.
+
+Thứ tự này thay cho *kế hoạch làm sạch §8* trước đây ở `data-layer-overview.md` (đã gỡ — thứ tự nay nằm ngay ở bảng). Nguyên tắc chung không đổi: **flag dòng, không xoá**; đối soát `input = output + quarantined + merged` ở mọi bước.

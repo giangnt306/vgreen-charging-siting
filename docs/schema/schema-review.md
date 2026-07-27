@@ -100,7 +100,7 @@ data/raw/ → data/interim/ → data/processed/
 | Số ô lệch | 316.526 vs 268.404 — lệch ~48k ô |
 | `demand_a/b` chưa tồn tại | Đây là TODO (`features/build_demand_proxy.py`) |
 | `pop_n/poi_n/road_n` chưa tồn tại | Chưa normalize |
-| Admin fields chưa có | Null 100%, đang là bước 8 trong kế hoạch làm sạch |
+| Admin fields chưa có | Null 100%, theo dõi ở `E-DQ3` (enrich admin) |
 | `n_parking`, `n_fuel` không khai báo | Có trong thực tế nhưng bị bỏ qua trong schema collaborator |
 
 > [!NOTE]

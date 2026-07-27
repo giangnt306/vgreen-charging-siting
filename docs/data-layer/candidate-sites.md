@@ -121,7 +121,7 @@ FAIL bất kỳ gate nào (mặc định) → exit ≠ 0, **không bàn giao K�
 | `candidate_id` | string | **PK** (`cand-<city>-<idx>`) |
 | `lat`, `lng` | double | toạ độ thật (explainability) |
 | `h3_r8` | string | ô coverage (**unique** — ≤1/ô) |
-| `province_code` | string | null → enrich khi có admin (§8 bước 8) |
+| `province_code` | string | null → enrich khi có admin (`E-DQ3`) |
 | `tier` | string | T0–T4 |
 | `anchor_type` | string | `existing_station`/`parking`/`fuel`/`mall`/`retail`/`apartments`/`gapfill_synthetic` |
 | `source_ref` | string | `station_id` \| `osm_type/osm_id` \| `synthetic:<h3>` |
@@ -152,7 +152,7 @@ make candidates CITY=hanoi     # sinh candidate + QA gate
 | 5 | Sinh candidate + QA | `features/build_candidates.py` | **`candidate_sites.{parquet,geojson}`** + `_qa.json` |
 
 **AOI** (`src/ev_siting/aoi.py`): MVP = 1 thành phố + buffer 5 km, định nghĩa bằng **tâm + bán kính**
-(vì cột admin chưa có — §8 bước 8). Preset: `hanoi`/`hcm`/`danang`/`haiphong`/`cantho`; override bằng
+(vì cột admin chưa có — `E-DQ3`). Preset: `hanoi`/`hcm`/`danang`/`haiphong`/`cantho`; override bằng
 `--aoi-lat/--aoi-lng/--radius-km/--buffer-km`. Khi enrich admin xong, chỉ cần thay `AOI.cells()` bằng
 spatial-join ranh giới — module tiêu thụ không đổi.
 
@@ -184,7 +184,7 @@ Ngoài MVP 1 thành phố, pipeline chạy được **toàn Việt Nam** trên *
 (268.404 ô res 8)** — dùng `--national` ở mọi bước, hoặc `make landuse-national && make candidates-national`.
 
 > **Một tập candidate duy nhất toàn quốc (không per-tỉnh).** Per-tỉnh cần gán ô → tỉnh, nhưng cột admin
-> hiện **null 100%** (§8 bước 8 chưa xong) → chưa cắt theo tỉnh được. Hệ quả: MCLP quốc gia là **một bài
+> hiện **null 100%** (`E-DQ3` chưa xong) → chưa cắt theo tỉnh được. Hệ quả: MCLP quốc gia là **một bài
 > toán lớn** — phía model (Kỳ) có thể cần phân rã theo vùng; đó là quyết định của tầng model.
 
 **National khác city ở đâu (đều tự động theo `--national`):**
