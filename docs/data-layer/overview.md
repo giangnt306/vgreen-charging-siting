@@ -168,6 +168,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | **Trùng PK & lệch số trạm** *(P6)*                         | enumerate lưới chồng lấn → trùng `station_code`; doc ghi 28.417, file 28.625 | Dedup first-wins có đếm (không cộng công suất) ở `merge_catalog.py` + cổng CRITICAL PK-unique ở `validate.py` (0 trùng); chốt snapshot **28.625** (+208 do crawl lại `cs`), đối soát 28.625 − 9.118 BSS = 19.507 canonical. |
 | **Toạ độ placeholder** *(mới phát hiện)*            | 35 trạm chồng 1 điểm HCM nhưng địa chỉ ở HN; 274 toạ độ trùng | **Chưa xử lý** → theo dõi ở `E-DQ1` (flag `DUP_COORD`/`COORD_ADDR_MISMATCH`). |
 | **Thiếu lọc trạng thái/access** *(P8)*             | `status`/`is_public` chưa lọc → trạm ngừng/tư nhân tính là cung; 72/80 null giữ ngầm | Resolve **official-first** `op_status`/`access` + boolean `is_operational` (loại cứng 42 OUT_OF_SERVICE); cờ tường minh, giữ dòng; T0 loại 63 trạm OUT_OF_SERVICE∪RESTRICTED. |
+| **Chưa freeze snapshot** *(E-DQ10)*                 | `.pbf` tên `latest`, không checksum → input có thể trôi giữa sprint, phá đối soát | `data/raw/MANIFEST.json` (sha256 mọi nguồn, `snapshot_id=2026-07-20` neo P9); pin OSM về replication seq 4852; khoá read-only 23.280 file; cổng drift ở `validate.py`; `make freeze`/`verify-snapshot`. |
 
 ---
 
@@ -194,7 +195,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | 9  | `E-DQ8`                        | Dân cư không có đường           | `pop` vs `road_len_m`                                   |
 | 10 | `E-DQ9`                        | Grid toàn quốc / MVP 1 thành phố   | `demand_h3` (toàn bảng)                                 |
 | 11 | **`P5`** (Done 24/07)      | Chưa định nghĩa candidate site     | — → [candidate-sites.md](candidate-sites.md)          |
-| 12 | `E-DQ10`                       | Chưa freeze snapshot / provenance     | nguồn raw                                                 |
+| 12 | **`E-DQ10`** (Done 27/07) | Freeze snapshot / provenance          | `data/raw/MANIFEST.json` (checksum mọi nguồn raw)     |
 
 > **Lưu ý:** #2, #10 và #8 là 3 điểm **thiếu trong kế hoạch gốc** — và #8 (audit cầu) là nơi khả năng lộ vấn đề thật cao nhất vì demand chính là hàm mục tiêu.
 

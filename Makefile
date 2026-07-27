@@ -1,4 +1,4 @@
-.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0
+.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot
 
 CITY ?= hanoi
 
@@ -12,6 +12,12 @@ data:  ## Prepare data directories and run ETL scripts
 
 opex-electricity:  ## Build EV-charging electricity tariff (OpEx) -> data/external/
 	PYTHONPATH=src python -m ev_siting.data.opex_electricity
+
+freeze:  ## Freeze raw inputs -> data/raw/MANIFEST.json (checksums + read-only lock)  [E-DQ10]
+	PYTHONPATH=src python -m ev_siting.data.provenance.freeze_snapshot
+
+verify-snapshot:  ## Verify raw inputs match frozen snapshot (add HASHES=1 for full content check)  [E-DQ10]
+	PYTHONPATH=src python -m ev_siting.data.provenance.freeze_snapshot --verify $(if $(HASHES),--hashes,)
 
 crawl:  ## Run full EVCS crawl pipeline (enum -> scrape -> split -> master -> QA)
 	bash src/ev_siting/data/evcs/run_pipeline.sh

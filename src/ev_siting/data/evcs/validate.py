@@ -103,6 +103,26 @@ def main():
         if flag_counter.get(fl):
             warn.append(f"{fl}: {flag_counter[fl]:,} trạm")
 
+    # ---- E-DQ10: cổng provenance — đối chiếu snapshot input đã đóng băng ----
+    # Chưa freeze -> WARN (không chặn pipeline cũ). Đã freeze mà input lệch -> CRITICAL
+    # (bước làm sạch phía sau giả định input bất biến — drift làm audit vô nghĩa).
+    snapshot_id, snap_status, snap_issues = None, "NOT_FROZEN", []
+    try:
+        from ..provenance import manifest as SNAP
+        snap = SNAP.load_manifest()
+        if snap is None:
+            warn.append("SNAPSHOT: chưa freeze (data/raw/MANIFEST.json) — E-DQ10 mở")
+        else:
+            snapshot_id = snap.get("snapshot_id")
+            snap_issues = SNAP.verify_manifest(snap, full=False)
+            snap_status = "FAIL" if snap_issues else "PASS"
+            if snap_issues:
+                crit.append(f"SNAPSHOT drift: {len(snap_issues)} input lệch khỏi manifest "
+                            f"(vd {snap_issues[0]})")
+    except Exception as e:  # thiếu module / manifest hỏng -> cảnh báo, không chặn
+        snap_status = "ERROR"
+        warn.append(f"SNAPSHOT: không đối chiếu được manifest ({e})")
+
     def ms_iso(ms):
         if ms is None:
             return None
@@ -110,6 +130,9 @@ def main():
 
     manifest = {
         "generated_at": datetime.now(timezone.utc).astimezone().isoformat(),
+        "snapshot_id": snapshot_id,
+        "snapshot_integrity": snap_status,
+        "snapshot_issues": snap_issues,
         "master_path": os.path.relpath(MASTER, PROJECT_ROOT),
         "n_stations": n_total,
         "n_with_timeseries": n_ts,
@@ -144,6 +167,8 @@ def _emit(crit, warn, manifest, flag_counter):
         print(f"Cửa sổ thời gian        : {manifest.get('time_window_start')} "
               f"-> {manifest.get('time_window_end')}")
         print(f"Loại trạm               : {manifest['by_station_type']}")
+        print(f"Snapshot (E-DQ10)       : {manifest.get('snapshot_id')} "
+              f"[{manifest.get('snapshot_integrity')}]")
     print("-------------------------------------------------")
     if crit:
         print(f"CRITICAL ({len(crit)}):")

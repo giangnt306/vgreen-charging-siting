@@ -33,7 +33,18 @@
       "Bash(PYTHONPATH=src python -m ev_siting.features.build_covered0)",
       "Bash(PYTHONPATH=src python -m ev_siting.data.evcs.merge_catalog)",
       "Bash(make candidates-national *)",
-      "Bash(git -C /home/wanderer210/Documents/AI/vgreen-charging-siting status --short)"
+      "Bash(git -C /home/wanderer210/Documents/AI/vgreen-charging-siting status --short)",
+      "Bash(python -c \"import osmium; print\\('osmium', osmium.version.pyosmium_release if hasattr\\(osmium,'version'\\) else 'ok'\\)\")",
+      "Bash(PYTHONPATH=src python -m ev_siting.data.provenance.freeze_snapshot --quick --no-lock)",
+      "Bash(python -c ' *)",
+      "Bash(PYTHONPATH=src python -m ev_siting.data.provenance.freeze_snapshot --verify)",
+      "Bash(time make freeze)",
+      "Bash(python -c \"import json;m=json.load\\(open\\('data/interim/quality_report.json'\\)\\);print\\({k:m[k] for k in \\('snapshot_id','snapshot_integrity','snapshot_issues'\\)}\\)\")",
+      "Bash(chmod u+w data/raw/worldpop/vnm_ppp_2020_constrained.tif)",
+      "Bash(chmod u-w *)",
+      "Bash(git add *)",
+      "Bash(python -m py_compile src/ev_siting/data/provenance/manifest.py src/ev_siting/data/provenance/freeze_snapshot.py src/ev_siting/data/provenance/__init__.py src/ev_siting/data/evcs/validate.py)",
+      "Bash(make verify-snapshot *)"
     ]
   }
 }
