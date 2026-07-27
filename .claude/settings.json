@@ -47,7 +47,10 @@
       "Bash(make verify-snapshot *)",
       "Bash(PYTHONPATH=src python -c ' *)",
       "Bash(kill %1)",
-      "Bash(pkill -f \"DEMAND_H3\")"
+      "Bash(pkill -f \"DEMAND_H3\")",
+      "Bash(PYTHONPATH=src python -m ev_siting.data.evcs.dedup_crosssource --dump)",
+      "Bash(PYTHONPATH=src python -m ev_siting.features.build_candidates --city hanoi)",
+      "Bash(git stash *)"
     ]
   }
 }

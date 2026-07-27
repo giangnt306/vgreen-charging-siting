@@ -99,9 +99,12 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 Hợp đồng đầy đủ: [SCHEMA_CONTRACT.md](../schema/schema-contract.md) · từ điển trường: [data-dictionary.md](../schema/data-dictionary.md).
 Dưới đây là **trạng thái thực tế của file hiện tại** (đã inspect 2026-07-23):
 
-### 🟢 `stations` — 35 cột, 19.507 dòng
+### 🟢 `stations` — 44 cột, 19.507 dòng
 
 - **Khóa:** `station_id` (`vn-…`, unique) · `station_code` (evcs.vn, unique).
+- **Trùng chéo nguồn (E-DQ2):** `physical_id` (station_id của survivor) · `is_primary` (bool — **19.178** primary /
+  329 duplicate) · `dup_group_id` · `dup_method` (`official_store`/`coord_name`) · `dup_dist_m` · `n_dup_members`.
+  Cung/coverage/T0 chỉ dùng `is_primary`. Cờ `CROSS_SOURCE_DUP` (329) · `DUP_COORD_SUSPECT` (214, → E-DQ1).
 - **Vị trí:** `lat`/`lng` (0 null, 100% trong bbox VN), `h3_r8`.
 - **Cấu hình:** `current_type` (AC/DC/**MIXED**, suy từ chuẩn cắm chính thức — **P7**), `max_power_kw`, `total_power_kw`, `num_connectors`, `connector_types` (list).
 - **Phương tiện (P7):** `vehicle_class` ∈ {`CAR` 19.218 · `UNVERIFIED` 7 (evcs-only, cờ `STD_UNVERIFIED`) · `UNKNOWN` 282 (không connector)}.
@@ -169,6 +172,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | **Toạ độ placeholder** *(mới phát hiện)*            | 35 trạm chồng 1 điểm HCM nhưng địa chỉ ở HN; 274 toạ độ trùng | **Chưa xử lý** → theo dõi ở `E-DQ1` (flag `DUP_COORD`/`COORD_ADDR_MISMATCH`). |
 | **Thiếu lọc trạng thái/access** *(P8)*             | `status`/`is_public` chưa lọc → trạm ngừng/tư nhân tính là cung; 72/80 null giữ ngầm | Resolve **official-first** `op_status`/`access` + boolean `is_operational` (loại cứng 42 OUT_OF_SERVICE); cờ tường minh, giữ dòng; T0 loại 63 trạm OUT_OF_SERVICE∪RESTRICTED. |
 | **Chưa freeze snapshot** *(E-DQ10)*                 | `.pbf` tên `latest`, không checksum → input có thể trôi giữa sprint, phá đối soát | `data/raw/MANIFEST.json` (sha256 mọi nguồn, `snapshot_id=2026-07-20` neo P9); pin OSM về replication seq 4852; khoá read-only 23.280 file; cổng drift ở `validate.py`; `make freeze`/`verify-snapshot`. |
+| **Trùng chéo nguồn** *(E-DQ2)*                      | 1 trạm vật lý = nhiều dòng (nhiều app cùng 1 store official; cùng trạm ở 2 feed) → inflate cung, T0 double-count | Identity resolution `physical_id` ở `dedup_crosssource.py`: T1 cùng `official_store_id`, T2 coord<50m + tên≥82, guard blob đậm đặc → `DUP_COORD_SUSPECT` (E-DQ1). FLAG không xoá (`is_primary`); 19.178 primary / 329 dup; 5 cổng QA chặn ở `transform_canonical`. |
 
 ---
 
@@ -185,7 +189,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | #  | ID register                     | Vấn đề                              | Trường ảnh hưởng                                       |
 | -- | ------------------------------- | -------------------------------------- | ---------------------------------------------------------- |
 | 1  | `E-DQ1`                        | Toạ độ placeholder / trùng         | `lat`, `lng`                                            |
-| 2  | `E-DQ2` (↔ `P6`)             | Trùng chéo nguồn (evcs vs official) | `station_id`, `lat`/`lng`                             |
+| 2  | **`E-DQ2`** (Done 27/07) | Trùng chéo nguồn (evcs vs official) | `physical_id`, `is_primary`, `dup_*` (identity resolution) |
 | 3  | `E-DQ3`                        | Cột admin trống                      | `admin_l1_code`, `province_name`, `commune_*`         |
 | 4  | `E-DQ4`                        | Cấu hình khuyết                     | `current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0` |
 | 5  | **`P8`** (Done 27/07)      | Null trạng thái / truy cập          | `status`→`op_status`, `is_public`→`access`, `is_operational` |
@@ -197,7 +201,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | 11 | **`P5`** (Done 24/07)      | Chưa định nghĩa candidate site     | — → [candidate-sites.md](candidate-sites.md)          |
 | 12 | **`E-DQ10`** (Done 27/07) | Freeze snapshot / provenance          | `data/raw/MANIFEST.json` (checksum mọi nguồn raw)     |
 
-> **Lưu ý:** #2, #10 và #8 là 3 điểm **thiếu trong kế hoạch gốc** — và #8 (audit cầu) là nơi khả năng lộ vấn đề thật cao nhất vì demand chính là hàm mục tiêu.
+> **Lưu ý:** #2, #10 và #8 là 3 điểm **thiếu trong kế hoạch gốc** — và #8 (audit cầu) là nơi khả năng lộ vấn đề thật cao nhất vì demand chính là hàm mục tiêu. (#2 **E-DQ2** đã đóng 27/07 — identity resolution `physical_id`, **không** dedup H3 thô; chi tiết [known-issues.md](../known-issues.md#e-dq2--trùng-chéo-nguồn-evcs--official-bước-2).)
 
 ---
 

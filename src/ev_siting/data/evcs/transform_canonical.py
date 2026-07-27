@@ -34,6 +34,7 @@ import h3
 import pandas as pd
 
 from .paths import MASTER_CSV, STATIONS_DIR, CONNECTORS_DIR, CANONICAL_DIR, PROJECT_ROOT
+from .dedup_crosssource import assign_physical_id, dedup_report, DUP_COLS
 from ..vinfast_official.paths import XREF_PARQUET, CONNECTORS_PARQUET as OFFICIAL_CONNECTORS
 
 H3_RES = 8
@@ -312,6 +313,8 @@ def run(keep_bss: bool = False):
         # provenance / doi chieu nguon chinh thuc (vinfastauto.com)
         "provenance", "official_matched", "match_method", "official_store_id",
         "match_dist_m", "match_name_sim", "official_charging_status", "official_access_type",
+        # E-DQ2: dedup cheo nguon (physical_id/is_primary/dup_*)
+        *DUP_COLS,
     ]
 
     # --- tang 2: no connectors (kem chuan cam + vehicle_class tu registry chinh thuc) ---
@@ -351,6 +354,15 @@ def run(keep_bss: bool = False):
     # --- P8: loc trang thai van hanh & access (official-first, tuong minh) ---
     df = resolve_status_access(df)
 
+    # --- E-DQ2: dedup CHEO NGUON (evcs<->official) — gan physical_id + is_primary ---
+    # Cung 1 tram vat ly co the co >1 dong (nhieu app/feed cung 1 store official, hoac
+    # cung 1 tram o 2 feed). FLAG khong xoa: primary=cung that; duplicate giu+co
+    # CROSS_SOURCE_DUP. Cum toa do ngo -> DUP_COORD_SUSPECT, de E-DQ1 phan xu.
+    df = assign_physical_id(df)
+    dq2 = dedup_report(df)
+    if not dq2["all_gates_pass"]:
+        raise SystemExit(f"E-DQ2 QA gate FAIL: {dq2['gates']}")
+
     stations = df[stations_cols].reset_index(drop=True)
 
     # --- ghi Parquet Hive-partitioned theo province_code (ghi de sach) ---
@@ -385,8 +397,15 @@ def run(keep_bss: bool = False):
     print(f"  op_status               : {stations['op_status'].value_counts().to_dict()}")
     print(f"  access                  : {stations['access'].value_counts().to_dict()}")
     print(f"  is_operational=False    : {int((~stations['is_operational']).sum()):,} (OUT_OF_SERVICE, loai khoi cung)")
-    n_supply = int((stations['is_operational'] & (stations['access'] == 'PUBLIC')).sum())
-    print(f"  cung cong khai kha dung : {n_supply:,} (is_operational & access=PUBLIC)")
+    n_supply = int((stations['is_operational'] & (stations['access'] == 'PUBLIC')
+                    & stations['is_primary']).sum())
+    print(f"  cung cong khai kha dung : {n_supply:,} (is_operational & access=PUBLIC & is_primary)")
+    print("--- E-DQ2 (dedup cheo nguon evcs<->official) --------------")
+    print(f"  primary (cung that)     : {dq2['n_primary']:,}")
+    print(f"  duplicate (flag, giu)   : {dq2['n_duplicate']:,}  {dq2['dup_by_method']}")
+    print(f"  so nhom trung           : {dq2['n_dup_groups']:,} (max {dq2['largest_group']}/nhom)")
+    print(f"  cum toa do ngo -> E-DQ1 : {dq2['n_suspect_coord_deferred_edq1']:,} (DUP_COORD_SUSPECT)")
+    print(f"  QA gates (5 cong)       : {'PASS' if dq2['all_gates_pass'] else 'FAIL'}  {dq2['gates']}")
     print(f"  confidence trung binh   : {stations['confidence'].mean():.3f}")
     print(f"  verified (first-party)  : {int(stations['verified'].sum()):,} / {len(stations):,}")
     print(f"  match_method            : {stations['match_method'].value_counts().to_dict()}")
