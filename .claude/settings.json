@@ -44,7 +44,10 @@
       "Bash(chmod u-w *)",
       "Bash(git add *)",
       "Bash(python -m py_compile src/ev_siting/data/provenance/manifest.py src/ev_siting/data/provenance/freeze_snapshot.py src/ev_siting/data/provenance/__init__.py src/ev_siting/data/evcs/validate.py)",
-      "Bash(make verify-snapshot *)"
+      "Bash(make verify-snapshot *)",
+      "Bash(PYTHONPATH=src python -c ' *)",
+      "Bash(kill %1)",
+      "Bash(pkill -f \"DEMAND_H3\")"
     ]
   }
 }

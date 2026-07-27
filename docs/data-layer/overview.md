@@ -193,7 +193,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | 7  | `E-DQ6`                        | Text tự do bẩn                       | `name`, `address`                                       |
 | 8  | `E-DQ7`                        | Cầu chưa audit                       | `pop`, POI/road                                          |
 | 9  | `E-DQ8`                        | Dân cư không có đường           | `pop` vs `road_len_m`                                   |
-| 10 | `E-DQ9`                        | Grid toàn quốc / MVP 1 thành phố   | `demand_h3` (toàn bảng)                                 |
+| 10 | **`E-DQ9`** (Done 27/07) | Grid toàn quốc / MVP 1 thành phố   | `demand_h3` (toàn bảng) → AOI clip (`aoi.py`)         |
 | 11 | **`P5`** (Done 24/07)      | Chưa định nghĩa candidate site     | — → [candidate-sites.md](candidate-sites.md)          |
 | 12 | **`E-DQ10`** (Done 27/07) | Freeze snapshot / provenance          | `data/raw/MANIFEST.json` (checksum mọi nguồn raw)     |
 
