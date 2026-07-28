@@ -45,10 +45,10 @@ landuse:  ## Build buildable_h3 land-use filter for CITY (WorldCover + OSM + roa
 candidates:  ## Build MCLP candidate sites for CITY (needs `make landuse` first)  [P5]
 	$(PY) -m ev_siting.features.build_candidates --city $(CITY)
 
-covered0:  ## Build covered0 baseline (active+public existing stations) for CITY  [P8]
+covered0:  ## Build planning + operational-only sensitivity baselines for CITY  [P8/F5]
 	$(PY) -m ev_siting.features.build_covered0 --city $(CITY)
 
-covered0-national:  ## Build covered0 baseline for ALL Vietnam  [P8]
+covered0-national:  ## Build planning + operational-only sensitivity baselines for ALL Vietnam  [P8/F5]
 	$(PY) -m ev_siting.features.build_covered0 --national
 
 landuse-national:  ## Build buildable_h3 for ALL Vietnam (national grid, ~1.5GB WorldCover)  [P5]

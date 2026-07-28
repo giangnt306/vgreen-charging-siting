@@ -22,6 +22,7 @@ CATALOG_DIR = RAW_DIR / "catalog"
 CATALOG_CSV = CATALOG_DIR / "evcs_catalog.csv"
 ALL_CODES = CATALOG_DIR / "evcs_all_codes.txt"
 LOAD_TS = RAW_DIR / "load_ts.csv"
+TIMESERIES_RUNS_DIR = RAW_DIR / "timeseries_runs"
 
 # --- cleaned / derived (data/interim) ---
 INTERIM_DIR = DATA / "interim"

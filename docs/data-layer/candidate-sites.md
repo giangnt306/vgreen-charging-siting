@@ -80,7 +80,7 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | Đất cấm | OSM | `landuse=military` · `boundary=protected_area` · `leisure=nature_reserve` · `aeroway=aerodrome` · `natural=water`/`reservoir` |
 | Không có đường vào | `demand_h3` | `road_len_m ≤ 0` (`NO_ROAD_ACCESS`) — rẻ nhất, lọc nhiều nhất |
 | Ngoài AOI | `aoi.py` | ngoài lõi + buffer 5 km |
-| Toạ độ bẩn (T0) | `stations` | cờ `DUP_COORD` / `COORD_ADDR_MISMATCH` (§7 #1) |
+| Toạ độ bẩn (T0) | `stations` | cờ `COORD_INVALID` / `COORD_ADDR_MISMATCH` / `COORD_PLACEHOLDER` / `DUP_COORD_SUSPECT` (F4, tập dùng chung `features/paths.py:DIRTY_COORD_FLAGS`) |
 
 > **`built_up_frac`** (tỷ lệ pixel WorldCover class 50) là chỉ số chủ lực: bắt cả nước, núi, rừng,
 > và "đã có hạ tầng xây dựng" trong một lần quét.

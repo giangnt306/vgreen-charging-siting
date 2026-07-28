@@ -29,8 +29,8 @@ vgreen-charging-siting/
 │   ├── run_pipeline.sh                     #   driver tuần tự (enum→merge→scrape→split→master→QA)
 │   ├── evcs_enumerate.py                   #   quét POST /search -> danh mục trạm (Playwright/Cloudflare)
 │   ├── merge_catalog.py                    #   gộp cs/bss/other -> evcs_catalog.csv
-│   ├── evcs_scrape.py                      #   Socket.IO 'history' -> load_ts.csv
-│   ├── split_timeseries.py                 #   tách + khử trùng + sort -> evcs_timeseries/<code>.csv
+│   ├── evcs_scrape.py                      #   Socket.IO 'history' -> timeseries_runs/load_ts_<run-id>.csv
+│   ├── split_timeseries.py                 #   merge + khử trùng + sort -> evcs_timeseries/<code>.csv
 │   ├── build_master_evcs.py                #   ★ dựng master + tính cột QA (ghép 1-1 time-series)
 │   ├── validate.py                         #   cổng QA: kiểm toàn vẹn + ghi quality_report.json
 │   └── evcs_probe.py                       #   script dò/thử endpoint evcs.vn (standalone)
@@ -40,8 +40,7 @@ vgreen-charging-siting/
 │   │   ├── catalog/                        #   evcs_catalog.csv (28.625 trạm) = gộp cs/bss/other
 │   │   │                                   #   + evcs_{stations,bss,other}.csv (từng tab)
 │   │   │                                   #   + *_codes.txt + *.ckpt.json (checkpoint resume)
-│   │   ├── load_ts.csv                     #   dump occupancy gốc: station_code,timestamp,n_cars_charging
-│   │   └── load_ts.csv.done                #   marker resume của evcs_scrape.py
+│   │   └── timeseries_runs/                #   raw run bất biến: load_ts_<run-id>.csv + .done/.failed
 │   └── interim/                            # đã làm sạch / dẫn xuất
 │       ├── evcs_timeseries/<code>.csv      #   19.218 file/trạm (timestamp epoch-ms, n_cars_charging)
 │       ├── stations_master_evcs.csv        #   ★ BẢNG MASTER (khóa station_code + cột QA)
@@ -61,9 +60,9 @@ theo kiểu **streaming**, không nạp cả file vào pandas.
         │
   merge_catalog     ──▶ raw/evcs/catalog/evcs_catalog.csv + evcs_all_codes.txt
         │
-  evcs_scrape       ── Socket.IO 'history' ──▶ raw/evcs/load_ts.csv (~18,6M điểm, chỉ VinFast)
-        │
-  split_timeseries  ──▶ interim/evcs_timeseries/<code>.csv (19.218 file; khử trùng + sort)
+  evcs_scrape       ── Socket.IO 'history' ──▶ raw/evcs/timeseries_runs/load_ts_<run-id>.csv
+                                               │       (bất biến, retry qua .done/.failed)
+  split_timeseries  ──▶ interim/evcs_timeseries/<code>.csv (merge-union + sort, 1 file/mã)
         │
   build_master_evcs ──▶ interim/stations_master_evcs.csv  ★ master + cột QA, 0 orphan
         │

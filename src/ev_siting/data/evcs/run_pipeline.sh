@@ -2,8 +2,9 @@
 # EVCS crawl pipeline — chạy TUẦN TỰ (mỗi lúc chỉ 1 trình duyệt headful) để tránh
 # crash do 2 Chromium cùng lúc. Chạy: `make crawl` hoặc
 #   bash src/ev_siting/data/evcs/run_pipeline.sh   (chạy được từ thư mục bất kỳ)
-# Cờ crawl. Time-series (STEP 3) tốn ~4h nên tách riêng để KHÔNG mất oan:
-#   EVCS_FRESH=1   -> crawl mới HOÀN TOÀN: discovery lại catalog + ghi đè time-series.
+# Cờ crawl. Mỗi lần crawl telemetry tạo raw run mới, sau đó merge vào canonical;
+# retry một run dang dở: EVCS_TS_RUN=<run-id> bash ... (dùng lại .done cùng run).
+#   EVCS_FRESH=1   -> crawl mới HOÀN TOÀN cho catalog discovery.
 #   EVCS_REENUM=1  -> BỔ SUNG cột cung mới (evsePowers -> num_connectors/power/current_type…)
 #                     cho các trạm ĐÃ BIẾT bằng chế độ --enrich-from (bounded, truy vấn /search
 #                     tại toạ độ từng trạm, số query ~ mật độ nên nhanh — KHÔNG phải discovery
@@ -21,11 +22,9 @@ PY="${PY:-python3}"
 M="$PY -u -m ev_siting.data.evcs"
 CAT=data/raw/evcs/catalog
 
-# Time-series (STEP 3) chỉ ghi đè nếu FRESH (bảo vệ 4h telemetry).
-TS_ARGS=()
-if [[ "${EVCS_FRESH:-0}" == "1" ]]; then
-  TS_ARGS=(--overwrite)
-fi
+TS_RUN_ID="${EVCS_TS_RUN:-$(date +%Y-%m-%dT%H-%M-%S)-$$}"
+TS_RAW="data/raw/evcs/timeseries_runs/load_ts_${TS_RUN_ID}.csv"
+mkdir -p "$(dirname "$TS_RAW")"
 
 if [[ "${EVCS_REENUM:-0}" == "1" ]]; then
   echo "======== STEP 1 (REENUM): bổ sung cột cung cho trạm đã biết $(date) ========"
@@ -53,12 +52,12 @@ echo "======== STEP 2: merge catalog $(date) ========"
 $M.merge_catalog
 echo "step2 exit=$?"
 
-echo "======== STEP 3: history 168h over ALL codes (resume) $(date) ========"
-$M.evcs_scrape --codes-file $CAT/evcs_all_codes.txt --hours 168 --out data/raw/evcs/load_ts.csv "${TS_ARGS[@]}"
+echo "======== STEP 3: history 168h over ALL codes -> $TS_RAW $(date) ========"
+$M.evcs_scrape --codes-file $CAT/evcs_all_codes.txt --hours 168 --out "$TS_RAW"
 echo "step3 exit=$?"
 
-echo "======== STEP 4: tách load_ts.csv -> data/interim/evcs_timeseries/ $(date) ========"
-$M.split_timeseries
+echo "======== STEP 4: merge $TS_RAW -> data/interim/evcs_timeseries/ $(date) ========"
+$M.split_timeseries --input "$TS_RAW"
 echo "step4 exit=$?"
 
 echo "======== STEP 5: dựng master ĐỘC LẬP (khóa station_code) $(date) ========"
