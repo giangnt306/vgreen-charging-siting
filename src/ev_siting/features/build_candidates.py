@@ -49,8 +49,10 @@ _POI_TIER = {
 }
 _TIER_RANK = {"T0": 0, "T1": 1, "T2": 2, "T3": 3, "T4": 4}
 
-# cờ toạ độ bẩn -> loại anchor T0 (§7 #1)
-_DIRTY_COORD_FLAGS = {"DUP_COORD", "COORD_ADDR_MISMATCH"}
+# E-DQ1: dùng cột `coord_resolved` (đầu ra chuẩn của fix_coords) thay cho lọc theo cờ:
+# COORD_PLACEHOLDER (toạ độ chắc chắn sai) -> coord_resolved=False -> loại T0/cung.
+# COORD_ADDR_MISMATCH chỉ là ADVISORY (giữ toạ độ, ~50% coord vẫn đúng, E-DQ3 trọng
+# tài) -> coord_resolved=True -> GIỮ (không loại incumbent T0 oan).
 
 
 def _in_aoi(aoi, df):
@@ -66,7 +68,7 @@ def _load_stations(aoi):
     ngừng (`is_operational=False`) hay trạm tư nhân (`access=RESTRICTED`). Giữ
     UNKNOWN (không loại ngầm — §8 bước 6)."""
     cols = ["station_id", "lat", "lng", "h3_r8", "quality_flags", "operator",
-            "is_operational", "access", "is_primary"]
+            "is_operational", "access", "is_primary", "coord_resolved"]
     df = pd.read_parquet(STATIONS_DIR, columns=cols)
     df = df[_in_aoi(aoi, df)].copy()
     # P8: loại trạm đã ngừng vận hành / tư nhân khỏi anchor T0
@@ -74,10 +76,8 @@ def _load_stations(aoi):
     # E-DQ2: chỉ lấy dòng CHÍNH (is_primary) — bản trùng chéo nguồn cùng 1 tram vật
     # lý không được thành 2 incumbent "bắt buộc mở" (CapEx=0) / phủ trùng 2 lần.
     df = df[df["is_primary"]]
-    # loại toạ độ bẩn
-    def _dirty(fl):
-        return bool(_DIRTY_COORD_FLAGS & set(fl)) if fl is not None else False
-    df = df[~df["quality_flags"].apply(_dirty)]
+    # E-DQ1: loại toạ độ placeholder (coord_resolved=False -> h3_r8 NULL, không neo phủ được)
+    df = df[df["coord_resolved"]]
     df["tier"] = "T0"
     df["anchor_type"] = "existing_station"
     df["source_ref"] = df["station_id"]

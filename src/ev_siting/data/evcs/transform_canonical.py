@@ -35,6 +35,7 @@ import pandas as pd
 
 from .paths import MASTER_CSV, STATIONS_DIR, CONNECTORS_DIR, CANONICAL_DIR, PROJECT_ROOT
 from .dedup_crosssource import assign_physical_id, dedup_report, DUP_COLS
+from .fix_coords import resolve_coords, fix_report, FIX_COLS
 from ..vinfast_official.paths import XREF_PARQUET, CONNECTORS_PARQUET as OFFICIAL_CONNECTORS
 
 H3_RES = 8
@@ -315,6 +316,8 @@ def run(keep_bss: bool = False):
         "match_dist_m", "match_name_sim", "official_charging_status", "official_access_type",
         # E-DQ2: dedup cheo nguon (physical_id/is_primary/dup_*)
         *DUP_COLS,
+        # E-DQ1: toa do placeholder (lat_raw/lng_raw/coord_src/coord_fix_dist_m/coord_resolved)
+        *FIX_COLS,
     ]
 
     # --- tang 2: no connectors (kem chuan cam + vehicle_class tu registry chinh thuc) ---
@@ -363,6 +366,14 @@ def run(keep_bss: bool = False):
     if not dq2["all_gates_pass"]:
         raise SystemExit(f"E-DQ2 QA gate FAIL: {dq2['gates']}")
 
+    # --- E-DQ1: toa do placeholder / trung khit (chay SAU E-DQ2 — nhan DUP_COORD_SUSPECT) ---
+    # Detector A (stack xa tinh) = toa do chac chan sai -> coord_resolved=False, h3_r8=NULL,
+    # loai khoi cung. Detector B (lech province, advisory) giu toa do, de E-DQ3 trong tai.
+    df = resolve_coords(df)
+    dq1 = fix_report(df)
+    if not dq1["all_gates_pass"]:
+        raise SystemExit(f"E-DQ1 QA gate FAIL: {dq1['gates']}")
+
     stations = df[stations_cols].reset_index(drop=True)
 
     # --- ghi Parquet Hive-partitioned theo province_code (ghi de sach) ---
@@ -398,8 +409,15 @@ def run(keep_bss: bool = False):
     print(f"  access                  : {stations['access'].value_counts().to_dict()}")
     print(f"  is_operational=False    : {int((~stations['is_operational']).sum()):,} (OUT_OF_SERVICE, loai khoi cung)")
     n_supply = int((stations['is_operational'] & (stations['access'] == 'PUBLIC')
-                    & stations['is_primary']).sum())
-    print(f"  cung cong khai kha dung : {n_supply:,} (is_operational & access=PUBLIC & is_primary)")
+                    & stations['is_primary'] & stations['coord_resolved']).sum())
+    print(f"  cung cong khai kha dung : {n_supply:,} (is_operational & PUBLIC & is_primary & coord_resolved)")
+    print("--- E-DQ1 (toa do placeholder / trung khit) --------------")
+    print(f"  COORD_PLACEHOLDER       : {dq1['n_placeholder']:,} (toa do sai -> coord_resolved=False, h3_r8=NULL)")
+    print(f"  COORD_ADDR_MISMATCH     : {dq1['n_addr_mismatch_advisory']:,} (advisory, giu toa do -> E-DQ3 trong tai)")
+    print(f"  snap official           : {dq1['n_snapped_official']:,}")
+    print(f"  unresolved (loai cung)  : {dq1['n_unresolved']:,}")
+    print(f"  h3_r8 null (toa do xau + placeholder): {int(stations['h3_r8'].isna().sum()):,}")
+    print(f"  QA gates (5 cong)       : {'PASS' if dq1['all_gates_pass'] else 'FAIL'}  {dq1['gates']}")
     print("--- E-DQ2 (dedup cheo nguon evcs<->official) --------------")
     print(f"  primary (cung that)     : {dq2['n_primary']:,}")
     print(f"  duplicate (flag, giu)   : {dq2['n_duplicate']:,}  {dq2['dup_by_method']}")

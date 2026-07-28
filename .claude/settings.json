@@ -52,7 +52,17 @@
       "Bash(PYTHONPATH=src python -m ev_siting.features.build_candidates --city hanoi)",
       "Bash(git stash *)",
       "Bash(python -m py_compile src/ev_siting/features/build_candidates.py)",
-      "Bash(timeout 550 env PYTHONPATH=src python -m ev_siting.features.build_candidates --national)"
+      "Bash(timeout 550 env PYTHONPATH=src python -m ev_siting.features.build_candidates --national)",
+      "Bash(PYTHONPATH=src python -m ev_siting.data.evcs.fix_coords --dump)",
+      "Bash(mv .claude/projects/-home-wanderer210-Documents-AI-vgreen-charging-siting/memory/edq1-coord-placeholder.md /home/wanderer210/.claude/projects/-home-wanderer210-Documents-AI-vgreen-charging-siting/memory/)",
+      "Bash(rmdir -p .claude/projects/-home-wanderer210-Documents-AI-vgreen-charging-siting/memory)",
+      "Bash(sort -k2)",
+      "Bash(PYTHONPATH=src python -c \"import geopandas\")",
+      "Bash(pip list *)",
+      "Bash(rsync -a --delete --stats --exclude=/raw/vinfast_official/details/ --exclude=/interim/evcs_timeseries/ --exclude=details.tar.zst --exclude=evcs_timeseries.tar.zst --exclude=README.md --exclude=.gitattributes --exclude=.git/ --exclude=.gitkeep data/ vgreen-charging-siting-data/)",
+      "Bash(git commit *)",
+      "Bash(timeout 900 git push origin main)",
+      "Bash(git ls-tree *)"
     ]
   }
 }
