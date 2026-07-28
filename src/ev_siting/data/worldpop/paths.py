@@ -27,6 +27,10 @@ POP_H3 = INTERIM_DIR / "worldpop_pop_h3.parquet"        # h3_r8 -> pop
 # demand_h3 đầy đủ (pop + thành phần OSM) — đầu ra tích hợp
 DEMAND_DIR = DATA / "interim" / "demand"
 DEMAND_H3 = DEMAND_DIR / "demand_h3.parquet"
+# E-DQ7a: ô nằm ngoài lãnh thổ VN — tách ra (không xoá) để đối soát
+# `input = output + clipped`, nhất quán nguyên tắc "flag dòng, không xoá".
+DEMAND_H3_CLIPPED = DEMAND_DIR / "demand_h3_clipped_out.parquet"
+DEMAND_REPORT = DEMAND_DIR / "demand_h3_report.json"
 
 H3_RES_R8 = 8
 

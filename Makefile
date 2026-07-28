@@ -1,4 +1,4 @@
-.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot
+.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand
 
 CITY ?= hanoi
 
@@ -30,6 +30,16 @@ canonical:  ## Transform master CSV -> canonical parquet (stations/connectors, c
 
 official:  ## Fetch official VinFast source registry (verified cross-ref) -> data/interim/vinfast_official/
 	PYTHONPATH=src python -m ev_siting.data.vinfast_official.fetch_locators bulk
+
+boundary:  ## Extract VN territory + province polygons from the frozen .pbf  [E-DQ7a, unlocks E-DQ3]
+	PYTHONPATH=src python -m ev_siting.data.osm.vn_boundary
+
+osm:  ## Rebuild OSM demand components (POI clipped to VN at point level)  [E-DQ7a]
+	PYTHONPATH=src python -m ev_siting.data.osm.build_osm_h3
+
+demand:  ## Rebuild demand_h3 grid (cells classified/clipped to VN territory)  [E-DQ7a]
+	PYTHONPATH=src python -m ev_siting.data.worldpop.build_demand_h3
+	PYTHONPATH=src python -m ev_siting.data.osm.validate
 
 landuse:  ## Build buildable_h3 land-use filter for CITY (WorldCover + OSM + road)  [P5]
 	PYTHONPATH=src python -m ev_siting.data.landuse.worldcover --city $(CITY)

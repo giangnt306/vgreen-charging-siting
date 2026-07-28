@@ -6,13 +6,20 @@
   - data/interim/osm/osm_roads_h3.parquet  (roads_pbf.py)
 
 Sinh:
-  - osm_poi_points.parquet          : 1 dòng/POI đã gán h3_r8/h3_r9 (để map/QA)
+  - osm_poi_points.parquet          : 1 dòng/POI đã gán h3_r8/h3_r9 + `in_vn` (để map/QA)
   - osm_demand_components_h3.parquet : theo ô H3 res 8, các cột khớp SCHEMA_CONTRACT
         h3_r8, n_poi, n_parking, n_fuel, road_len_m, road_len_mt_m
         (pop lấy từ WorldPop ở bước sau -> khi đó ghép để có demand_h3 đầy đủ)
 
 Quy ước n_poi = POI *sinh cầu* (mall + apartments + retail); fuel/parking tách riêng
 để khớp đúng 3 cột đếm của contract.
+
+**E-DQ7a — clip lãnh thổ ở mức ĐIỂM.** `overpass_poi.py` crawl bằng `VN_BBOX` thô nên
+54,2% POI thu về nằm ở Campuchia/Lào/Thái/TQ. Ở đây gắn cờ `in_vn` cho TỪNG ĐIỂM
+(giữ dòng, không xoá — nhất quán E-DQ1/E-DQ2) và **chỉ đếm điểm `in_vn=True`** vào
+`n_poi`/`n_parking`/`n_fuel`. Clip phải ở mức điểm chứ không phải mức ô: ô res 8 vắt
+qua biên sẽ vừa giữ POI nước ngoài (tâm ô rơi vào VN) vừa xoá POI VN (tâm ô rơi ra
+ngoài). Xem `vn_boundary.py`.
 
 Chạy:
     PYTHONPATH=src python -m ev_siting.data.osm.build_osm_h3
@@ -23,6 +30,7 @@ import pandas as pd
 
 from .paths import (DEMAND_COMPONENTS, H3_RES_R8, H3_RES_R9, POI_POINTS,
                     POI_RAW_DIR, ROADS_H3, ensure_dirs)
+from .vn_boundary import points_in_vn
 import h3
 
 # category -> cột đếm trong demand_h3. mall/apartments/retail dồn vào n_poi.
@@ -55,11 +63,17 @@ def load_poi_points():
     # nhưng an toàn): 1 (osm_type, osm_id) đếm 1 lần cho mỗi category.
     if not df.empty:
         df = df.drop_duplicates(["osm_type", "osm_id", "category"]).reset_index(drop=True)
+        df["in_vn"] = points_in_vn(df["lat"].values, df["lng"].values)  # E-DQ7a
     return df
 
 
 def aggregate(poi_df, roads_df):
-    """Gộp đếm POI theo ô + ghép chiều dài đường -> bảng thành phần demand."""
+    """Gộp đếm POI theo ô + ghép chiều dài đường -> bảng thành phần demand.
+
+    Chỉ POI `in_vn=True` được đếm (E-DQ7a); dòng ngoài VN vẫn nằm trong
+    `osm_poi_points.parquet` để đối soát `input = output + clipped`.
+    """
+    poi_df = poi_df[poi_df["in_vn"]] if "in_vn" in poi_df.columns else poi_df
     # đếm POI theo (h3_r8, cột đếm)
     if poi_df.empty:
         counts = pd.DataFrame(columns=["h3_r8", "n_poi", "n_parking", "n_fuel"])
@@ -84,10 +98,18 @@ def aggregate(poi_df, roads_df):
 
 def run():
     ensure_dirs()
-    print("[h3] đọc POI raw + gán H3...")
+    print("[h3] đọc POI raw + gán H3 + clip lãnh thổ (E-DQ7a)...")
     poi_df = load_poi_points()
     poi_df.to_parquet(POI_POINTS, index=False)
+    n_out = int((~poi_df["in_vn"]).sum()) if len(poi_df) else 0
     print(f"[h3] {len(poi_df)} POI -> {POI_POINTS}")
+    print(f"[h3] E-DQ7a: {len(poi_df) - n_out} trong VN · {n_out} ngoài VN "
+          f"({n_out / max(len(poi_df), 1):.1%}, giữ dòng + cờ in_vn, không đếm)")
+    if n_out:
+        by_cat = (poi_df.groupby("category")["in_vn"]
+                  .agg(tong="size", trong_vn="sum"))
+        by_cat["ngoai_vn"] = by_cat["tong"] - by_cat["trong_vn"]
+        print(by_cat.to_string())
 
     roads_df = (pd.read_parquet(ROADS_H3) if ROADS_H3.exists()
                 else pd.DataFrame(columns=["h3_r8", "road_len_m", "road_len_mt_m"]))

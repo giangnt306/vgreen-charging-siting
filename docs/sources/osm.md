@@ -23,6 +23,7 @@ src/ev_siting/data/osm/
 ├── paths.py            #  ★ đường dẫn canonical (anchor PROJECT_ROOT) + VN_BBOX + H3 res
 ├── overpass_poi.py     #  POI qua Overpass (quadtree tách bbox khi quá tải)
 ├── roads_pbf.py        #  tải .pbf + stream osmium -> road_len theo H3
+├── vn_boundary.py      #  ★ polygon lãnh thổ VN + tỉnh, trích từ .pbf đã freeze (E-DQ7a)
 └── build_osm_h3.py     #  gộp POI + road về H3 -> bảng thành phần demand
 
 data/raw/osm/                        # BẤT BIẾN
@@ -30,7 +31,10 @@ data/raw/osm/                        # BẤT BIẾN
 └── vietnam-latest.osm.pbf           #   dump Geofabrik (nguồn road network, ~325 MB)
 
 data/interim/osm/                    # đã xử lý / dẫn xuất
-├── osm_poi_points.parquet           #   1 dòng/POI + h3_r8/h3_r9 (để map/QA)
+├── vn_boundary.parquet              #   ★ 1 polygon adm2 (VN) + 40 polygon adm4 (tỉnh) — E-DQ7a/E-DQ3
+├── vn_boundary.geojson              #   bản xem/QA trên map
+├── vn_boundary_report.json          #   6 cổng QA polygon
+├── osm_poi_points.parquet           #   1 dòng/POI + h3_r8/h3_r9 + in_vn (để map/QA)
 ├── osm_roads_h3.parquet             #   road_len_m, road_len_mt_m theo ô H3
 ├── osm_demand_components_h3.parquet #   ★ h3_r8, n_poi, n_parking, n_fuel, road_len_m, road_len_mt_m
 └── osm_quality_report.json          #   thống kê QA từ validate.py
@@ -44,9 +48,13 @@ data/interim/osm/                    # đã xử lý / dẫn xuất
   roads_pbf ── tải Geofabrik .pbf ─▶ osmium stream way[highway] ─▶ interim/osm/osm_roads_h3.parquet
         │                              (lấy mẫu ~150m dọc đường, cộng chiều dài vào ô H3 của điểm giữa)
         │
-  build_osm_h3 ── đếm POI theo ô + ghép road_len ──▶ interim/osm/osm_demand_components_h3.parquet
+  vn_boundary ── .pbf đã freeze ─▶ relation adm2 id 49915 + adm4 ─▶ interim/osm/vn_boundary.parquet
+        │                            (linemerge + polygonize; KHÔNG dùng with_areas — xem ghi chú)
         │
-  validate ── cổng QA (tọa độ trong VN, phủ tỉnh, non-negative) ──▶ interim/osm/osm_quality_report.json
+  build_osm_h3 ── clip POI mức ĐIỂM (in_vn) + đếm theo ô + ghép road_len
+        │                                  ──▶ interim/osm/osm_demand_components_h3.parquet
+        │
+  validate ── cổng QA (in_vn, đối soát số đếm, non-negative) ──▶ interim/osm/osm_quality_report.json
 ```
 
 ## Cách chạy
@@ -55,6 +63,7 @@ data/interim/osm/                    # đã xử lý / dẫn xuất
 # Toàn bộ (cần mạng cho Overpass + tải .pbf):
 PYTHONPATH=src python -m ev_siting.data.osm.overpass_poi        # POI toàn VN
 PYTHONPATH=src python -m ev_siting.data.osm.roads_pbf           # tải .pbf + road_len theo H3
+PYTHONPATH=src python -m ev_siting.data.osm.vn_boundary         # polygon lãnh thổ (make boundary)
 PYTHONPATH=src python -m ev_siting.data.osm.build_osm_h3        # gộp -> bảng thành phần demand
 PYTHONPATH=src python -m ev_siting.data.osm.validate            # cổng QA
 
@@ -86,6 +95,22 @@ PYTHONPATH=src python -m ev_siting.data.osm.roads_pbf --force-download
 
 ## Ghi chú kỹ thuật
 
+- **`VN_BBOX` là phạm vi CRAWL, không phải bộ lọc lãnh thổ** (**E-DQ7a**). Hộp
+  `(8, 102, 23.7, 110)` chứa trọn Phnom Penh / Viêng Chăn / Nam Ninh / Hải Nam →
+  **54,2% POI** thu về nằm ngoài VN. Clip dùng polygon `admin_level=2` (relation
+  **49915**) trích từ chính `.pbf` **đã freeze** — không thêm nguồn thô, không re-crawl
+  Overpass bằng `(poly:…)` (614 way ⇒ query cực nặng + phá snapshot E-DQ10).
+- **Ráp ring thủ công thay vì `FileProcessor.with_areas()`:** bộ ráp area của osmium trả
+  về **rỗng** cho relation 49915 vì 15/614 way outer bị Geofabrik cắt ở mép extract →
+  ring không khép, assembler bỏ qua **im lặng**. `linemerge` + `polygonize` chịu được.
+  Vì chế độ lỗi là im lặng nên cổng QA **neo điểm** (6 điểm VN phải trong, 5 điểm nước
+  ngoài **nằm trong `VN_BBOX`** phải ngoài) là bắt buộc.
+- **Clip POI ở mức ĐIỂM, phân loại lưới ở mức Ô** (`cell_state`/`frac_in_vn` trên
+  `demand_h3`), và test ô là **giao lục giác ∩ polygon** chứ không phải tâm-ô-trong-polygon:
+  ô res 8 có bán kính nội tiếp 0,49 km nên test theo tâm ô xoá nhầm **74.642 dân VN**
+  (so với 6.472 khi test theo giao).
+- **`road_len` cũng rò rỉ:** dump Geofabrik cắt bằng polygon **có đệm**, không cắt đúng
+  biên → 8.934 km đường ngoài VN (96% trong 10 km quanh biên).
 - **Overpass — tách bbox đệ quy (quadtree):** cả nước là vùng lớn; nếu 1 bbox trả về
   `≥ 40k` phần tử hoặc server lỗi/timeout → tách 4 góc, thu nhỏ tới cạnh tối thiểu
   `0,05°`. `nwr` + `out center` để way/relation có tâm. Khử trùng theo `(type, id)` vì

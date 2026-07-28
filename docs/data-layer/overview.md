@@ -173,6 +173,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | **Thiếu lọc trạng thái/access** *(P8)*             | `status`/`is_public` chưa lọc → trạm ngừng/tư nhân tính là cung; 72/80 null giữ ngầm | Resolve **official-first** `op_status`/`access` + boolean `is_operational` (loại cứng 42 OUT_OF_SERVICE); cờ tường minh, giữ dòng; T0 loại 63 trạm OUT_OF_SERVICE∪RESTRICTED. |
 | **Chưa freeze snapshot** *(E-DQ10)*                 | `.pbf` tên `latest`, không checksum → input có thể trôi giữa sprint, phá đối soát | `data/raw/MANIFEST.json` (sha256 mọi nguồn, `snapshot_id=2026-07-20` neo P9); pin OSM về replication seq 4852; khoá read-only 23.280 file; cổng drift ở `validate.py`; `make freeze`/`verify-snapshot`. |
 | **Trùng chéo nguồn** *(E-DQ2)*                      | 1 trạm vật lý = nhiều dòng (nhiều app cùng 1 store official; cùng trạm ở 2 feed) → inflate cung, T0 double-count | Identity resolution `physical_id` ở `dedup_crosssource.py`: T1 cùng `official_store_id`, T2 coord<50m + tên≥82, guard blob đậm đặc → `DUP_COORD_SUSPECT` (E-DQ1). FLAG không xoá (`is_primary`); 19.178 primary / 329 dup; 5 cổng QA chặn ở `transform_canonical`. |
+| **POI/road ngoài lãnh thổ VN** *(E-DQ7a)*    | Overpass crawl bằng `VN_BBOX` thô → 54,2% POI ở Campuchia/Lào/Thái/TQ; Geofabrik cắt có đệm → 8.934 km road ngoài biên; cổng QA cũ kiểm đúng cái bbox sinh ra lỗi | Polygon `admin_level=2` (rel 49915) trích từ `.pbf` **đã freeze** ở `vn_boundary.py` (tự ráp ring vì `with_areas()` trả rỗng im lặng). Clip POI mức **điểm** (`in_vn`), phân loại lưới mức **ô** bằng giao lục giác (`cell_state`/`frac_in_vn`) — test theo tâm ô sẽ xoá nhầm 74.642 dân. Lưới 268.404→**254.035** ô; 6 + 6 cổng QA; kiểm chứng chéo 19.503/19.507 trạm. |
 
 ---
 
@@ -195,7 +196,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | 5  | **`P8`** (Done 27/07)      | Null trạng thái / truy cập          | `status`→`op_status`, `is_public`→`access`, `is_operational` |
 | 6  | `E-DQ5`                        | Trường `operator` bẩn             | `operator`                                               |
 | 7  | `E-DQ6`                        | Text tự do bẩn                       | `name`, `address`                                       |
-| 8a | `E-DQ7a`                       | POI ngoài lãnh thổ VN (53,3%)        | `n_poi`, `n_parking`, `n_fuel` → cần cờ `in_vn`      |
+| 8a | **`E-DQ7a`** (Done 28/07) | POI ngoài lãnh thổ VN (54,2%) **+ road rò rỉ 8.934 km** | `n_poi`/`n_parking`/`n_fuel` → cờ `in_vn` (mức điểm); `demand_h3` → `cell_state`/`frac_in_vn` (mức ô) |
 | 8b | `E-DQ7b`                       | `road_len` sai ngữ nghĩa            | `road_len_m` (bỏ `track`/`service`), `road_len_mt_m` (tách cao tốc / trunk-primary, sửa double-count 2 chiều) |
 | 8c | `E-DQ7c`                       | POI thiếu & lẫn đơn vị             | `n_poi` → tách `n_apartments` / `n_retail_mall`; dedup node/way |
 | 8d | `E-DQ7d`                       | Proxy cầu chưa kiểm chứng ngoại vi | `demand_weight` (gate ρ vs 18,6M occupancy)              |
@@ -212,9 +213,13 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 > lưới) và **proxy cầu gần như không dự báo được nhu cầu sạc thật** (ρ ≈ 0,30 trên 18,6M bản ghi occupancy; 983 ô có
 > sạc thật nhưng proxy = 0). Chi tiết + bằng chứng: [known-issues.md §2](../known-issues.md#2-bảng-tổng-hợp-vấn-đề-đã-gộp).
 >
-> **Bất đối xứng khiến lỗi bị bỏ sót:** `road` lấy từ Geofabrik (**đã clip theo quốc gia**), `POI` lấy từ Overpass
-> (**không clip**) — `osm/validate.py` chỉ kiểm POI nằm trong `VN_BBOX`, tức đúng cái hộp sinh ra lỗi. `demand_h3` là
-> bảng **duy nhất** chưa có cổng QA (cung có 3 validator + 2 khối 5 cổng), dù nó chính là **hàm mục tiêu**.
+> **Vì sao lỗi bị bỏ sót:** `osm/validate.py` chỉ kiểm POI nằm trong `VN_BBOX` — **đúng cái hộp sinh ra lỗi** →
+> cổng PASS suốt. `demand_h3` khi đó là bảng **duy nhất** chưa có cổng QA (cung có 3 validator + 2 khối 5 cổng),
+> dù nó chính là **hàm mục tiêu**.
+>
+> ⚠️ **Đính chính (28/07).** Nhận định "`road` lấy từ Geofabrik **đã clip theo quốc gia**" là **sai**: Geofabrik
+> cắt bằng polygon **có đệm**, nên **8.934 km đường (1,2%)** nằm ngoài VN, 96% trong vòng 10 km quanh biên. Vì
+> vậy **E-DQ7a xử lý cả road**, không riêng POI. Chi tiết: [known-issues.md — E-DQ7a](../known-issues.md#e-dq7a--poi-ngoài-lãnh-thổ-vn-bước-4).
 
 ---
 

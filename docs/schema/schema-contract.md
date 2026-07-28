@@ -52,9 +52,18 @@
 
 > **P7 — chuẩn cắm thay power tier:** evcs.vn chỉ lộ **công suất**, không lộ chuẩn cắm → tier `AC/DC` theo ngưỡng 25 kW gán **sai** 20-22 kW thành AC (thực tế DC CCS2). Nguồn sự thật là VinFast official (`official_connectors.standard`); 100% connector khớp là chuẩn **ô tô** (CCS2/Type2) → không còn nhiễm 2 bánh sau khi lọc BSS.
 
-### 🟡 `demand_h3` — nhu cầu theo ô H3 (11 cột) · key: `h3_r8`
+### 🟡 `demand_h3` — nhu cầu theo ô H3 (13 cột) · key: `h3_r8`
 
 **Nguồn demand chính thức cho MCLP.** Chứa **thành phần thô** theo ô: `pop`, `road_len_m`, `road_len_mt_m`, `n_poi`, `n_parking`, `n_fuel` (+ `admin_l1_code`, `province_name`, `commune_name`, `commune_kind`).
+
+**Clip lãnh thổ (E-DQ7a, 28/07):** bảng chỉ chứa ô **thuộc lãnh thổ VN** (268.404 → **254.035** ô) với 2 cột kèm theo:
+
+| Cột | Kiểu | Vai trò |
+| --- | --- | --- |
+| `cell_state` | string | `INSIDE` (lục giác nằm trọn trong VN) \| `BORDER` (vắt biên — **giữ**, 2.977 ô) |
+| `frac_in_vn` | double | tỉ lệ diện tích ô thuộc VN (1,0 với `INSIDE`) — để `demand_weight` chia tỉ lệ ô biên |
+
+> Ô `OUTSIDE` tách sang `data/interim/demand/demand_h3_clipped_out.parquet` (cách ly, không xoá) để đối soát `input = output + clipped`. `n_poi`/`n_parking`/`n_fuel` chỉ đếm POI có `in_vn=True` (clip ở mức điểm).
 
 > Bảng này **chưa có một con số "trọng số demand" duy nhất** cho mỗi ô — đó chính là phần Giang bổ sung (mục 4): `demand_weight = f(pop, road, poi, …)`.
 

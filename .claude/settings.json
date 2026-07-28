@@ -62,7 +62,20 @@
       "Bash(rsync -a --delete --stats --exclude=/raw/vinfast_official/details/ --exclude=/interim/evcs_timeseries/ --exclude=details.tar.zst --exclude=evcs_timeseries.tar.zst --exclude=README.md --exclude=.gitattributes --exclude=.git/ --exclude=.gitkeep data/ vgreen-charging-siting-data/)",
       "Bash(git commit *)",
       "Bash(timeout 900 git push origin main)",
-      "Bash(git ls-tree *)"
+      "Bash(git ls-tree *)",
+      "Bash(timeout 1800 env PYTHONPATH=src python -m ev_siting.data.osm.vn_boundary)",
+      "Bash(timeout 900 env PYTHONPATH=src python -m ev_siting.data.osm.build_osm_h3)",
+      "Bash(timeout 1200 env PYTHONPATH=src python -m ev_siting.data.worldpop.build_demand_h3)",
+      "Bash(timeout 900 env PYTHONPATH=src python -m ev_siting.data.osm.validate)",
+      "Bash(timeout 1800 env PYTHONPATH=src python -m ev_siting.data.landuse.build_buildable_h3 --national)",
+      "Bash(timeout 600 env PYTHONPATH=src python -m ev_siting.data.landuse.validate)",
+      "Bash(timeout 600 env PYTHONPATH=src python -)",
+      "Bash(timeout 1800 make boundary)",
+      "Bash(timeout 1800 make osm)",
+      "Bash(timeout 1800 make demand)",
+      "Bash(python -m compileall -q src/ev_siting)",
+      "Bash(timeout 300 env PYTHONPATH=src python -m ev_siting.data.osm.vn_boundary --verify)",
+      "Bash(echo \"verify exit=$?\")"
     ]
   }
 }
