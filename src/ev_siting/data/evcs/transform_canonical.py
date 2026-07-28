@@ -33,9 +33,10 @@ import shutil
 import h3
 import pandas as pd
 
-from .paths import MASTER_CSV, STATIONS_DIR, CONNECTORS_DIR, CANONICAL_DIR, PROJECT_ROOT
-from .dedup_crosssource import assign_physical_id, dedup_report, DUP_COLS
-from ..vinfast_official.paths import XREF_PARQUET, CONNECTORS_PARQUET as OFFICIAL_CONNECTORS
+from ..vinfast_official.paths import CONNECTORS_PARQUET as OFFICIAL_CONNECTORS
+from ..vinfast_official.paths import XREF_PARQUET
+from .dedup_crosssource import DUP_COLS, assign_physical_id, dedup_report
+from .paths import CONNECTORS_DIR, MASTER_CSV, PROJECT_ROOT, STATIONS_DIR
 
 H3_RES = 8
 

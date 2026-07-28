@@ -105,10 +105,10 @@ def source_specs() -> list[dict]:
     """Khai báo toàn bộ nguồn thô + provenance. Path có thể chưa tồn tại (freeze sẽ
     ghi ``present=false`` và bỏ qua) — cho phép freeze từng phần khi crawl dở."""
     from ..evcs import paths as evcs
-    from ..vinfast_official import paths as vo
-    from ..osm import paths as osm
-    from ..worldpop import paths as wp
     from ..landuse import paths as lu
+    from ..osm import paths as osm
+    from ..vinfast_official import paths as vo
+    from ..worldpop import paths as wp
 
     # Provenance thời gian của evcs lấy từ quality_report (cửa sổ telemetry occupancy).
     evcs_window = {}

@@ -40,8 +40,9 @@ def test_flag_lists_vectorized():
 
 def test_substation_distance_balltree():
     """BallTree haversine trả khoảng cách hợp lý (m); inf khi không có trạm."""
-    from ev_siting.data.landuse.build_buildable_h3 import _dist_to_substations_m
     import pandas as pd
+
+    from ev_siting.data.landuse.build_buildable_h3 import _dist_to_substations_m
     cells = np.array([[21.0, 105.8], [10.77, 106.70]])
     subs = pd.DataFrame({"lat": [21.001], "lng": [105.801]})
     d = _dist_to_substations_m(cells, subs)

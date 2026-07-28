@@ -14,10 +14,15 @@ SPARSE / COORD_INVALID). Báo cáo toàn tập ở ev_siting.data.evcs.validate.
 - Input : data/raw/evcs/catalog/evcs_catalog.csv , data/interim/evcs_timeseries/<code>.csv
 - Output: data/interim/stations_master_evcs.csv
 """
-import csv, json, os, re
-from datetime import datetime, timezone, timedelta
+import csv
+import json
+import os
+import re
+from datetime import datetime, timedelta, timezone
 
-from .paths import CATALOG_CSV as CATALOG, TS_DIR, MASTER_CSV as OUT, PROJECT_ROOT
+from .paths import CATALOG_CSV as CATALOG
+from .paths import MASTER_CSV as OUT
+from .paths import PROJECT_ROOT, TS_DIR
 
 VN_TZ = timezone(timedelta(hours=7))
 TAB_LABEL = {"cs": "VINFAST_CS", "bss": "BATTERY_SWAP", "other": "OTHER"}

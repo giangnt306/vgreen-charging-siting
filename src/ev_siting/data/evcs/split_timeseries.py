@@ -15,9 +15,10 @@ của MỘT trạm trong RAM (vài nghìn dòng), không nạp cả file.
 - Output: data/interim/evcs_timeseries/<evcs_code>.csv  (timestamp, n_cars_charging), unique + sorted
 Bước tiếp theo: python -m ev_siting.data.evcs.build_master_evcs
 """
-import csv, os
+import csv
+import os
 
-from .paths import LOAD_TS, TS_DIR, PROJECT_ROOT
+from .paths import LOAD_TS, PROJECT_ROOT, TS_DIR
 
 
 def flush(code, rows):

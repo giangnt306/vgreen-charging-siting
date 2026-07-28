@@ -2,8 +2,7 @@
 import h3
 import pandas as pd
 
-from ev_siting.features.build_candidates import (_coverage_cells,
-                                                 _dedup_one_per_cell)
+from ev_siting.features.build_candidates import _coverage_cells, _dedup_one_per_cell
 
 
 def test_coverage_cells_contains_center():

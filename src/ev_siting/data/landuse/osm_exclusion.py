@@ -27,17 +27,16 @@ import sys
 import time
 from collections import Counter
 
+import h3
 import numpy as np
 import pandas as pd
 import requests
 from shapely import STRtree
 from shapely.geometry import Point, Polygon
 
-import h3
-
 from ev_siting.aoi import NationalAOI, add_aoi_args, aoi_from_args
-from .paths import (EXCLUSION_ZONES, OSM_EXCL_DIR, OSM_SUBSTATION_TAGS,
-                    SUBSTATIONS, ensure_dirs)
+
+from .paths import EXCLUSION_ZONES, OSM_EXCL_DIR, OSM_SUBSTATION_TAGS, SUBSTATIONS, ensure_dirs
 
 ENDPOINT = "https://overpass-api.de/api/interpreter"
 HEADERS = {"User-Agent": "vgreen-charging-siting/0.1 (land-use exclusion; contact: giangnt306w@gmail.com)"}

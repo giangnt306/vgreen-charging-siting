@@ -14,13 +14,13 @@ Chạy:
 import argparse
 import sys
 
+import h3
 import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.windows import Window
 
-from .paths import (H3_RES_R8, POP_H3, POP_TIF, WORLDPOP_URL, ensure_dirs)
-import h3
+from .paths import H3_RES_R8, POP_H3, POP_TIF, WORLDPOP_URL, ensure_dirs
 
 ROW_BLOCK = 512   # số hàng đọc mỗi cửa sổ (cân bằng RAM/tốc độ)
 

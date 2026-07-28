@@ -28,16 +28,25 @@ Chạy:
 """
 import argparse
 
+import h3
 import numpy as np
 import pandas as pd
 
-import h3
-
 from ev_siting.aoi import EARTH_R_KM, add_aoi_args, aoi_from_args
 from ev_siting.data.worldpop.paths import DEMAND_H3
-from .paths import (BUILDABLE_H3, BUILT_UP_MIN, CROP_DOMINANT, EXCLUSION_ZONES,
-                    LANDUSE_H3, LOW_BUILTUP, SUBSTATIONS, WATER_MAX,
-                    WATER_WETLAND_MAX, ensure_dirs)
+
+from .paths import (
+    BUILDABLE_H3,
+    BUILT_UP_MIN,
+    CROP_DOMINANT,
+    EXCLUSION_ZONES,
+    LANDUSE_H3,
+    LOW_BUILTUP,
+    SUBSTATIONS,
+    WATER_MAX,
+    WATER_WETLAND_MAX,
+    ensure_dirs,
+)
 
 
 def _dist_to_substations_m(latlng, subs):

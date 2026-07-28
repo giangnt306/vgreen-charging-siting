@@ -10,6 +10,7 @@
   - `C` Master Data & Entity Resolution
   - `D` Covariates & Feature Engineering
   - `E` Data Quality & Cleaning (di chuyển từ `data-layer-overview.md §7` — xem [Task-1 rationale](#0-nguồn-gộp))
+  - `F` Pipeline Integrity & Handoff (từ review 2026-07-28 — bằng chứng đầy đủ ở [sprint-reviews/data-pipeline-review-2026-07-28.md](sprint-reviews/data-pipeline-review-2026-07-28.md))
 - **Mức độ:** 🔴 Fatal · 🟠 High · 🟡 Medium · ⚪ Low
 - **Phạm vi (trong 3 sprint):**
   - `FIX` bắt buộc sửa
@@ -51,6 +52,25 @@
 | **E-DQ5**  | E     | Trường`operator` bẩn                                                                                                                    | 🟡   | FIX                   | Giang       | —                   | ☐           |
 | **E-DQ6**  | E     | Text tự do bẩn (`name`, `address`)                                                                                                     | ⚪   | SIMPLIFY              | Giang       | —                   | ☐           |
 | **E-DQ3**  | E     | Cột admin trống (`admin_l1_code`, `province_name`, `commune_name`, `commune_kind`)                                                 | 🟡   | FIX                   | Giang       | —                   | ☐           |
+| **F1**     | F     | HF dataset public (license Unknown, push lại 28/07) — rủi ro pháp lý ToS/vault                                                       | 🔴   | **FIX (chặn)**  | Giang       | —                   | ☐           |
+| **F2**     | F     | `split_timeseries` ghi đè khi resume → mất telemetry vĩnh viễn                                                                        | 🔴   | FIX                   | Giang       | —                   | ☐           |
+| **F3**     | F     | Race listener Socket.IO → time-series gán nhầm trạm (không hậu kiểm được)                                                            | 🔴   | FIX                   | Giang       | —                   | ☐           |
+| **F4**     | F     | Bộ lọc dirty-coord chết (2 cờ không ai sinh); `DUP_COORD_SUSPECT` không ai tiêu thụ; T0 bypass buildable                             | 🔴   | FIX                   | Giang       | —                   | ☐           |
+| **F5**     | F     | `covered0` bỏ qua P8/E-DQ2 (status/is_public thô, thiếu `is_primary`) → baseline lệch hệ quy chiếu với T0                            | 🟠   | FIX                   | Giang       | —                   | ☐           |
+| **F6**     | F     | Telemetry mất im lặng: timeout→null→`.done` không retry; enrich lỗi→`seen` vĩnh viễn                                                 | 🟠   | FIX                   | Giang       | —                   | ☐           |
+| **F7**     | F     | `match_official`: NaN distance→`verified=True`; matcher không được wire vào pipeline                                                  | 🟠   | FIX                   | Giang       | —                   | ☐           |
+| **F8**     | F     | Enumerate resume mất force-seed → under-coverage cụm dày đặc                                                                          | 🟠   | FIX                   | Giang       | —                   | ☐           |
+| **F9**     | F     | Overpass trả 200 + kết quả cụt (`remark`) không kiểm → POI thiếu ở ô dày                                                             | 🟠   | FIX                   | Giang       | —                   | ☐           |
+| **F10**    | F     | Bàn giao 21/07 = snapshot mồ côi (hash ≠ MANIFEST, cùng nhãn 07-20, thiếu mọi fix P6–E-DQ2) → cần re-handoff                        | 🟠   | FIX                   | Kỳ+Giang   | —                   | ◐           |
+| **F11**    | F     | `evcs_new_supply` (phía Kỳ) không dedup nội tập + chứa 46 OOS/659 Maintaining → nhiễm ground truth T1 (B4)                          | 🔴   | **FIX (chặn B4)** | Kỳ         | —                   | ☐           |
+| **F12**    | F     | Không atomic/fail-fast: `run_pipeline.sh` chạy tiếp khi crawl fail; ckpt ghi thẳng; `transform_canonical` rmtree                      | 🟡   | FIX                   | Giang       | —                   | ☐           |
+| **F13**    | F     | Ngưỡng 25kW còn 4 chỗ (master + fallback canonical); `num_ports`=totalCharging (74% max-concurrent > tot)                            | 🟡   | FIX                   | Giang       | —                   | ☐           |
+| **F14**    | F     | `penalty` chuẩn hoá per-AOI trên file dùng chung; `built_up<0.05`/`road=0` hard-exclude (liên E-DQ7/E-DQ8)                           | 🟡   | SIMPLIFY              | Giang       | —                   | ☐           |
+| **F15**    | F     | Docs/config trôi: schema-contract thiếu 6 cột E-DQ2 + QA ảo; `params.yaml` mồ côi (R=500m); cột chết trong candidate                 | 🟡   | FIX                   | Giang       | —                   | ☐           |
+| **F16**    | F     | Test né logic rủi ro: không test `_load_stations`/`_gapfill`/`_qa_gate`/covered0                                                      | 🟡   | FIX                   | Giang       | —                   | ☐           |
+| **F17**    | F     | `_tos_firewall` (phía Kỳ) chỉ bọc bảng `stations`, các bảng dist khác không qua firewall                                              | 🟡   | FIX                   | Kỳ         | —                   | ☐           |
+| **F18**    | F     | Gộp Low: `fetch_locators` không so `meta.count`; PBF/TIF thiếu check `got<total`; manifest hỏng→WARN; `merge_catalog` ghi vào raw/   | ⚪   | FIX                   | Giang       | —                   | ☐           |
+| **F19**    | F     | Occupancy sampling theo sự kiện không đều (median 0,9' · max gap 71h) → calibrate P1/A2 bắt buộc duration-weight                     | 🟡   | FIX + DOC             | Kỳ         | —                   | ☐           |
 
 ---
 
@@ -379,3 +399,35 @@ Inspect độc lập: `python -m ev_siting.data.evcs.dedup_crosssource --dump` �
   `token_set_ratio`); tác động nhỏ (charger hộ gia đình) và **đảo ngược được** qua `dup_group_id`/`dup_dist_m`.
 - E-DQ2 chạy **trước E-DQ1** (thứ tự register) nên toạ độ chưa được làm sạch → chọn **bảo thủ**: cụm đáng
   ngờ **không** merge mà **hoãn** sang E-DQ1 (`DUP_COORD_SUSPECT`), thay vì merge nhầm.
+
+### F. Pipeline Integrity & Handoff (review 2026-07-28)
+
+*Nguồn: [data-pipeline-review-2026-07-28.md](sprint-reviews/data-pipeline-review-2026-07-28.md) — ở đó có đầy đủ bằng chứng, con số đo trực tiếp và bảng ưu tiên. Dưới đây chỉ ghi vị trí + hướng fix để tick dần. Thứ tự xử lý đề xuất: **F1 → F2+F3+F6 (trước mọi lần crawl tiếp theo) → F4+F5 (mở khoá feature) → F10+F11 (trước B4 30–31/07) → F7 → F8+F9+F12 → F13–F19**.*
+
+#### 🔴 Chặn
+
+- **F1 — HF public.** `Wanderer210w/vgreen-charging-siting-data` vẫn public, license Unknown, **push lại 28/07** (raw + 19.218 series occupancy + 23.240 JSON VinFast, 47 download/tháng). Xử lý: chuyển private hoặc gỡ `raw/` + occupancy + JSON; thêm license + `SOURCES_AND_LICENSES.md`. *Không việc gì được demo/publish trước khi đóng mục này.*
+- **F2 — split_timeseries overwrite.** `split_timeseries.py:26,48-51`: `flush()` mode `"w"` + giả định mỗi station là khối liền → crash-resume ghi đè file cũ. Fix: buffer dict toàn cục theo code, hoặc merge-union với file hiện có khi flush; sửa docstring.
+- **F3 — Socket.IO listener race.** `evcs_scrape.py:53-60`: trạm timeout không gỡ listener `once('history_data')` → reply muộn của trạm A resolve promise trạm B (time-series gán nhầm danh tính). Fix: `socket.off('history_data', done)` trong nhánh timeout + validate `stationId` trong payload nếu có.
+- **F4 — bộ lọc dirty-coord chết.** `build_candidates.py:53` & `build_covered0.py:47` lọc `{DUP_COORD, COORD_ADDR_MISMATCH}` — không producer nào sinh. Cờ thật đang tồn tại: `DUP_COORD_SUSPECT` (214 trạm, `dedup_crosssource.py:199-201`) không ai đọc; T0 còn bypass buildable (`build_candidates.py:225`). Fix tối thiểu: thêm `DUP_COORD_SUSPECT` (+cân nhắc `COORD_INVALID`) vào `_DIRTY_COORD_FLAGS` cả 2 file; sửa `candidate-sites.md` đang tuyên bố lớp lọc này hoạt động.
+- **F11 — new_supply phía Kỳ nhiễm (chặn B4).** `evcs-dataset/src/evcs/transform/evcs_vn_new_supply.py`: không dedup nội tập NEW (121/3.797 row là cặp <50m; **40/1.544 tier HIGH** — chính ground truth T1); 46 OutOfService + 659 Maintaining pass `ever_active==1`. Fix trước B4: dedup nội tập (coord<50m + name-sim + blob-guard, mượn `dedup_crosssource`) + cờ trạng thái từ canonical mới của Giang qua `station_code`.
+
+#### 🟠 Cao
+
+- **F5 — covered0 lệch hệ quy chiếu.** `build_covered0.py:44-52,73-76` dùng `status`/`is_public` thô, không đọc `op_status`/`access`/`is_operational`/`is_primary` → 329 dup đếm 2 lần, trạm official-ACTIVE bị loại oan, T0 ⊄ covered0. Fix: filter = `is_operational & access=='PUBLIC' & is_primary` (công thức 19.053 của P8/E-DQ2); lý tưởng dùng chung `_load_stations` với candidates.
+- **F6 — telemetry mất im lặng.** `evcs_scrape.py:189-197` (null vẫn `.done`), `evcs_enumerate.py:225-226` (lỗi → `seen`). Fix: chỉ done khi `series is not None`; danh sách fail ra file riêng + retry pass 2.
+- **F7 — match_official.** (a) `match_official.py:249-250`: `pd.isna(dist) or ...` → sửa thành `pd.notna(dist) and ...`, thiếu toạ độ = mức "code-only" riêng; (b) không có `make match`, transform fallback im lặng khi thiếu xref (`transform_canonical.py:246-249`) → thêm target + FAIL/WARN khi xref thiếu/stale (mất xref = E-DQ2 T1 biến mất im lặng).
+- **F8 — resume mất force-seed.** `evcs_enumerate.py:296-299,364-377`: resume không tái tạo force-seed cho trạm đã phát hiện → cụm >50 trạm không được mở rộng tiếp. Fix: khi resume, re-seed mọi trạm trong `found` chưa nằm trong đĩa phủ.
+- **F9 — Overpass truncation.** `overpass_poi.py:71-72`: HTTP 200 + `remark` "runtime error/timed out" được nhận nguyên. Fix: check `remark` → ép tách bbox như nhánh ≥40k.
+- **F10 — re-handoff snapshot chuẩn.** Bản trong `evcs-dataset/00_raw/source=evcs_vn` (28.417, copy 21/07) khác sha256 với MANIFEST frozen (28.625, crawl 21-22/07) — cùng nhãn `2026-07-20`, thiếu mọi fix P6–E-DQ2. *Cập nhật 28/07: snapshot HF (bit-identical với MANIFEST, verify `--hashes` PASS) đã tải về `aGiang-evcs/data/` → re-handoff từ đây: catalog frozen + canonical (`op_status`/`is_primary`/`physical_id`/`connector_standard`), drop cột bẫy `gold_station_id` (NN không ngưỡng, p99 6,6km).*
+
+#### 🟡 / ⚪ Trung bình & thấp
+
+- **F12 — atomicity/fail-fast.** `run_pipeline.sh:13` thêm `set -e` cho bước 1–3 (hoặc gate đếm tối thiểu); ckpt `evcs_enumerate.py:311-313` ghi `.tmp` + `os.replace` + validate regex mã khi resume; `transform_canonical.py:369-377` ghi thư mục tạm rồi swap.
+- **F13 — tàn dư ngưỡng 25kW + cột đánh lừa.** `build_master_evcs.py:26,57` (master CSV vẫn tier-derived), `transform_canonical.py:56,199,346` (fallback không cờ riêng — thêm `CURRENT_TYPE_TIER_DERIVED`); `num_ports`=totalCharging (`build_master_evcs.py:224`): **đo thật 74% trạm max-concurrent > tot, 14.537 cs tot=0** → rename `n_charging_snapshot` hoặc drop.
+- **F14 — hard-exclude & chuẩn hoá.** `build_buildable_h3.py:110,118` (`built_up<0.05` trên ước lượng nhiễu stride-8; national loại 47% ô pop>0), `:87-90,111` (`road=0` từ độ phủ OSM; mọi class trừ đi bộ đều tính), `:125-126` (`penalty` chia `dmax` per-AOI trên file dùng chung → `capex_class` đổi theo lần chạy). Fix: soft-penalty + mẫu số vật lý cố định + WARN→FAIL có ngưỡng.
+- **F15 — docs/config trôi.** `schema-contract.md` thiếu 6 cột E-DQ2 và mô tả QA không tồn tại trong code (orphan chỉ print — thêm assert); `config/params.yaml` mồ côi `radius_m: 500` mâu thuẫn `R_BASELINE_KM=3.0` (xoá hoặc đồng bộ); `candidate_sites.province_code`/`exclusion_flags` chết 100%; `data-dictionary.md` chỉ có tariff.
+- **F16 — test gap.** Bổ sung 4 test: `_load_stations` (cờ lọc lấy từ producer thật — bắt được F4), `_gapfill` AOI-clip (regression cho 495b0c3), `_qa_gate` 5 cổng, `build_covered0` filter.
+- **F17 — firewall phía Kỳ.** `evcs-dataset/src/evcs/publish/export.py:102-155`: wrap mọi `write_*` vào dist qua `_tos_firewall` (hiện chỉ `stations`).
+- **F18 — gộp Low.** `fetch_locators.py:93-99` so `len(items)` vs `meta.count` + parse gate `.done` đủ; `roads_pbf.py:105-119`/`worldpop_pop.py:34-47` thêm check `got<total` (mẫu: `worldcover.py:97-98`); `validate.py:122-124` manifest corrupt → CRITICAL thay vì WARN; `merge_catalog.py:11-12` chuyển output khỏi `data/raw/`; `R_cov=1.05R` (`evcs_enumerate.py:360`) + đo coverage vs registry official.
+- **F19 — phương pháp dùng occupancy.** Đo thật trên 18,63M điểm: sampling theo sự kiện (median gap 0,9', p99 41', max 71h; 513 trạm <50 obs; 129 trạm span <3 ngày; 3.417 trạm zero suốt 7 ngày; `n_cars_charging` max 109 > tot 45 — ngữ nghĩa chưa xác nhận). Mọi calibrate P1/A2 phải **duration-weight/resample lưới đều**, không mean-of-samples; câu hỏi ngữ nghĩa counter gửi Giang (report §5).

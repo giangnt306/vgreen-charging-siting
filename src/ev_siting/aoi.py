@@ -156,6 +156,7 @@ class NationalAOI:
     def cells(self) -> list[str]:
         """Lưới quốc gia = mọi ô trong `demand_h3` (đã có sẵn, phủ toàn VN)."""
         import pandas as pd
+
         from ev_siting.data.worldpop.paths import DEMAND_H3
         if not DEMAND_H3.exists():
             raise SystemExit(f"national AOI cần {DEMAND_H3} — chạy build_demand_h3 trước")

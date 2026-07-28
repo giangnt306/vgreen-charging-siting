@@ -22,17 +22,26 @@ import math
 import sys
 import time
 
+import h3
 import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.windows import from_bounds
 
-import h3
-
 from ev_siting.aoi import add_aoi_args, aoi_from_args
-from .paths import (H3_RES_R8, LANDUSE_H3, WC_BASE_URL, WC_CLASS_GROUP,
-                    WC_GROUPS, WC_TILE_DEG, WC_TILE_DIR, WC_VERSION, WC_YEAR,
-                    ensure_dirs)
+
+from .paths import (
+    H3_RES_R8,
+    LANDUSE_H3,
+    WC_BASE_URL,
+    WC_CLASS_GROUP,
+    WC_GROUPS,
+    WC_TILE_DEG,
+    WC_TILE_DIR,
+    WC_VERSION,
+    WC_YEAR,
+    ensure_dirs,
+)
 
 ROW_BLOCK = 1024  # số hàng đọc mỗi cửa sổ (WorldCover ~36000 px/tile)
 

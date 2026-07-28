@@ -16,8 +16,7 @@ import sys
 
 import pandas as pd
 
-from .paths import (DEMAND_COMPONENTS, POI_POINTS, QUALITY_REPORT, ROADS_H3,
-                    VN_BBOX, ensure_dirs)
+from .paths import DEMAND_COMPONENTS, POI_POINTS, QUALITY_REPORT, ROADS_H3, VN_BBOX, ensure_dirs
 
 
 def _check(report, name, ok, detail="", fatal=True):

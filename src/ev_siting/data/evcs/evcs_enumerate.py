@@ -33,6 +33,7 @@ import numpy as np
 from playwright.sync_api import sync_playwright
 
 from .paths import CATALOG_DIR
+
 BASE = "https://evcs.vn"
 # Nhiều trang trạm để bootstrap qua Cloudflare — nếu 1 URL chết thì thử URL kế.
 BOOT_URLS = [

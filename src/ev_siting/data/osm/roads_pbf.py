@@ -23,11 +23,11 @@ import argparse
 import math
 import sys
 
+import h3
 import osmium
 import pandas as pd
 
-from .paths import (GEOFABRIK_URL, H3_RES_R8, PBF_PATH, ROADS_H3, ensure_dirs)
-import h3
+from .paths import GEOFABRIK_URL, H3_RES_R8, PBF_PATH, ROADS_H3, ensure_dirs
 
 # Loại highway KHÔNG tính là "đường" (hạ tầng đi bộ/xe đạp/đặc thù).
 _EXCLUDE = {

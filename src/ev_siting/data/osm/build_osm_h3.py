@@ -19,11 +19,10 @@ Chạy:
 """
 import json
 
+import h3
 import pandas as pd
 
-from .paths import (DEMAND_COMPONENTS, H3_RES_R8, H3_RES_R9, POI_POINTS,
-                    POI_RAW_DIR, ROADS_H3, ensure_dirs)
-import h3
+from .paths import DEMAND_COMPONENTS, H3_RES_R8, H3_RES_R9, POI_POINTS, POI_RAW_DIR, ROADS_H3, ensure_dirs
 
 # category -> cột đếm trong demand_h3. mall/apartments/retail dồn vào n_poi.
 _COUNT_COL = {

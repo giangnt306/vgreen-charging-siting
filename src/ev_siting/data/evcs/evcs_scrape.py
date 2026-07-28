@@ -25,13 +25,14 @@ Chạy:
 """
 import argparse
 import csv
-import json
 import os
 import re
 import sys
+
 from playwright.sync_api import sync_playwright
 
 from .paths import LOAD_TS
+
 BASE = "https://evcs.vn"
 # Trang trạm để nạp socket.io + qua Cloudflare. Nhiều URL dự phòng: URL này chết thì thử URL kế.
 BOOTSTRAP_PAGES = [

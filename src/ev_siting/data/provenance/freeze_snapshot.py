@@ -21,8 +21,6 @@ Thoát mã: 0 = OK; 1 = drift/thiếu khi --verify; 2 = lỗi cấu hình.
 """
 import argparse
 import json
-import os
-import stat
 import sys
 
 from . import manifest as M

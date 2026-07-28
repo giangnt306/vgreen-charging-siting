@@ -32,8 +32,16 @@ from datetime import datetime, timezone
 import pandas as pd
 import requests
 
-from .paths import (RAW_DIR, META_JSON, BULK_JSON, DETAIL_DIR, INTERIM_DIR,
-                    STATIONS_PARQUET, CONNECTORS_PARQUET, ADMIN_PARQUET, ensure_dirs)
+from .paths import (
+    ADMIN_PARQUET,
+    BULK_JSON,
+    CONNECTORS_PARQUET,
+    DETAIL_DIR,
+    META_JSON,
+    RAW_DIR,
+    STATIONS_PARQUET,
+    ensure_dirs,
+)
 
 CDN_BASE = "https://static-cms-prod.vinfastauto.com/locators"
 SITE_BASE = "https://vinfastauto.com/vn_vi"

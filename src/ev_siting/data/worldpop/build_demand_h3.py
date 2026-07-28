@@ -20,6 +20,7 @@ Chạy:
 import pandas as pd
 
 from ev_siting.data.osm.paths import DEMAND_COMPONENTS
+
 from .paths import DEMAND_H3, POP_H3, ensure_dirs
 
 _NUM_COLS = ["pop", "road_len_m", "road_len_mt_m"]

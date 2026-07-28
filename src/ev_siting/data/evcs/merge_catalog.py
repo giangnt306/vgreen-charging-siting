@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Gộp 3 lần quét /search (cs/other/bss) -> 1 catalog trạm + 1 file mã tổng."""
 import csv
-import glob
 import os
+from collections import Counter
 
 from .paths import CATALOG_DIR as CAT
+
 SRC = [("cs", os.path.join(CAT, "evcs_stations.csv")),
        ("other", os.path.join(CAT, "evcs_other.csv")),
        ("bss", os.path.join(CAT, "evcs_bss.csv"))]
@@ -56,7 +57,6 @@ with open(OUT_CSV, "w", newline="", encoding="utf-8") as f:
 with open(OUT_CODES, "w", encoding="utf-8") as f:
     f.write("\n".join(sorted(rows)) + "\n")
 
-from collections import Counter
 by_tab = Counter(r["tab"] for r in rows.values())
 print(f"\nTỔNG: {len(rows)} mã duy nhất  {dict(by_tab)}")
 print(f"  -> {OUT_CSV} , {OUT_CODES}")

@@ -19,11 +19,16 @@ Kiểm tra:
 
 Chạy: PYTHONPATH=src python -m ev_siting.data.evcs.validate
 """
-import csv, json, os, sys
+import csv
+import json
+import os
+import sys
 from collections import Counter
 from datetime import datetime, timezone
 
-from .paths import MASTER_CSV as MASTER, TS_DIR, QUALITY_REPORT as REPORT, PROJECT_ROOT
+from .paths import MASTER_CSV as MASTER
+from .paths import PROJECT_ROOT, TS_DIR
+from .paths import QUALITY_REPORT as REPORT
 
 REQUIRED_COLS = [
     "station_code", "station_type", "has_timeseries", "ts_n_rows",
@@ -66,7 +71,6 @@ def main():
     ts_files = {fn[:-4] for fn in os.listdir(TS_DIR) if fn.endswith(".csv")}
     ts_missing_file = master_has_ts - ts_files          # master bảo có TS nhưng thiếu file
     ts_orphan_file  = ts_files - master_codes           # file TS không có dòng master
-    ts_flag_but_nofile = master_has_ts - ts_files
     file_but_flag_false = ts_files - master_has_ts       # có file nhưng master ghi False/không có
 
     if ts_missing_file:

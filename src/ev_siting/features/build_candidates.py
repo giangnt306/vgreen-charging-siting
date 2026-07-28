@@ -25,19 +25,27 @@ Chạy:
 import argparse
 import json
 
+import h3
 import numpy as np
 import pandas as pd
-
-import h3
 
 from ev_siting.aoi import add_aoi_args, aoi_from_args
 from ev_siting.data.evcs.paths import STATIONS_DIR
 from ev_siting.data.landuse.paths import BUILDABLE_H3
 from ev_siting.data.osm.paths import POI_POINTS
 from ev_siting.data.worldpop.paths import DEMAND_H3
-from .paths import (CANDIDATE_GEOJSON, CANDIDATE_SITES, CAND_MAX, CAND_MIN_MULT,
-                    COVERAGE_MIN, DEGEN_MIN, GAPFILL_TOP_Q, R_BASELINE_KM,
-                    ensure_dirs)
+
+from .paths import (
+    CAND_MAX,
+    CAND_MIN_MULT,
+    CANDIDATE_GEOJSON,
+    CANDIDATE_SITES,
+    COVERAGE_MIN,
+    DEGEN_MIN,
+    GAPFILL_TOP_Q,
+    R_BASELINE_KM,
+    ensure_dirs,
+)
 
 # tier -> (anchor_type từ POI category), theo thứ tự ưu tiên tăng dần rank (0=tốt nhất)
 _POI_TIER = {
