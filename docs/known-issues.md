@@ -443,9 +443,25 @@ Inspect độc lập: `python -m ev_siting.data.evcs.dedup_crosssource --dump` �
   - **☑ Fix 28/07:** `set -euo pipefail`; checkpoint flush+fsync vào `.tmp` rồi `os.replace`, resume reject JSON/đĩa/codes hỏng thay vì skip scan im lặng. Canonical build cả hai partition tree off-path, swap cả `canonical/` generation có rollback; không còn `rmtree` live output trước khi parquet mới hoàn chỉnh.
 - **F13 — tàn dư ngưỡng 25kW + cột đánh lừa.** **☑ Fix 28/07:** bỏ toàn bộ suy AC/DC theo kW ở master/canonical; chỉ registry first-party quyết `AC/DC`, evcs-only = `UNKNOWN` + `CURRENT_TYPE_UNVERIFIED`. `tot` được rename `n_charging_snapshot`, không còn phát hành dưới tên `num_ports`. Rebuild: 9 connector UNKNOWN; 282 station không connector vẫn UNKNOWN minh bạch.
 - **F14 — hard-exclude & chuẩn hoá.** **☑ Fix 28/07:** `NOT_BUILT_UP` (+0,35) và `NO_ROAD_ACCESS` (+0,25) thành penalty; chỉ water/wetland/pháp lý OSM còn loại cứng. Substation dùng mẫu số cố định 50 km. Gate FAIL nếu `pop>0 & road=0` >20%; national rebuild = 6%, candidate 28.075, 5/5 QA PASS.
+  - **Bàn giao trách nhiệm (chốt 28/07):** nới hard-exclude ⇒ candidate set rộng ra có chủ đích (buildable national 97%, `high` 8.880, `NO_ROAD_ACCESS ∧ NOT_BUILT_UP` 1.337). **5 cổng QA không bắt được chiều "quá dễ dãi"** — gate ① thậm chí *tăng* (0,9105 → 0,9438) chính vì nới lỏng. Nên `penalty` trở thành **load-bearing**: hợp đồng tiêu thụ phía MCLP chốt ở [candidate-sites.md §10](data-layer/candidate-sites.md) — `CapEx_i = base(capex_class)×(1+λ·penalty_i)`, λ=1, T0 miễn; **không** hard-filter ở tầng model (bằng chứng: **17 trạm T0 đang chạy thật** nằm trong ô gắn đồng thời `NO_ROAD_ACCESS`+`NOT_BUILT_UP` ⇒ cờ sai ở đó); bắt buộc cảnh báo khảo sát + sensitivity `λ ∈ {0,1,3}`.
 - **F15 — docs/config trôi.** **☑ Fix 28/07:** schema contract/data dictionary ghi E-DQ1/E-DQ2, `UNKNOWN` current type, và schema candidate thật (`penalty_flags`; bỏ `province_code`/`exclusion_flags` chết). Tài liệu nguồn cập nhật `n_charging_snapshot` và merge output thuộc interim.
 - **F16 — test gap.** **☑ Fix 28/07:** regression tests phủ re-seed F8, HTTP-200 `remark`, current type không tier fallback, AOI clip gap-fill, QA radius fail, coordinate repair/unresolved; full suite 38 PASS.
 - **F17 — firewall phía Kỳ.** **☑ Fix 28/07:** toàn bộ export dist (stations/connectors/aggregates/features/gap/NL/FR) qua `_tos_firewall`; smoke synthetic với `evcs_secret`/`vault_tos_restricted` bị chặn.
 - **F18 — gộp Low.** **☑ Fix 28/07:** locator fail nếu `meta.count` khác items; PBF/TIF fail nếu Content-Length không khớp; manifest corrupt = CRITICAL; merge catalog/code list ghi `data/interim`; sparse response không che coverage seed.
 - **F19 — phương pháp dùng occupancy.** **☑ Fix 28/07:** bronze dùng duration-weighted mean với mỗi khoảng giữ tối đa 30 phút; xuất duration observed/coverage/max-gap. Consumer enrich các cột này; cấm dùng mean-of-samples cho calibrate P1/A2. Smoke v4 PASS (19.217 telemetry-joined).
 - **F20 — code/data drift E-DQ1.** **☑ Fix 28/07:** coordinate policy v2 ở `transform_canonical`: giữ raw hợp lệ; exact-code first-party chỉ thay khi raw invalid hoặc lệch ≥200 m; fuzzy không di chuyển; unresolved có `COORD_PLACEHOLDER` + không H3. Canonical rebuild có `lat_raw/lng_raw/coord_*`, schema/handoff v4 ghi policy + revision/dirty-state. Snapshot hiện có 0 repair/0 unresolved; trường hợp hồi quy được test.
+  - **⚠ Đóng F20 KHÔNG đóng E-DQ1 — detection về 0.** Policy v2 chỉ so **evcs ↔ official**, còn bằng chứng
+    E-DQ1 thật là **địa chỉ ↔ toạ độ** và **chồng khít toạ độ**. Đo được: `COORD_PLACEHOLDER` 38 → 0,
+    `COORD_ADDR_MISMATCH` 758 → 0, `covered0` **18.105 → 18.839**. Hai thế hệ canonical hiện **không bản nào
+    đủ cả hai**: bundle `handoff=2026-07-28-v3` có E-DQ1 nhưng sinh trước F13 (7 trạm evcs-only vẫn mang AC/DC
+    suy từ kW); bản HEAD có F13 nhưng không có E-DQ1.
+  - **Quyết định 28/07:** freeze `sprint2-2026-07-28` dùng **bản HEAD** (tái lập được từ git, baseline
+    **18.839**), ghi nhận nợ E-DQ1 ở mục trên. Không freeze bundle vì đó là artefact HEAD **không tái lập
+    được** — đúng thứ F20 sinh ra để chống.
+  - **Đính chính:** 758 `COORD_ADDR_MISMATCH` bản cũ là **advisory** (`n_addr_mismatch_advisory` trong
+    `data/interim/fix_coords_report.json`), không phải loại cứng → gỡ khỏi `DIRTY_COORD_FLAGS` là **đúng**;
+    baseline "đúng" theo policy cũ là ~18.801 chứ không phải 18.105.
+  - **Đường đóng dứt điểm E-DQ1:** hai tín hiệu đã lộ sẵn ở `data/interim/edq1_suspect_stations.csv` —
+    `n_stacked_at_point` (chồng khít) và `dist_to_province_km` (tỉnh suy từ tiền tố `station_code` vs toạ độ;
+    cụm HNO/HCM lệch **1.144 km**). Đưa 2 tín hiệu này vào `resolve_coordinates` sẽ đóng **cả E-DQ1 lẫn F20**
+    trong một thế hệ canonical duy nhất, tái lập được.

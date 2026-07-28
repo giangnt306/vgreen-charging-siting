@@ -174,6 +174,55 @@ vật lý 50 km) đều là hằng số, không phụ thuộc AOI.
 
 ---
 
+## 10. Hợp đồng dùng `penalty` phía MCLP *(chốt sau F14 — 2026-07-28)*
+
+**Vì sao đây là hợp đồng, không phải gợi ý.** Trước F14, `NOT_BUILT_UP` và `NO_ROAD_ACCESS`
+**loại cứng** candidate; MCLP có bỏ qua `penalty` cũng không chọn được đất chưa xây / không đường.
+Sau F14 hai tín hiệu đó chỉ còn là phạt mềm, nên **candidate set đã rộng ra một cách có chủ đích**:
+
+| | national (freeze 28/07) |
+| --- | --- |
+| candidate | **28.075** (`low` 12.834 · `mid` 6.361 · `high` 8.880) |
+| `penalty` phân vị | p50 **0,24** · p75 **0,51** · p90 **0,74** · p95 **0,92** |
+| cờ | `LOW_BUILTUP` 11.302 · `NO_ROAD_ACCESS` 6.819 · `NOT_BUILT_UP` 4.138 · `CROP` 2.794 · `POP_NO_ROAD` 30 |
+| **cả `NO_ROAD_ACCESS` ∧ `NOT_BUILT_UP`** | **1.337** |
+
+> **MCLP bỏ qua `penalty` = model được phép chọn đúng những chỗ code cũ từ chối.** Đây là điểm bàn giao
+> trách nhiệm rõ ràng giữa tầng dữ liệu (Giang) và tầng tối ưu (Kỳ).
+
+### Chốt: `penalty` vào **hàm chi phí**, không vào ràng buộc khả thi
+
+$$
+\text{CapEx}_i = \text{base}(\texttt{capex\_class}_i)\times(1+\lambda\cdot \texttt{penalty}_i),
+\qquad \lambda = 1{,}0 \ \text{(mặc định)}
+$$
+
+- `is_existing=True` (T0) → **CapEx = 0**, không áp công thức trên (incumbent bắt buộc mở).
+- `λ = 1` ⇒ điểm `penalty=1` đắt **gấp đôi** điểm `penalty=0` cùng `capex_class`. MCLP vẫn là bài toán
+  phủ; phần "khó xây" đi vào **ràng buộc ngân sách** — nơi `capex_class` vốn đã sống.
+
+**Vì sao KHÔNG hard-filter ở tầng model** (vd loại `penalty ≥ 0,6`): làm thế là tái lập đúng lỗi F14 —
+để một raster nhiễu (stride-8) và độ phủ OSM quyết định xoá cầu nông thôn. Bằng chứng trực tiếp trong
+chính bản freeze: **17 trạm T0 đang vận hành thật** nằm trong ô bị gắn *đồng thời* `NO_ROAD_ACCESS` và
+`NOT_BUILT_UP`. Trạm đang chạy thì hiển nhiên có đường vào ⇒ **cờ sai ở đó**, và hard-filter sẽ xoá
+hạ tầng có thật. Phạt mềm giữ được chúng nhưng vẫn hạ ưu tiên.
+
+### Hai nghĩa vụ bắt buộc phía báo cáo
+
+1. **Cảnh báo khảo sát thực địa** cho mọi điểm được chọn có `tier=T4` **hoặc** cờ
+   `NO_ROAD_ACCESS ∧ NOT_BUILT_UP`. Cùng mức với quy tắc `SYNTHETIC` đã có ở §3 — không được trình bày
+   như khuyến nghị chốt.
+2. **Bảng phân rã** số điểm được chọn theo `penalty_flags` và `capex_class`, để người đọc thấy bao nhiêu
+   khuyến nghị dựa trên đất chưa kiểm chứng.
+
+### Sensitivity bắt buộc trước khi chốt số
+
+Chạy MCLP với `λ ∈ {0 · 1 · 3}` trên cùng candidate set. Nếu tập điểm chọn giữa `λ=0` và `λ=1` lệch
+**> 20%**, `penalty` đang chi phối nghiệm hơn cả demand → phải soát lại trọng số ở §4 trước khi công bố.
+Ghi kết quả vào report Sprint 2.
+
+---
+
 ## 11. Chạy toàn quốc (national)
 
 Ngoài MVP 1 thành phố, pipeline chạy được **toàn Việt Nam** trên **lưới `demand_h3` quốc gia

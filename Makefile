@@ -1,6 +1,7 @@
 .PHONY: help setup test data proxy model opex-electricity crawl crawl-validate canonical official match-official landuse candidates landuse-national candidates-national covered0 covered0-national freeze verify-snapshot
 
 CITY ?= hanoi
+LABEL ?= sprint2-2026-07-28
 PY = uv run python
 
 help:  ## Show this help (list all commands)
@@ -23,6 +24,9 @@ freeze:  ## Freeze raw inputs -> data/raw/MANIFEST.json (checksums + read-only l
 
 verify-snapshot:  ## Verify raw inputs match frozen snapshot (add HASHES=1 for full content check)  [E-DQ10]
 	$(PY) -m ev_siting.data.provenance.freeze_snapshot --verify $(if $(HASHES),--hashes,)
+
+freeze-processed:  ## Freeze current data/processed/ into an immutable sprint bundle (LABEL=...)
+	$(PY) -m ev_siting.features.freeze_processed --label $(LABEL)
 
 crawl:  ## Run full EVCS crawl pipeline (enum -> scrape -> split -> master -> QA)
 	bash src/ev_siting/data/evcs/run_pipeline.sh
