@@ -4,14 +4,15 @@
 Đầu vào:
   - data/interim/worldpop/worldpop_pop_h3.parquet         (h3_r8, pop)
   - data/interim/osm/osm_demand_components_h3.parquet     (h3_r8, n_poi, n_parking,
-                                                           n_fuel, road_len_m, road_len_mt_m)
+                                                           n_fuel, road_* — E-DQ7b)
   - data/interim/osm/vn_boundary.parquet                  (polygon lãnh thổ — E-DQ7a)
 
 Đầu ra:
   - data/interim/demand/demand_h3.parquet  — **lưới mô hình** (INSIDE + BORDER):
-    h3_r8, pop, road_len_m, road_len_mt_m, n_poi, n_parking, n_fuel,
-    cell_state, frac_in_vn. Cột admin (admin_l1_code, province_name, commune_*)
-    enrich sau (E-DQ3); `demand_weight` chốt ở Sprint 2.
+    h3_r8, pop, road_access_m, road_len_m, road_lane_mw_m, road_lane_ar_m,
+    road_bridge_m, n_poi, n_parking, n_fuel, cell_state, frac_in_vn. Cột admin
+    (admin_l1_code, province_name, commune_*) enrich sau (E-DQ3); `demand_weight`
+    chốt ở Sprint 2.
   - data/interim/demand/demand_h3_clipped_out.parquet — ô OUTSIDE (cách ly, để đối soát)
   - data/interim/demand/demand_h3_report.json         — cổng QA + đối soát
 
@@ -28,6 +29,12 @@ Lưu ý `road_len`: dump Geofabrik **không** cắt đúng biên giới (cắt b
 → 8.934 km đường nằm ngoài VN, 96% trong vòng 10 km quanh biên. Ghi chú "Geofabrik đã
 clip theo quốc gia" ở tài liệu cũ là sai — clip ở đây xử lý cả road, không chỉ POI.
 
+**E-DQ7b — hai cột đường, hai nhiệm vụ.** `road_access_m` (mọi đường lái xe được, GỒM
+`service`+`track`) dùng cho **lối vào** (`buildable_h3`, E-DQ8); `road_len_m` (TRỪ
+`service`+`track`) dùng cho **cầu**. `road_len_mt_m` đã khai tử → `road_lane_mw_m`
+(lane-mét cao tốc) + `road_lane_ar_m` (lane-mét trunk/primary). Xem
+`osm/road_semantics.py`.
+
 Chạy:
     PYTHONPATH=src python -m ev_siting.data.worldpop.build_demand_h3
 """
@@ -37,12 +44,13 @@ import sys
 import pandas as pd
 
 from ev_siting.data.osm.paths import DEMAND_COMPONENTS
+from ev_siting.data.osm.road_semantics import DERIVED_COLUMNS
 from ev_siting.data.osm.vn_boundary import classify_cells
 from ev_siting.data.provenance.manifest import load_manifest
 from .paths import (DEMAND_H3, DEMAND_H3_CLIPPED, DEMAND_REPORT, POP_H3,
                     ensure_dirs)
 
-_NUM_COLS = ["pop", "road_len_m", "road_len_mt_m"]
+_NUM_COLS = ["pop"] + DERIVED_COLUMNS
 _INT_COLS = ["n_poi", "n_parking", "n_fuel"]
 _ALL_COLS = ["h3_r8"] + _NUM_COLS + _INT_COLS + ["cell_state", "frac_in_vn"]
 
@@ -55,8 +63,8 @@ def _check(report, name, ok, detail="", fatal=True):
 
 
 def _totals(df):
-    return {"cells": int(len(df)), "pop": float(df["pop"].sum()),
-            "road_len_m": float(df["road_len_m"].sum()),
+    return {"cells": int(len(df)),
+            **{c: float(df[c].sum()) for c in _NUM_COLS},
             **{c: int(df[c].sum()) for c in _INT_COLS}}
 
 
@@ -67,9 +75,12 @@ def qa_gates(report, full, keep, drop):
     t_full, t_keep, t_drop = _totals(full), _totals(keep), _totals(drop)
 
     # ① đối soát: input = output + clipped (nguyên tắc chung của mọi bước E-DQ)
-    recon = {k: round(t_full[k] - t_keep[k] - t_drop[k], 6) for k in t_full}
+    #    dung sai TƯƠNG ĐỐI: lane-mét toàn quốc ~1e8 nên sai số cộng dồn float vượt 1e-6
+    recon = {k: t_full[k] - t_keep[k] - t_drop[k] for k in t_full}
     all_ok &= _check(report, "reconcile_input_eq_output_plus_clipped",
-                     all(abs(v) < 1e-6 for v in recon.values()), json.dumps(recon))
+                     all(abs(v) <= 1e-9 * max(1.0, abs(t_full[k]))
+                         for k, v in recon.items()),
+                     json.dumps({k: round(v, 6) for k, v in recon.items()}))
 
     # ② khoá chính duy nhất
     dup = int(keep["h3_r8"].duplicated().sum())
@@ -79,9 +90,11 @@ def qa_gates(report, full, keep, drop):
     cols = _NUM_COLS + _INT_COLS
     all_ok &= _check(report, "demand_non_negative", bool((keep[cols] >= 0).all().all()))
 
-    # ④ mt_m <= m (trục lớn là tập con của toàn mạng)
-    all_ok &= _check(report, "road_mt_le_total",
-                     bool((keep["road_len_mt_m"] <= keep["road_len_m"] + 1e-6).all()))
+    # ④ E-DQ7b: mạng sinh cầu ⊆ mạng lối vào; cầu/hầm ⊆ mạng lối vào
+    all_ok &= _check(report, "road_len_le_access",
+                     bool((keep["road_len_m"] <= keep["road_access_m"] + 1e-6).all()))
+    all_ok &= _check(report, "road_bridge_le_access",
+                     bool((keep["road_bridge_m"] <= keep["road_access_m"] + 1e-6).all()))
 
     # ⑤ clip không được ăn vào dân số: ô OUTSIDE phải gần như không có dân
     #    (nếu vượt ngưỡng => polygon sai hoặc dùng nhầm test tâm-ô)
@@ -104,6 +117,11 @@ def run():
 
     pop = pd.read_parquet(POP_H3)
     osm = pd.read_parquet(DEMAND_COMPONENTS)
+    # artefact dựng trước E-DQ7b không có cột lối vào -> chặn (stale), không fill 0 ngầm
+    missing = [c for c in DERIVED_COLUMNS if c not in osm.columns]
+    if missing:
+        raise SystemExit(f"{DEMAND_COMPONENTS.name} thiếu {missing} (bản trước E-DQ7b) "
+                         f"— chạy lại `make osm`")
     df = pop.merge(osm, on="h3_r8", how="outer")
 
     for c in _NUM_COLS:
@@ -128,19 +146,30 @@ def run():
         "pop_M": round(keep["pop"].sum() / 1e6, 3),
         "n_poi": int(keep.n_poi.sum()), "n_parking": int(keep.n_parking.sum()),
         "n_fuel": int(keep.n_fuel.sum()),
+        "road_access_km": round(keep.road_access_m.sum() / 1e3),
         "road_km": round(keep.road_len_m.sum() / 1e3),
-        "road_mt_km": round(keep.road_len_mt_m.sum() / 1e3),
+        "lane_mw_km": round(keep.road_lane_mw_m.sum() / 1e3),
+        "lane_ar_km": round(keep.road_lane_ar_m.sum() / 1e3),
+        "bridge_km": round(keep.road_bridge_m.sum() / 1e3),
     })
     print("  đã clip:", {
         "cells": len(drop), "pop": round(drop["pop"].sum()),
-        "road_km": round(drop.road_len_m.sum() / 1e3),
+        "road_access_km": round(drop.road_access_m.sum() / 1e3),
     })
     border = keep[keep.cell_state == "BORDER"]
     print(f"  ô vắt biên: {len(border)} (frac_in_vn trung vị "
           f"{border.frac_in_vn.median():.2f}; {int((border.frac_in_vn < 0.5).sum())} ô <0,5 "
           f"chứa {border.loc[border.frac_in_vn < 0.5, 'pop'].sum():,.0f} dân)")
-    both = ((keep["pop"] > 0) & (keep.road_len_m > 0)).sum()
+    both = ((keep["pop"] > 0) & (keep.road_access_m > 0)).sum()
     print(f"  ô có cả dân & đường: {both} / {len(keep)}")
+    # E-DQ7b: ô chỉ có service/track — GIỮ là "có lối vào", nhưng là tín hiệu mềm
+    informal = (keep.road_access_m > 0) & (keep.road_len_m <= 0)
+    print(f"  lối vào phi chính thức (chỉ service/track): {int(informal.sum()):,} ô, "
+          f"{keep.loc[informal, 'pop'].sum():,.0f} dân "
+          f"({int((informal & (keep['pop'] > 0)).sum()):,} ô có dân)")
+    print(f"  E-DQ8 (pop>0 & không lối vào): "
+          f"{int(((keep['pop'] > 0) & (keep.road_access_m <= 0)).sum()):,} ô, "
+          f"{keep.loc[(keep['pop'] > 0) & (keep.road_access_m <= 0), 'pop'].sum():,.0f} dân")
 
     report = {"snapshot_id": (load_manifest() or {}).get("snapshot_id"),
               "checks": [], "stats": {

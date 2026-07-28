@@ -51,7 +51,7 @@ PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop --force-download
 | --- | --- | --- |
 | `h3_r8` | string | lưới H3 res 8 |
 | `pop` | double | WorldPop (số người trong ô) |
-| `road_len_m`, `road_len_mt_m` | double | OSM roads ([crawler-osm.md](osm.md)) |
+| `road_access_m`, `road_len_m`, `road_lane_mw_m`, `road_lane_ar_m`, `road_bridge_m` | double | OSM roads theo lớp ([crawler-osm.md](osm.md)) — **E-DQ7b** |
 | `n_poi`, `n_parking`, `n_fuel` | int | OSM POI |
 
 **Còn thiếu (enrich sau, ngoài phạm vi bộ crawl này):**

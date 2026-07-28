@@ -8,19 +8,30 @@ Loại cứng (`buildable=False`) nếu bất kỳ điều nào đúng:
   - frac_water + frac_wetland >= WATER_WETLAND_MAX (đầm/bãi triều)
   - built_up_frac < BUILT_UP_MIN                  (núi/rừng/đất trống — chưa đô thị hoá)
   - có cờ loại trừ OSM (MILITARY/PROTECTED/AIRPORT/WATER_OSM)
-  - road_len_m <= 0 trong ô (không có đường tiếp cận — từ demand_h3)
+  - road_access_m <= 0 trong ô (không có đường tiếp cận — từ demand_h3)
 
 Phạt mềm (giữ, hạ điểm — cột `penalty` + cờ):
   - frac_crop >= CROP_DOMINANT      -> CROP        (đất nông nghiệp)
   - built_up_frac < LOW_BUILTUP     -> LOW_BUILTUP (hạ tầng mỏng)
   - pop>0 & road=0                  -> POP_NO_ROAD (lỗi OSM khả nghi — §7 #9)
+  - chỉ có service/track            -> ROAD_ACCESS_INFORMAL (E-DQ7b)
+  - đường duy nhất là mặt cầu/hầm   -> ROAD_BRIDGE_ONLY     (E-DQ7b)
   - xa trạm biến áp                 -> dist_substation_m (proxy đấu nối lưới)
+
+**E-DQ7b — vì sao lối vào dùng `road_access_m` chứ không `road_len_m`.** Sau E-DQ7b,
+`road_len_m` là mạng **sinh cầu** (đã bỏ `service`+`track`); dùng nó làm bộ lọc cứng
+sẽ loại **27.828 ô**, trong đó **2.474 ô chứa 850.207 dân** và **36 ô chứa 145 trạm
+sạc đang vận hành** — tức loại đúng những nơi đã chứng minh là xây được. `road_access_m`
+= định nghĩa rộng (gồm `service`+`track`), **bằng đúng** `road_len_m` trước E-DQ7b nên
+hành vi bộ lọc không đổi. Đường mòn vẫn là lối vào; nó chỉ không sinh nhu cầu sạc — hai
+câu hỏi khác nhau, hai cột khác nhau. Xem `osm/road_semantics.py`.
 
 Toàn bộ tính **vector hoá** (numpy + BallTree) để chạy được ở national (268k ô).
 
 Output: data/interim/landuse/buildable_h3.parquet
-  h3_r8, buildable(bool), built_up_frac, frac_water, frac_crop, road_len_m, pop,
-  dist_substation_m, exclusion_flags(list), penalty_flags(list), penalty(float 0..1)
+  h3_r8, buildable(bool), built_up_frac, frac_water, frac_crop, road_access_m,
+  road_len_m, road_bridge_m, pop, dist_substation_m, exclusion_flags(list),
+  penalty_flags(list), penalty(float 0..1)
 
 Chạy:
     PYTHONPATH=src python -m ev_siting.data.landuse.build_buildable_h3 --city hanoi
@@ -83,10 +94,16 @@ def build(aoi):
         df[col] = df.get(col, 0.0).fillna(0.0).to_numpy()
 
     # --- demand_h3: road access + pop ---
+    _ROAD_COLS = ["road_access_m", "road_len_m", "road_bridge_m"]
     if DEMAND_H3.exists():
-        dem = pd.read_parquet(DEMAND_H3)[["h3_r8", "road_len_m", "pop"]]
-        df = df.merge(dem, on="h3_r8", how="left")
-    df["road_len_m"] = df.get("road_len_m", 0.0).fillna(0.0).to_numpy()
+        dem = pd.read_parquet(DEMAND_H3)
+        stale = [c for c in _ROAD_COLS if c not in dem.columns]
+        if stale:
+            raise SystemExit(f"{DEMAND_H3.name} thiếu {stale} (bản trước E-DQ7b) "
+                             f"— chạy lại `make demand`")
+        df = df.merge(dem[["h3_r8", "pop"] + _ROAD_COLS], on="h3_r8", how="left")
+    for c in _ROAD_COLS:
+        df[c] = df.get(c, 0.0).fillna(0.0).to_numpy()
     df["pop"] = df.get("pop", 0.0).fillna(0.0).to_numpy()
 
     # --- OSM exclusion flags ---
@@ -108,7 +125,9 @@ def build(aoi):
     water = df["frac_water"].to_numpy() >= WATER_MAX
     wetland = (df["frac_water"].to_numpy() + df["frac_wetland"].to_numpy()) >= WATER_WETLAND_MAX
     not_built = df["built_up_frac"].to_numpy() < BUILT_UP_MIN
-    no_road = df["road_len_m"].to_numpy() <= 0
+    # E-DQ7b: lối vào = định nghĩa RỘNG (gồm service/track) — xem docstring
+    access = df["road_access_m"].to_numpy()
+    no_road = access <= 0
     has_osm_excl = np.array([len(f) > 0 for f in osm_flags])
 
     df["exclusion_flags"] = _flag_lists(
@@ -120,7 +139,11 @@ def build(aoi):
     # --- PHẠT MỀM (vector hoá) ---
     crop = df["frac_crop"].to_numpy() >= CROP_DOMINANT
     low_built = df["built_up_frac"].to_numpy() < LOW_BUILTUP
-    pop_no_road = (df["pop"].to_numpy() > 0) & (df["road_len_m"].to_numpy() == 0)
+    pop_no_road = (df["pop"].to_numpy() > 0) & (access == 0)
+    # E-DQ7b: lối vào chỉ qua service/track (giữ, hạ điểm — không loại cứng)
+    informal = (access > 0) & (df["road_len_m"].to_numpy() <= 0)
+    # E-DQ7b: đường duy nhất trong ô là mặt cầu/hầm -> không có chỗ đặt trụ
+    bridge_only = (access > 0) & ((access - df["road_bridge_m"].to_numpy()) <= 0)
     finite = np.isfinite(dist)
     dmax = float(dist[finite].max()) if finite.any() else 1.0
     dist_term = np.where(finite, 0.5 * np.minimum(dist / (dmax or 1.0), 1.0), 0.5)
@@ -130,11 +153,12 @@ def build(aoi):
     df["penalty"] = np.round(penalty, 3)
     df["penalty_flags"] = _flag_lists(
         {"CROP": crop, "LOW_BUILTUP": low_built,
-         "POP_NO_ROAD": pop_no_road, "NO_SUBSTATION": no_sub})
+         "POP_NO_ROAD": pop_no_road, "NO_SUBSTATION": no_sub,
+         "ROAD_ACCESS_INFORMAL": informal, "ROAD_BRIDGE_ONLY": bridge_only})
 
     out_cols = ["h3_r8", "buildable", "built_up_frac", "frac_water", "frac_crop",
-                "road_len_m", "pop", "dist_substation_m",
-                "exclusion_flags", "penalty_flags", "penalty"]
+                "road_access_m", "road_len_m", "road_bridge_m", "pop",
+                "dist_substation_m", "exclusion_flags", "penalty_flags", "penalty"]
     out = df[out_cols].sort_values("h3_r8").reset_index(drop=True)
     out.to_parquet(BUILDABLE_H3, index=False)
 
@@ -144,6 +168,8 @@ def build(aoi):
     from collections import Counter
     c = Counter(f for fl in out["exclusion_flags"] for f in fl)
     print("  loại cứng theo cờ:", dict(c))
+    print("  phạt mềm theo cờ:",
+          dict(Counter(f for fl in out["penalty_flags"] for f in fl)))
     pop_mask = out["pop"].to_numpy() > 0
     if pop_mask.any():
         pop_excluded = int((pop_mask & ~out["buildable"].to_numpy()).sum())

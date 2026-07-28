@@ -101,7 +101,8 @@ def _gapfill(aoi, buildable, occupied_cells, gapfill_q=GAPFILL_TOP_Q):
     """T4: ô demand cao, buildable, chưa có anchor -> centroid (SYNTHETIC)."""
     empty = pd.DataFrame(columns=["lat", "lng", "h3_r8", "tier", "anchor_type",
                                   "source_ref", "is_existing"])
-    dem = pd.read_parquet(DEMAND_H3)[["h3_r8", "pop", "n_poi", "road_len_mt_m"]]
+    dem = pd.read_parquet(DEMAND_H3)[["h3_r8", "pop", "n_poi",
+                                      "road_lane_mw_m", "road_lane_ar_m"]]
     b = buildable[buildable["buildable"]][["h3_r8"]]
     cand = b.merge(dem, on="h3_r8", how="left").fillna(0.0)
     cand = cand[~cand["h3_r8"].isin(occupied_cells)]
@@ -119,7 +120,14 @@ def _gapfill(aoi, buildable, occupied_cells, gapfill_q=GAPFILL_TOP_Q):
         return empty
     # điểm demand thô để chọn ô đáng gap-fill (pop chủ đạo + đường trục + POI).
     # Quantile tính SAU khi clip -> ngưỡng thích ứng theo demand nội vùng AOI.
-    score = cand["pop"] + 50 * cand["n_poi"] + 0.05 * cand["road_len_mt_m"]
+    # E-DQ7b: `road_len_mt_m` đã khai tử (gộp cao tốc + trục đô thị, ρ với motorway chỉ
+    # 0,31). Nay tách hai hạng: hệ số trục đô thị để nửa (0,025) vì lane-mét ≈ 2× chiều
+    # dài tim đường -> giữ nguyên độ lớn cũ; cao tốc giữ 0,05 = **nặng gấp đôi** vì ô
+    # cao tốc có pop trung vị 73, gần như vô hình trong hạng `pop` nhưng lại đúng chỗ
+    # cần sạc nhanh liên tỉnh. ⚠️ Trọng số đặt tay, tạm thời — E-DQ7d/P1 sẽ hiệu chuẩn
+    # bằng 18,6M bản ghi occupancy.
+    score = (cand["pop"] + 50 * cand["n_poi"]
+             + 0.025 * cand["road_lane_ar_m"] + 0.05 * cand["road_lane_mw_m"])
     thr = score.quantile(gapfill_q)
     pick = cand[score >= thr].copy()
     pick["tier"] = "T4"

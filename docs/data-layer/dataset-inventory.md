@@ -97,14 +97,15 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 
 | Artifact | Dòng (ô H3) | Cột | Ghi chú |
 | --- | ---: | ---: | --- |
-| `demand/demand_h3.parquet` | **268.404** | 7 | `pop` + `road_len_m` + `road_len_mt_m` + `n_poi`/`n_parking`/`n_fuel`. Σ`pop` ≈ 99,63 M |
+| `demand/demand_h3.parquet` | **254.035** | 12 | `pop` + `road_access_m`/`road_len_m`/`road_lane_mw_m`/`road_lane_ar_m`/`road_bridge_m` (**E-DQ7b**) + `n_poi`/`n_parking`/`n_fuel` + `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` ≈ 99,62 M |
 | `worldpop/worldpop_pop_h3.parquet` | 104.171 | 2 | chỉ ô có dân |
-| `osm/osm_demand_components_h3.parquet` | 262.054 | 6 | thành phần OSM |
-| `osm/osm_roads_h3.parquet` | 255.052 | 3 | road length theo ô |
-| `osm/osm_poi_points.parquet` | 37.362 | 8 | POI dạng điểm (có `h3_r8`, `h3_r9`) |
+| `osm/osm_demand_components_h3.parquet` | 255.054 | 9 | thành phần OSM (5 cột `road_*` suy ra) |
+| `osm/osm_roads_h3.parquet` | 255.052 | 29 | **bảng LỚP** (E-DQ7b): `m_`/`lane_m_`/`lane_obs_m_` × 9 lớp `highway` + `bridge_m` |
+| `osm/osm_poi_points.parquet` | 37.362 | 9 | POI dạng điểm (có `h3_r8`, `h3_r9`, `in_vn`) |
 
-> ⚠️ `demand_h3` là bảng **duy nhất chưa có cổng QA** dù nó chính là hàm mục tiêu — và audit 28/07 phát hiện
-> **53,3% POI nằm ngoài lãnh thổ VN** (`E-DQ7a`) + proxy cầu ρ ≈ 0,30 so với occupancy thật (`E-DQ7d`).
+> ⚠️ `demand_h3` từng là bảng **duy nhất chưa có cổng QA** dù nó chính là hàm mục tiêu — đã có 7 cổng từ
+> `E-DQ7a`/`E-DQ7b`. Audit 28/07 phát hiện **54,2% POI nằm ngoài lãnh thổ VN** (`E-DQ7a`, đã sửa),
+> `road_len` sai ngữ nghĩa (`E-DQ7b`, đã sửa) + proxy cầu ρ ≈ 0,30 so với occupancy thật (`E-DQ7d`, **chưa**).
 > **Chưa có cột `demand_weight`.** Xem [known-issues.md](../known-issues.md).
 
 ### 3.3 Bảng land-use (bộ lọc khả thi candidate — P5)

@@ -3,9 +3,17 @@
 
 Kiểm tra tối thiểu trên các artefact interim rồi ghi `osm_quality_report.json`:
   - POI points : có cờ `in_vn`, không trùng (type,id,category), có h3.
-  - road H3    : road_len_m/mt_m không âm, mt_m <= m.
+  - road H3    : có đủ cột lớp (E-DQ7b), không âm, đối soát Σ lớp = `road_access_m`,
+                 `road_len_m` ⊆ `road_access_m`, lane-mét quan sát được ở lớp trục lớn,
+                 **ô chứa trạm sạc thật phải có lối vào** (cổng ngoại vi).
   - components : 3 cột đếm không âm, không trùng h3_r8, **khớp đúng số POI `in_vn`**.
   - demand_h3  : đã clip lãnh thổ, không còn ô `OUTSIDE`.
+
+⚠️ **E-DQ7b — cổng `road_mt_le_total` cũ vô dụng.** `road_len_mt_m <= road_len_m` đúng
+theo *xây dựng* (`_MAJOR ⊂` mọi đường) nên không bao giờ FAIL được. Thay bằng các cổng
+**có thể FAIL**: đối soát Σ lớp (bắt lệch nhãn cột), tỉ lệ lane-mét *quan sát được*
+(bắt trường hợp feature trục lớn thành số suy đoán), và đối chiếu ngoại vi với vị trí
+trạm sạc đang vận hành (bắt lỗ hổng phủ đường của OSM).
 
 ⚠️ **E-DQ7a — vì sao bỏ cổng cũ `poi_coords_in_vn`.** Cổng đó kiểm "toạ độ POI nằm
 trong `VN_BBOX`", tức kiểm đúng cái hộp SINH RA lỗi: `VN_BBOX` chứa trọn Phnom Penh /
@@ -26,10 +34,20 @@ import pandas as pd
 from ev_siting.data.worldpop.paths import DEMAND_H3
 from .paths import (DEMAND_COMPONENTS, POI_POINTS, QUALITY_REPORT, ROADS_H3,
                     VN_BBOX, VN_BOUNDARY, ensure_dirs)
+from .road_semantics import (TIER_COLUMNS, TIERS, derive, lane_col,
+                             lane_obs_col, m_col, major_lane_observed_share)
 
 #: category -> cột đếm (phải khớp `build_osm_h3._COUNT_COL`)
 _COUNT_COL = {"fuel": "n_fuel", "parking": "n_parking",
               "mall": "n_poi", "apartments": "n_poi", "retail": "n_poi"}
+
+#: E-DQ7b — ngưỡng cổng lane-mét quan sát được ở lớp trục lớn (motorway+trunk+primary).
+#: Dưới ngưỡng này `road_lane_*` chủ yếu là số SUY ĐOÁN từ mặc định theo lớp, không
+#: còn là số đo -> feature trục lớn mất ý nghĩa.
+MAJOR_LANE_OBS_MIN = 0.40
+#: E-DQ7b — trần tỉ lệ ô có trạm sạc thật nhưng OSM không có đường nào (lỗ hổng phủ).
+SUPPLY_NO_ACCESS_WARN = 0.01
+SUPPLY_NO_ACCESS_FAIL = 0.02
 
 
 def _check(report, name, ok, detail="", fatal=True):
@@ -37,6 +55,46 @@ def _check(report, name, ok, detail="", fatal=True):
     report["checks"].append({"name": name, "status": status, "detail": detail})
     print(f"  [{status}] {name} {('- ' + detail) if detail else ''}")
     return ok or not fatal
+
+
+def _check_supply_access(report, roads):
+    """E-DQ7b ⑥ — ô chứa trạm sạc đang vận hành phải có `road_access_m > 0`.
+
+    Cổng **ngoại vi** duy nhất của tầng đường: mọi cổng khác đúng theo xây dựng, cổng
+    này đối chiếu với thực địa (trạm sạc tồn tại thật ⇒ phải có đường tới). FAIL ⇒ hoặc
+    OSM thiếu đường, hoặc toạ độ trạm còn sai sau E-DQ1 — cả hai đều cần biết.
+
+    Tập cung khớp E-DQ2/E-DQ1/P8: `is_operational & PUBLIC & is_primary & coord_resolved`.
+    """
+    from ev_siting.data.evcs.paths import STATIONS_DIR
+    import h3
+    if not STATIONS_DIR.exists():
+        return _check(report, "supply_cells_have_road_access", True,
+                      "bỏ qua — chưa có canonical stations", fatal=False)
+    st = pd.read_parquet(STATIONS_DIR)
+    for col, val in (("is_operational", True), ("access", "PUBLIC"),
+                     ("is_primary", True), ("coord_resolved", True)):
+        if col in st.columns:
+            st = st[st[col] == val]
+    st = st[st["lat"].notna() & st["lng"].notna()]
+    if st.empty:
+        return _check(report, "supply_cells_have_road_access", True,
+                      "bỏ qua — tập cung rỗng", fatal=False)
+
+    cells = {h3.latlng_to_cell(a, b, 8) for a, b in zip(st["lat"], st["lng"])}
+    with_access = set(roads.loc[roads["road_access_m"] > 0, "h3_r8"])
+    missing = cells - with_access
+    share = len(missing) / len(cells)
+    report["stats"]["supply_cells"] = len(cells)
+    report["stats"]["supply_cells_no_road_access"] = len(missing)
+    report["stats"]["supply_cells_no_road_access_share"] = round(share, 4)
+    detail = (f"{len(missing)}/{len(cells)} ô có trạm nhưng OSM không có đường nào "
+              f"({share:.2%}; WARN >{SUPPLY_NO_ACCESS_WARN:.0%}, "
+              f"FAIL >{SUPPLY_NO_ACCESS_FAIL:.0%})")
+    if share > SUPPLY_NO_ACCESS_FAIL:
+        return _check(report, "supply_cells_have_road_access", False, detail)
+    return _check(report, "supply_cells_have_road_access",
+                  share <= SUPPLY_NO_ACCESS_WARN, detail, fatal=False)
 
 
 def run():
@@ -81,12 +139,58 @@ def run():
     if ROADS_H3.exists():
         rd = pd.read_parquet(ROADS_H3)
         report["stats"]["n_road_cells"] = int(len(rd))
-        report["stats"]["road_km"] = round(rd["road_len_m"].sum() / 1e3, 1)
-        report["stats"]["road_mt_km"] = round(rd["road_len_mt_m"].sum() / 1e3, 1)
-        all_ok &= _check(report, "road_non_negative",
-                         bool((rd[["road_len_m", "road_len_mt_m"]] >= 0).all().all()))
-        all_ok &= _check(report, "road_mt_le_total",
-                         bool((rd["road_len_mt_m"] <= rd["road_len_m"] + 1e-6).all()))
+
+        # E-DQ7b ①: artefact dựng trước bản vá chỉ có 2 cột vô hướng -> chặn (stale)
+        stale = [c for c in TIER_COLUMNS if c not in rd.columns]
+        has_tiers = not stale
+        all_ok &= _check(report, "roads_h3_has_tier_columns", has_tiers,
+                         "" if has_tiers else f"thiếu {stale[:3]}… — chạy lại roads_pbf (E-DQ7b)")
+
+        if has_tiers:
+            rd = derive(rd)
+            report["stats"]["road_km_by_tier"] = {
+                t: round(rd[m_col(t)].sum() / 1e3, 1) for t in TIERS}
+            report["stats"]["road_access_km"] = round(rd["road_access_m"].sum() / 1e3, 1)
+            report["stats"]["road_km"] = round(rd["road_len_m"].sum() / 1e3, 1)
+            report["stats"]["lane_mw_km"] = round(rd["road_lane_mw_m"].sum() / 1e3, 1)
+            report["stats"]["lane_ar_km"] = round(rd["road_lane_ar_m"].sum() / 1e3, 1)
+            report["stats"]["bridge_km"] = round(rd["road_bridge_m"].sum() / 1e3, 1)
+
+            all_ok &= _check(report, "road_non_negative",
+                             bool((rd[TIER_COLUMNS] >= 0).all().all()))
+
+            # ② đối soát Σ lớp = road_access_m (bắt lệch nhãn cột khi ghi bảng lớp)
+            diff = float((rd["road_access_m"]
+                          - sum(rd[m_col(t)] for t in TIERS)).abs().max())
+            all_ok &= _check(report, "road_tiers_sum_eq_access", diff < 1e-6,
+                             f"lệch tối đa {diff:.3g} m")
+
+            # ③ mạng sinh cầu ⊆ mạng lối vào; cầu/hầm ⊆ mạng lối vào
+            all_ok &= _check(report, "road_len_le_access",
+                             bool((rd["road_len_m"] <= rd["road_access_m"] + 1e-6).all()))
+            all_ok &= _check(report, "road_bridge_le_access",
+                             bool((rd["road_bridge_m"] <= rd["road_access_m"] + 1e-6).all()))
+
+            # ④ lane-mét >= chiều dài tim (mọi way >= 1 làn) & phần quan sát ⊆ tổng
+            lane_ok = all(
+                bool((rd[lane_col(t)] + 1e-6 >= rd[m_col(t)]).all())
+                and bool((rd[lane_obs_col(t)] <= rd[lane_col(t)] + 1e-6).all())
+                for t in TIERS)
+            all_ok &= _check(report, "road_lane_invariants", lane_ok,
+                             "lane_m >= m và lane_obs_m <= lane_m theo từng lớp")
+
+            # ⑤ lane-mét trục lớn phải chủ yếu là số ĐO, không phải số suy đoán
+            obs = major_lane_observed_share(rd)
+            report["stats"]["major_lane_observed_share"] = round(obs, 4)
+            all_ok &= _check(report, "major_lane_observed_share",
+                             obs >= MAJOR_LANE_OBS_MIN,
+                             f"{obs:.1%} lane-mét trục lớn có tag `lanes` "
+                             f"(ngưỡng {MAJOR_LANE_OBS_MIN:.0%})")
+
+            # ⑥ CỔNG NGOẠI VI: ô có trạm sạc đang vận hành phải có lối vào.
+            #    Không đúng theo xây dựng -> có thể FAIL thật (đo lỗ hổng phủ đường OSM
+            #    hoặc toạ độ trạm còn sai sau E-DQ1).
+            all_ok &= _check_supply_access(report, rd)
     else:
         all_ok &= _check(report, "roads_h3_exists", False, str(ROADS_H3), fatal=False)
 

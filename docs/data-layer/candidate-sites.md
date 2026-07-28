@@ -78,7 +78,7 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | Nước + ngập nước | WorldCover | `frac_water + frac_wetland ≥ 0,70` (`WETLAND`) |
 | Núi/rừng/đất trống | WorldCover | `built_up_frac < 0,05` (`NOT_BUILT_UP`) |
 | Đất cấm | OSM | `landuse=military` · `boundary=protected_area` · `leisure=nature_reserve` · `aeroway=aerodrome` · `natural=water`/`reservoir` |
-| Không có đường vào | `demand_h3` | `road_len_m ≤ 0` (`NO_ROAD_ACCESS`) — rẻ nhất, lọc nhiều nhất |
+| Không có đường vào | `demand_h3` | `road_access_m ≤ 0` (`NO_ROAD_ACCESS`) — rẻ nhất, lọc nhiều nhất. **E-DQ7b:** dùng cột **lối vào** (gồm `service`/`track`), KHÔNG dùng `road_len_m` (cột cầu) — nếu dùng nhầm sẽ loại 27.828 ô, trong đó 36 ô đã có trạm sạc thật |
 | Ngoài AOI | `aoi.py` | ngoài lõi + buffer 5 km |
 | Toạ độ bẩn (T0) | `stations` | cờ `DUP_COORD` / `COORD_ADDR_MISMATCH` (§7 #1) |
 

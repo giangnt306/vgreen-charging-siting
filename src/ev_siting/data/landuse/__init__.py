@@ -9,7 +9,7 @@ Trả lời câu hỏi **"ô H3 nào được phép đặt trạm"** cho MCLP. G
 Nguồn công khai:
   - **ESA WorldCover 10 m v200 (2021)** — raster lớp phủ (nền chính, CC-BY 4.0).
   - **OSM** — military / protected_area / aerodrome / water polygon + substation.
-  - `demand_h3.road_len_m` — proxy đường tiếp cận (đã có sẵn).
+  - `demand_h3.road_access_m` — proxy đường tiếp cận (E-DQ7b: cột LỐI VÀO, gồm service/track).
 
 Output: `data/interim/landuse/buildable_h3.parquet` — cột `buildable` + thành phần
 lớp phủ + cờ, join theo `h3_r8`. Tiêu thụ bởi `features/build_candidates.py`.

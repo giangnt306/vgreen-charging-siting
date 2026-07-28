@@ -8,11 +8,17 @@
 Sinh:
   - osm_poi_points.parquet          : 1 dòng/POI đã gán h3_r8/h3_r9 + `in_vn` (để map/QA)
   - osm_demand_components_h3.parquet : theo ô H3 res 8, các cột khớp SCHEMA_CONTRACT
-        h3_r8, n_poi, n_parking, n_fuel, road_len_m, road_len_mt_m
+        h3_r8, n_poi, n_parking, n_fuel,
+        road_access_m, road_len_m, road_lane_mw_m, road_lane_ar_m, road_bridge_m
         (pop lấy từ WorldPop ở bước sau -> khi đó ghép để có demand_h3 đầy đủ)
 
 Quy ước n_poi = POI *sinh cầu* (mall + apartments + retail); fuel/parking tách riêng
 để khớp đúng 3 cột đếm của contract.
+
+**E-DQ7b — cột đường suy ra từ bảng LỚP.** `osm_roads_h3.parquet` nay giữ km/lane-mét
+theo từng lớp `highway`; ở đây chỉ gọi `road_semantics.derive()`. `road_len_mt_m` đã
+**khai tử** (tách thành `road_lane_mw_m` cao tốc + `road_lane_ar_m` trục đô thị) và
+`road_access_m` là cột lối vào cho `buildable_h3`. Xem `road_semantics.py`.
 
 **E-DQ7a — clip lãnh thổ ở mức ĐIỂM.** `overpass_poi.py` crawl bằng `VN_BBOX` thô nên
 54,2% POI thu về nằm ở Campuchia/Lào/Thái/TQ. Ở đây gắn cờ `in_vn` cho TỪNG ĐIỂM
@@ -30,6 +36,7 @@ import pandas as pd
 
 from .paths import (DEMAND_COMPONENTS, H3_RES_R8, H3_RES_R9, POI_POINTS,
                     POI_RAW_DIR, ROADS_H3, ensure_dirs)
+from .road_semantics import DERIVED_COLUMNS, TIER_COLUMNS, derive
 from .vn_boundary import points_in_vn
 import h3
 
@@ -89,11 +96,9 @@ def aggregate(poi_df, roads_df):
     merged = counts.merge(roads_df, on="h3_r8", how="outer")
     for col in ("n_poi", "n_parking", "n_fuel"):
         merged[col] = merged[col].fillna(0).astype(int)
-    for col in ("road_len_m", "road_len_mt_m"):
-        merged[col] = merged[col].fillna(0.0)
-    return merged[["h3_r8", "n_poi", "n_parking", "n_fuel",
-                   "road_len_m", "road_len_mt_m"]].sort_values(
-        "h3_r8").reset_index(drop=True)
+    merged = derive(merged)          # E-DQ7b: bảng lớp -> cột vô hướng
+    return merged[["h3_r8", "n_poi", "n_parking", "n_fuel"] + DERIVED_COLUMNS
+                  ].sort_values("h3_r8").reset_index(drop=True)
 
 
 def run():
@@ -112,9 +117,14 @@ def run():
         print(by_cat.to_string())
 
     roads_df = (pd.read_parquet(ROADS_H3) if ROADS_H3.exists()
-                else pd.DataFrame(columns=["h3_r8", "road_len_m", "road_len_mt_m"]))
+                else pd.DataFrame(columns=["h3_r8"] + TIER_COLUMNS))
     if not ROADS_H3.exists():
         print(f"[h3] ! chưa có {ROADS_H3.name} — chạy roads_pbf.py trước để có road_len")
+    # artefact dựng trước E-DQ7b chỉ có 2 cột vô hướng -> chặn sớm thay vì ra số 0 ngầm
+    stale = [c for c in TIER_COLUMNS if c not in roads_df.columns]
+    if ROADS_H3.exists() and stale:
+        raise SystemExit(f"{ROADS_H3.name} thiếu cột lớp {stale[:3]}… (bản trước E-DQ7b) "
+                         f"— chạy lại `python -m ev_siting.data.osm.roads_pbf`")
 
     comp = aggregate(poi_df, roads_df)
     comp.to_parquet(DEMAND_COMPONENTS, index=False)
@@ -123,8 +133,11 @@ def run():
         "n_poi": int(comp.n_poi.sum()),
         "n_parking": int(comp.n_parking.sum()),
         "n_fuel": int(comp.n_fuel.sum()),
+        "road_access_km": round(comp.road_access_m.sum() / 1e3),
         "road_km": round(comp.road_len_m.sum() / 1e3),
-        "road_mt_km": round(comp.road_len_mt_m.sum() / 1e3),
+        "lane_mw_km": round(comp.road_lane_mw_m.sum() / 1e3),
+        "lane_ar_km": round(comp.road_lane_ar_m.sum() / 1e3),
+        "bridge_km": round(comp.road_bridge_m.sum() / 1e3),
     })
     return comp
 
