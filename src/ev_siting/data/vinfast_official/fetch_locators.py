@@ -103,6 +103,13 @@ def run_bulk():
     payload = _get_json(f"{CDN_BASE}/{fname}", s, timeout=120)
     items = payload["data"] if isinstance(payload, dict) and "data" in payload else payload
     items = [x for x in items if isinstance(x, dict)]
+    expected = meta.get("count")
+    try:
+        expected = int(expected)
+    except (TypeError, ValueError):
+        raise SystemExit(f"bulk meta.count không hợp lệ: {meta.get('count')!r}")
+    if len(items) != expected:
+        raise SystemExit(f"bulk incomplete: meta.count={expected:,}, nhận={len(items):,}; không ghi output")
     BULK_JSON.write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
     print(f"[bulk] tai {len(items):,} locators (moi category) -> {BULK_JSON.name}")
 

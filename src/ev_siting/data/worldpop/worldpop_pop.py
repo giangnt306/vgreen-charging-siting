@@ -43,6 +43,9 @@ def download_tif(force=False):
                 if total:
                     print(f"\r      {got/1e6:5.0f}/{total/1e6:.0f} MB", end="", file=sys.stderr)
         print("", file=sys.stderr)
+        if total and got != total:
+            tmp.unlink(missing_ok=True)
+            raise RuntimeError(f"GeoTIFF tải thiếu: got={got:,}, expected={total:,}")
         tmp.replace(POP_TIF)
     print(f"[tif] xong -> {POP_TIF} ({POP_TIF.stat().st_size/1e6:.0f} MB)")
 

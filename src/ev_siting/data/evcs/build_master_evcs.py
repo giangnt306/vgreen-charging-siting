@@ -28,7 +28,6 @@ VN_TZ = timezone(timedelta(hours=7))
 TAB_LABEL = {"cs": "VINFAST_CS", "bss": "BATTERY_SWAP", "other": "OTHER"}
 VN_BBOX = (8.0, 23.6, 102.0, 110.0)   # lat_min, lat_max, lng_min, lng_max
 SPARSE_MIN = 24                        # < 24 điểm/7 ngày coi là thưa
-AC_MAX_W = 25000                       # ≤25 kW = AC, >25 kW = DC (khe quan sát: 20 kW vs 30 kW)
 
 
 def derive_power(evse_powers_json):
@@ -37,8 +36,8 @@ def derive_power(evse_powers_json):
     evsePowers = [{type:<W>, totalEvse:<số súng lắp đặt>, numberOfAvailableEvse:<đang trống>}].
     `totalEvse` là số súng THẬT (khác `totalCharging`= số xe đang sạc — biến động).
     Trả về (num_connectors, connector_types, max_power_kw, total_power_kw, current_type).
-    connector_types = nhãn công suất/dòng điện (`AC-3.5kW|DC-120kW`) — evcs.vn KHÔNG
-    lộ chuẩn cắm (CCS2/Type2), chỉ có công suất, nên đây là nhãn tier chứ không phải chuẩn cắm.
+    connector_types = nhãn công suất (`POWER-3.5kW|POWER-120kW`). evcs.vn KHÔNG
+    lộ chuẩn cắm hay AC/DC, nên không suy `current_type` từ ngưỡng kW.
     """
     try:
         groups = json.loads(evse_powers_json) if evse_powers_json else []
@@ -48,7 +47,6 @@ def derive_power(evse_powers_json):
         return "", "", "", "", ""
     n_conn = total_w = max_w = 0
     labels = []                              # giữ thứ tự, khử trùng
-    has_ac = has_dc = False
     for g in groups:
         if not isinstance(g, dict):
             continue
@@ -59,21 +57,17 @@ def derive_power(evse_powers_json):
             continue
         if w <= 0 and n <= 0:
             continue
-        cur = "AC" if 0 < w <= AC_MAX_W else "DC"
         if w > 0:
-            has_ac = has_ac or cur == "AC"
-            has_dc = has_dc or cur == "DC"
             max_w = max(max_w, w)
         n = max(n, 0)
         n_conn += n
         total_w += w * n
-        lbl = f"{cur}-{w / 1000:g}kW"
+        lbl = f"POWER-{w / 1000:g}kW"
         if lbl not in labels:
             labels.append(lbl)
-    current = "MIXED" if (has_ac and has_dc) else ("AC" if has_ac else "DC" if has_dc else "")
     return (n_conn or "", "|".join(labels),
             round(max_w / 1000, 1) if max_w else "",
-            round(total_w / 1000, 1) if total_w else "", current)
+            round(total_w / 1000, 1) if total_w else "", "")
 
 def iso(ms):
     if ms is None:
@@ -181,7 +175,7 @@ OUT_FIELDS = [
     # --- cấu hình cung (dẫn xuất từ evsePowers, khớp SCHEMA_CONTRACT) ---
     "num_connectors", "connector_types", "current_type",
     "max_power_kw", "total_power_kw",
-    "num_ports", "verified", "status", "working_time", "is_public", "evse_powers",
+    "n_charging_snapshot", "verified", "status", "working_time", "is_public", "evse_powers",
     "has_timeseries", "ts_n_rows",
     "ts_time_start_ms", "ts_time_end_ms", "ts_time_start", "ts_time_end",
     "ts_val_min", "ts_val_max", "ts_n_null", "ts_n_dup", "ts_monotonic",
@@ -226,7 +220,7 @@ with open(CATALOG, newline="", encoding="utf-8") as fin, \
             "current_type": cur_type,
             "max_power_kw": max_kw,
             "total_power_kw": total_kw,
-            "num_ports": row.get("tot", ""),
+            "n_charging_snapshot": row.get("tot", ""),
             "verified": row.get("verified", ""),
             "status": row.get("depot", ""),
             "working_time": row.get("working_time", ""),

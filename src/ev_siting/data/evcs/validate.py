@@ -123,9 +123,9 @@ def main():
             if snap_issues:
                 crit.append(f"SNAPSHOT drift: {len(snap_issues)} input lệch khỏi manifest "
                             f"(vd {snap_issues[0]})")
-    except Exception as e:  # thiếu module / manifest hỏng -> cảnh báo, không chặn
+    except Exception as e:  # manifest hỏng = provenance không kiểm chứng được
         snap_status = "ERROR"
-        warn.append(f"SNAPSHOT: không đối chiếu được manifest ({e})")
+        crit.append(f"SNAPSHOT: không đối chiếu được manifest ({e})")
 
     def ms_iso(ms):
         if ms is None:

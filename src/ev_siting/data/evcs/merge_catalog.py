@@ -4,13 +4,13 @@ import csv
 import os
 from collections import Counter
 
-from .paths import CATALOG_DIR as CAT
+from .paths import ALL_CODES, CATALOG_CSV, CATALOG_DIR as CAT
 
 SRC = [("cs", os.path.join(CAT, "evcs_stations.csv")),
        ("other", os.path.join(CAT, "evcs_other.csv")),
        ("bss", os.path.join(CAT, "evcs_bss.csv"))]
-OUT_CSV = os.path.join(CAT, "evcs_catalog.csv")
-OUT_CODES = os.path.join(CAT, "evcs_all_codes.txt")
+OUT_CSV = str(CATALOG_CSV)
+OUT_CODES = str(ALL_CODES)
 
 rows = {}   # code -> record (+ tab)
 # P6 — kiểm soát trùng PK: đếm rõ số dòng bị dedup (KHÔNG bao giờ gộp/cộng
@@ -49,6 +49,7 @@ if dup_cross:
 fields = ["code", "tab", "name", "addr", "lat", "lng", "evse", "tot",
           "verified", "depot", "evse_powers", "working_time", "is_public",
           "is_free_parking", "n_battery", "n_battery_avail"]
+os.makedirs(os.path.dirname(OUT_CSV), exist_ok=True)
 with open(OUT_CSV, "w", newline="", encoding="utf-8") as f:
     w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
     w.writeheader()

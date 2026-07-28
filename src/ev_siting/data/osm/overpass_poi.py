@@ -69,7 +69,15 @@ def _post(query, tries=4):
             time.sleep(wait)
             continue
         if r.status_code == 200:
-            return r.json()
+            try:
+                data = r.json()
+            except ValueError as e:
+                raise RuntimeError(f"Overpass HTTP 200 nhưng JSON hỏng: {e}") from e
+            # Overpass hay báo timeout/runtime qua HTTP 200 + `remark`; payload
+            # đó không complete nên phải vào nhánh quadtree, không được accept.
+            if not isinstance(data, dict) or data.get("remark"):
+                raise RuntimeError(f"Overpass HTTP 200 nhưng incomplete: {data.get('remark') if isinstance(data, dict) else 'payload lạ'}")
+            return data
         if r.status_code in (429, 504, 502, 503):  # rate-limit / quá tải -> lùi
             wait = 10 * (attempt + 1)
             print(f"      ! HTTP {r.status_code}; chờ {wait}s...", file=sys.stderr)

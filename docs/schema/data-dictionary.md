@@ -2,6 +2,17 @@
 
 Describe data sources, variable names, types, and meanings here.
 
+## EVCS canonical and candidate-site contract
+
+| Dataset | Canonical path | Keys | Fields whose meaning is easy to misuse |
+| --- | --- | --- | --- |
+| `stations` | `data/interim/canonical/stations/` | `station_id`; source key `station_code` | `lat/lng` are resolved coordinates; retain `lat_raw/lng_raw`, `coord_src`, `coord_fix_dist_m`, `coord_resolved` for E-DQ1 audit. `current_type=UNKNOWN` means no first-party connector evidence, not AC. Use only `is_primary=True`, `is_operational=True`, `access!=RESTRICTED`, and no dirty coordinate flag for incumbent supply. |
+| `connectors` | `data/interim/canonical/connectors/` | `connector_id`; FK `station_id` | `connector_standard` and `current_type` come from the first-party registry where matched; otherwise `UNKNOWN`. `count_total` is connector count. |
+| `candidate_sites` | `data/processed/candidate_sites.{parquet,geojson}` | `candidate_id`; one per `h3_r8` | `penalty_flags` records soft feasibility signals. `NOT_BUILT_UP` and `NO_ROAD_ACCESS` are not exclusions; hard exclusions are absent from the delivered set. `is_existing=True` is incumbent / CapEx=0. |
+
+`n_charging_snapshot` in the crawl-shaped master is a point-in-time API value; it is
+not a connector count and is intentionally not exported as `num_ports`.
+
 ## OpEx - Electricity tariff for EV charging stations
 
 **Pipeline:** [`src/ev_siting/data/opex_electricity.py`](../src/ev_siting/data/opex_electricity.py)

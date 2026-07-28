@@ -42,6 +42,10 @@ from .paths import (
     EXCLUSION_ZONES,
     LANDUSE_H3,
     LOW_BUILTUP,
+    MAX_POP_NO_ROAD_FRAC,
+    NOT_BUILT_PENALTY,
+    NO_ROAD_PENALTY,
+    SUBSTATION_PENALTY_SCALE_M,
     SUBSTATIONS,
     WATER_MAX,
     WATER_WETLAND_MAX,
@@ -120,25 +124,23 @@ def build(aoi):
     no_road = df["road_len_m"].to_numpy() <= 0
     has_osm_excl = np.array([len(f) > 0 for f in osm_flags])
 
-    df["exclusion_flags"] = _flag_lists(
-        {"WATER": water, "WETLAND": wetland,
-         "NOT_BUILT_UP": not_built, "NO_ROAD_ACCESS": no_road},
-        base_lists=osm_flags)
-    df["buildable"] = ~(water | wetland | not_built | no_road | has_osm_excl)
+    df["exclusion_flags"] = _flag_lists({"WATER": water, "WETLAND": wetland}, base_lists=osm_flags)
+    df["buildable"] = ~(water | wetland | has_osm_excl)
 
     # --- PHẠT MỀM (vector hoá) ---
     crop = df["frac_crop"].to_numpy() >= CROP_DOMINANT
     low_built = df["built_up_frac"].to_numpy() < LOW_BUILTUP
     pop_no_road = (df["pop"].to_numpy() > 0) & (df["road_len_m"].to_numpy() == 0)
     finite = np.isfinite(dist)
-    dmax = float(dist[finite].max()) if finite.any() else 1.0
-    dist_term = np.where(finite, 0.5 * np.minimum(dist / (dmax or 1.0), 1.0), 0.5)
+    dist_term = np.where(finite, 0.5 * np.minimum(dist / SUBSTATION_PENALTY_SCALE_M, 1.0), 0.5)
     no_sub = ~finite
 
-    penalty = np.clip(0.3 * crop + 0.2 * low_built + dist_term, 0.0, 1.0)
+    penalty = np.clip(0.3 * crop + 0.2 * low_built + NOT_BUILT_PENALTY * not_built
+                      + NO_ROAD_PENALTY * no_road + dist_term, 0.0, 1.0)
     df["penalty"] = np.round(penalty, 3)
     df["penalty_flags"] = _flag_lists(
-        {"CROP": crop, "LOW_BUILTUP": low_built,
+        {"CROP": crop, "LOW_BUILTUP": low_built, "NOT_BUILT_UP": not_built,
+         "NO_ROAD_ACCESS": no_road,
          "POP_NO_ROAD": pop_no_road, "NO_SUBSTATION": no_sub})
 
     out_cols = ["h3_r8", "buildable", "built_up_frac", "frac_water", "frac_crop",
@@ -155,9 +157,11 @@ def build(aoi):
     print("  loại cứng theo cờ:", dict(c))
     pop_mask = out["pop"].to_numpy() > 0
     if pop_mask.any():
-        pop_excluded = int((pop_mask & ~out["buildable"].to_numpy()).sum())
-        print(f"  ⚠️ ô pop>0 bị loại: {pop_excluded}/{int(pop_mask.sum())} = "
-              f"{pop_excluded/pop_mask.sum():.0%} (nếu >70% -> BUILT_UP_MIN quá chặt)")
+        no_road_pop = int(pop_no_road.sum())
+        frac = no_road_pop / int(pop_mask.sum())
+        print(f"  ô pop>0 không thấy road: {no_road_pop}/{int(pop_mask.sum())} = {frac:.0%}")
+        if frac > MAX_POP_NO_ROAD_FRAC:
+            raise SystemExit(f"F14 FAIL: POP_NO_ROAD={frac:.1%} > {MAX_POP_NO_ROAD_FRAC:.0%}; road input thiếu coverage")
     return out
 
 

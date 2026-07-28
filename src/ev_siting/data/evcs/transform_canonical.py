@@ -34,6 +34,7 @@ import shutil
 import uuid
 
 import h3
+import numpy as np
 import pandas as pd
 
 from ..vinfast_official.paths import CONNECTORS_PARQUET as OFFICIAL_CONNECTORS
@@ -60,12 +61,14 @@ XREF_COLS = [
     "match_name_sim",
     "official_charging_status",
     "official_access_type",
+    "official_lat",
+    "official_lng",
     "provenance",
 ]
-AC_MAX_W = 25000  # <=25 kW = AC, >25 kW = DC (khop build_master_evcs)
 VN_BBOX = (8.0, 23.6, 102.0, 110.0)  # lat_min, lat_max, lng_min, lng_max
 # Cot admin chua co nguon ranh gioi (Step B) -> tao san de dung schema, dien sau.
 ADMIN_COLS = ["admin_l1_code", "province_name", "commune_name", "commune_kind"]
+COORD_OFFICIAL_FIX_MIN_M = 200.0
 
 # --- P8: loc trang thai van hanh & access (private vs public) — QUYET DINH TUONG MINH ---
 # Hai truc DOC LAP, deu resolve OFFICIAL-FIRST (registry VinFast la ground truth,
@@ -158,7 +161,7 @@ def load_official_std():
     Xay tu `official_connectors` (VinFast first-party) — nguon DUY NHAT lo `standard`
     (chuan cam). Dung de gan `vehicle_class` va SUA AC/DC (P7): power tier cua evcs
     gan sai 20-22 kW la AC, thuc te la DC CCS2. `power_type` (`AC_3_PHASE`/`DC`) la
-    AC/DC dung theo first-party. Tra {} neu chua co registry -> fallback power tier."""
+    AC/DC dung theo first-party. Tra {} neu chua co registry -> UNKNOWN, không tier fallback."""
     if not OFFICIAL_CONNECTORS.exists():
         return {}
     oc = pd.read_parquet(
@@ -182,7 +185,7 @@ def explode_connectors(evse_powers_json, sid, code, prov, std_lut):
     evsePowers = [{type:<W>, totalEvse:<so sung lap>, numberOfAvailableEvse:<trong>}].
     Moi nhom cong suat -> 1 connector. `current_type` + `connector_standard` +
     `vehicle_class` lay tu registry chinh thuc (`std_lut`) khi khop; neu khong khop
-    (tram evcs-only) -> fallback power tier + `UNKNOWN`/`UNVERIFIED` (P7).
+    (tram evcs-only) -> `UNKNOWN`/`UNVERIFIED`; không suy AC/DC từ power tier (F13).
     """
     try:
         groups = json.loads(evse_powers_json) if isinstance(evse_powers_json, str) else []
@@ -208,7 +211,7 @@ def explode_connectors(evse_powers_json, sid, code, prov, std_lut):
             std_short, cur = official  # chuan cam + AC/DC first-party
         else:
             std_short = "UNKNOWN"  # evcs-only: khong xac minh duoc
-            cur = "AC" if 0 < w <= AC_MAX_W else "DC"  # fallback power tier
+            cur = "UNKNOWN"
         veh = "CAR" if std_short in CAR_STANDARDS else "UNVERIFIED"
         rows.append(
             {
@@ -220,7 +223,7 @@ def explode_connectors(evse_powers_json, sid, code, prov, std_lut):
                 "current_type": cur if w > 0 else None,
                 "connector_standard": std_short,
                 "vehicle_class": veh,
-                "connector_label": f"{cur}-{w / 1000:g}kW" if w > 0 else None,
+                "connector_label": f"{cur if cur != 'UNKNOWN' else 'POWER'}-{w / 1000:g}kW" if w > 0 else None,
                 "count_total": n_total,
                 "count_available": n_avail,
             }
@@ -308,6 +311,55 @@ def redefine_confidence(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def resolve_coordinates(df: pd.DataFrame) -> pd.DataFrame:
+    """F20/E-DQ1 v2: deterministic coordinate policy, no hidden sidecar.
+
+    Raw valid coordinates stay. An exact-code first-party coordinate replaces raw
+    only when raw is invalid or differs >=200m. Fuzzy matches never move a point.
+    Rows still unresolved receive no H3 and remain dirty.
+    """
+    out = df.copy()
+    raw_lat = pd.to_numeric(out["lat"], errors="coerce")
+    raw_lng = pd.to_numeric(out["lng"], errors="coerce")
+    off_lat = pd.to_numeric(out["official_lat"], errors="coerce") if "official_lat" in out else pd.Series(np.nan, index=out.index)
+    off_lng = pd.to_numeric(out["official_lng"], errors="coerce") if "official_lng" in out else pd.Series(np.nan, index=out.index)
+    raw_ok = pd.Series([coord_ok(a, b) for a, b in zip(raw_lat, raw_lng)], index=out.index)
+    off_ok = pd.Series([coord_ok(a, b) for a, b in zip(off_lat, off_lng)], index=out.index)
+    exact = out["match_method"].isin(["exact_code", "exact_code_no_coord"])
+    both = raw_ok & off_ok
+    dist = pd.Series(float("nan"), index=out.index, dtype=float)
+    if both.any():
+        lat1, lng1 = np.radians(raw_lat.loc[both].to_numpy()), np.radians(raw_lng.loc[both].to_numpy())
+        lat2, lng2 = np.radians(off_lat.loc[both].to_numpy()), np.radians(off_lng.loc[both].to_numpy())
+        a = np.sin((lat2 - lat1) / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin((lng2 - lng1) / 2) ** 2
+        dist.loc[both] = 2 * 6_371_000.0 * np.arcsin(np.sqrt(a))
+    use_official = exact & off_ok & (~raw_ok | dist.ge(COORD_OFFICIAL_FIX_MIN_M))
+    unresolved = ~raw_ok & ~use_official
+
+    out["lat_raw"], out["lng_raw"] = raw_lat, raw_lng
+    out["coord_fix_dist_m"] = dist.where(use_official, 0.0).round(1)
+    out["coord_src"] = "evcs_raw"
+    out.loc[use_official, "coord_src"] = "vinfast_official_exact"
+    out.loc[unresolved, "coord_src"] = "unresolved"
+    out.loc[use_official, "lat"] = off_lat.loc[use_official]
+    out.loc[use_official, "lng"] = off_lng.loc[use_official]
+    out.loc[unresolved, ["lat", "lng"]] = pd.NA
+    out["coord_resolved"] = ~unresolved
+    for idx in out.index[use_official]:
+        flags = out.at[idx, "quality_flags"]
+        # Raw coordinate may have been flagged invalid by master.  Once an
+        # exact-code first-party coordinate replaces it, retaining that flag
+        # would make downstream coverage silently discard a repaired station.
+        flags[:] = [f for f in flags if f not in {"COORD_INVALID", "COORD_PLACEHOLDER"}]
+        if "COORD_REPAIRED_OFFICIAL" not in flags:
+            flags.append("COORD_REPAIRED_OFFICIAL")
+    for idx in out.index[unresolved]:
+        flags = out.at[idx, "quality_flags"]
+        if "COORD_PLACEHOLDER" not in flags:
+            flags.append("COORD_PLACEHOLDER")
+    return out
+
+
 def _write_partitioned_atomically(stations: pd.DataFrame, connectors: pd.DataFrame) -> None:
     """Build both datasets off-path, then swap whole canonical generation."""
     parent = CANONICAL_DIR.parent
@@ -349,9 +401,6 @@ def run(keep_bss: bool = False, *, require_xref: bool = True):
 
     # --- so gau du lieu ban dau ---
     df["station_id"] = df["station_code"].map(station_id)
-    df["h3_r8"] = [
-        h3.latlng_to_cell(la, ln, H3_RES) if coord_ok(la, ln) else None for la, ln in zip(df["lat"], df["lng"])
-    ]
     # freshness = so ngay ke tu telemetry cuoi (moc "as-of" = end moi nhat toan tap).
     as_of = pd.to_numeric(df["ts_time_end_ms"], errors="coerce").max()
     end_ms = pd.to_numeric(df["ts_time_end_ms"], errors="coerce")
@@ -371,12 +420,18 @@ def run(keep_bss: bool = False, *, require_xref: bool = True):
     # --- provenance/verified/confidence tu doi chieu nguon chinh thuc ---
     df = join_xref(df, require_xref=require_xref)
     df = redefine_confidence(df)
+    df = resolve_coordinates(df)
+    df["h3_r8"] = [
+        h3.latlng_to_cell(la, ln, H3_RES) if coord_ok(la, ln) else None for la, ln in zip(df["lat"], df["lng"])
+    ]
 
     stations_cols = [
         "station_id",
         "station_code",
         "lat",
         "lng",
+        "lat_raw",
+        "lng_raw",
         "h3_r8",
         "admin_l1_code",
         "province_name",
@@ -403,6 +458,9 @@ def run(keep_bss: bool = False, *, require_xref: bool = True):
         "confidence",
         "freshness",
         "quality_flags",
+        "coord_src",
+        "coord_fix_dist_m",
+        "coord_resolved",
         # provenance / doi chieu nguon chinh thuc (vinfastauto.com)
         "provenance",
         "official_matched",
@@ -444,7 +502,7 @@ def run(keep_bss: bool = False, *, require_xref: bool = True):
     # current_type dung (AC/DC/MIXED) suy tu connector, ghi de nhan power-tier cu.
     def _roll_current(s):
         has_ac, has_dc = (s == "AC").any(), (s == "DC").any()
-        return "MIXED" if has_ac and has_dc else ("AC" if has_ac else "DC" if has_dc else None)
+        return "MIXED" if has_ac and has_dc else ("AC" if has_ac else "DC" if has_dc else "UNKNOWN" if (s == "UNKNOWN").any() else None)
 
     cur_by_st = connectors.groupby("station_id")["current_type"].apply(_roll_current)
     # vehicle_class: CAR neu moi connector la chuan o to; UNVERIFIED neu con connector
@@ -462,6 +520,10 @@ def run(keep_bss: bool = False, *, require_xref: bool = True):
     unv = df["vehicle_class"] == "UNVERIFIED"
     df.loc[unv, "quality_flags"] = df.loc[unv, "quality_flags"].apply(
         lambda l: l if "STD_UNVERIFIED" in l else l + ["STD_UNVERIFIED"]
+    )
+    current_unknown = df["station_id"].map(cur_by_st).eq("UNKNOWN")
+    df.loc[current_unknown, "quality_flags"] = df.loc[current_unknown, "quality_flags"].apply(
+        lambda l: l if "CURRENT_TYPE_UNVERIFIED" in l else l + ["CURRENT_TYPE_UNVERIFIED"]
     )
 
     # --- P8: loc trang thai van hanh & access (official-first, tuong minh) ---
@@ -493,12 +555,14 @@ def run(keep_bss: bool = False, *, require_xref: bool = True):
     print(f"stations  -> {rel(STATIONS_DIR)}  ({len(stations):,} dong)")
     print(f"connectors-> {rel(CONNECTORS_DIR)}  ({len(connectors):,} dong)")
     print(f"  h3_r8 null (toa do xau) : {stations['h3_r8'].isna().sum():,}")
+    print(f"  coord repaired official  : {int((stations['coord_src'] == 'vinfast_official_exact').sum()):,}")
+    print(f"  coord unresolved         : {int((~stations['coord_resolved']).sum()):,}")
     print(f"  tram khong co connector : {(stations['num_connectors'] == 0).sum():,}")
     print(f"  connector orphan (FK)   : {n_orphan}")
     print("--- P7 (chuan cam thay power tier) ------------------------")
     print(f"  connector_standard      : {connectors['connector_standard'].value_counts().to_dict()}")
     print(f"  vehicle_class (station) : {stations['vehicle_class'].value_counts().to_dict()}")
-    print(f"  current_type sua tu tier : {n_wrong_ct:,} tram (20-22 kW: AC->DC CCS2)")
+    print(f"  current_type first-party : {n_wrong_ct:,} tram được resolve từ official registry")
     print(
         f"  STD_UNVERIFIED (evcs-only): {int(stations['quality_flags'].apply(lambda l: 'STD_UNVERIFIED' in l).sum()):,}"
     )

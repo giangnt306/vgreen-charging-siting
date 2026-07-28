@@ -170,6 +170,23 @@ def _load_resume_catalog(path: str) -> dict:
     return found
 
 
+def _resume_force_seeds(found: dict, bbox, q_lat, q_lng, q_r):
+    """Re-open dense clusters after resume without re-querying covered stations."""
+    lat_a, lng_a, r_a = np.asarray(q_lat), np.asarray(q_lng), np.asarray(q_r)
+    out = []
+    for row in found.values():
+        try:
+            lat, lng = float(row["lat"]), float(row["lng"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not (bbox[0] <= lat <= bbox[1] and bbox[2] <= lng <= bbox[3]):
+            continue
+        covered = len(r_a) and bool(np.any(haversine_km(lat, lng, lat_a, lng_a) <= r_a))
+        if not covered:
+            out.append((lat, lng, True))
+    return out
+
+
 def haversine_km(lat1, lng1, lat2, lng2):
     """Vectorised (lat1,lng1 scalar; lat2,lng2 arrays) -> km."""
     R = 6371.0088
@@ -437,6 +454,12 @@ def main():
     qa_lat = np.array(q_lat)
     qa_lng = np.array(q_lng)
     qa_r = np.array(q_r)
+    # F8: `found` persisted before a crash may include a cap-50 cluster whose
+    # force-seeds were only in memory. Recreate exactly the missing expansion.
+    resumed = _resume_force_seeds(found, bbox, qa_lat, qa_lng, qa_r)
+    seeds.extend(resumed)
+    if resumed:
+        print(f"    F8 resume: re-seed {len(resumed)} trạm ngoài đĩa phủ")
     n_queries = 0
     t0 = time.time()
 
@@ -490,7 +513,9 @@ def main():
             nonlocal qa_lat, qa_lng, qa_r
             dists = [s["dist"] for s in data if s.get("dist") is not None]
             R = max(dists) if dists else 0.0
-            R_cov = R * 1.05 if len(data) >= 50 else max(R * 1.05, 0.05)  # +5% biên sai số toạ độ
+            # Chỉ cap=50 chứng minh được đĩa phủ; không nới 5% không có bằng
+            # chứng. Response <50 không được phép làm seed khác bị skip.
+            R_cov = R if len(data) >= 50 else 0.0
             q_lat.append(lat)
             q_lng.append(lng)
             q_r.append(R_cov)

@@ -23,12 +23,14 @@
 | Cột                                                           | Kiểu                 | Vai trò trong bài toán                                                             |
 | -------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------- |
 | `station_id`                                                 | string                | **PK** (`vn-xxxx`)                                                            |
-| `lat`, `lng`                                               | double                | Vị trí — candidate site & tính khoảng cách coverage                             |
+| `station_code` | string | Khoá nguồn ổn định, dùng đối chiếu registry official |
+| `lat`, `lng`                                               | double                | Toạ độ đã resolve — candidate site & tính khoảng cách coverage |
+| `lat_raw`, `lng_raw`, `coord_src`, `coord_fix_dist_m`, `coord_resolved` | double/string/bool | Audit E-DQ1: giữ toạ độ crawl, nguồn quyết định (`evcs_raw` / `vinfast_official_exact` / `unresolved`), độ lệch và trạng thái resolve |
 | `admin_l1_code`, `province_name`                           | string                | Nối`agg_admin`, lọc theo tỉnh                                                    |
 | `commune_name`, `commune_kind`                             | string                | Nối cấp xã                                                                         |
 | `operator`                                                   | string                | Phân biệt VGreen vs đối thủ                                                      |
 | `vehicle_class`                                              | string                | **`CAR`/`UNVERIFIED`/`UNKNOWN`** — lọc nhiễm xe máy (**P7**); `CAR` = mọi connector là chuẩn ô tô (CCS2/Type2) theo registry chính thức |
-| `current_type`                                               | string                | `AC`/`DC`/`MIXED` — **suy từ chuẩn cắm chính thức**, không từ power tier (**P7**: 20-22 kW là DC CCS2, không phải AC) |
+| `current_type`                                               | string                | `AC`/`DC`/`MIXED` khi registry official xác nhận; `UNKNOWN` nếu evcs-only — **không suy từ power tier** (P7/F13) |
 | `station_type`, `max_power_kw`, `total_power_kw`         | string/double         | Cấu hình công suất                                                                |
 | `num_connectors`                                             | int                   | Số súng (đối chiếu với bảng`connectors`)                                     |
 | `connector_types`                                            | list<string></string> | Nhãn tier công suất (evcs.vn không lộ chuẩn cắm — xem `connectors.connector_standard`) |
@@ -39,6 +41,7 @@
 | `is_operational`                                            | bool                  | **Lọc cung cứng (P8):** `False` ⇔ `op_status=OUT_OF_SERVICE` (trạm đã ngừng, loại khỏi cung/anchor T0). MAINTENANCE/UNKNOWN giữ + flag |
 | `confidence`, `freshness`, `quality_flags`               | double/list           | **Tín hiệu chất lượng** (P8 flags: `NOT_OPERATIONAL`/`UNDER_MAINTENANCE`/`STATUS_UNKNOWN`/`NON_PUBLIC`/`ACCESS_UNKNOWN`) |
 | `verified`, `provenance`, `match_method`, `official_*` | bool/string           | **Đối chiếu nguồn chính thức** (vinfastauto.com) — xác minh + xuất xứ |
+| `physical_id`, `is_primary`, `dup_group_id`, `dup_method`, `dup_dist_m` | string/bool/double | Audit E-DQ2: nhận dạng thực thể vật lý; model chỉ dùng `is_primary=True` làm cung incumbent |
 | `h3_r8`                                                      | string                | **Nối lưới** demand/coverage                                                 |
 
 ### 🟢 `connectors` — tầng 2, 1 dòng/nhóm công suất · FK `station_id`
@@ -68,14 +71,12 @@
 | `candidate_id` | string | **PK** (`cand-<city>-<idx>`) |
 | `lat`, `lng` | double | toạ độ thật (explainability) |
 | `h3_r8` | string | ô coverage (**unique**) |
-| `province_code` | string | null → enrich khi có admin |
 | `tier` | string | T0–T4 (nguồn anchor) |
 | `anchor_type` | string | `existing_station`/`parking`/`fuel`/`mall`/`retail`/`apartments`/`gapfill_synthetic` |
 | `source_ref` | string | `station_id` \| `osm_type/osm_id` \| `synthetic:<h3>` |
 | `is_existing` | bool | T0 → CapEx=0 Sprint 3 (incumbent bắt buộc mở) |
-| `built_up_frac`, `dist_substation_m`, `penalty` | double | tín hiệu land-use / đấu nối lưới |
+| `built_up_frac`, `dist_substation_m`, `penalty`, `penalty_flags` | double/list<string> | tín hiệu/penalty land-use và đấu nối; `NOT_BUILT_UP`/`NO_ROAD_ACCESS` là phạt mềm, không phải loại cứng |
 | `capex_class` | string | `low`/`mid`/`high` — ràng buộc ngân sách Sprint 3 |
-| `exclusion_flags` | list | audit (rỗng — đã loại ô cấm) |
 
 > Bộ lọc khả thi trung gian: `data/interim/landuse/buildable_h3.parquet`. Chi tiết [candidate-sites.md](../data-layer/candidate-sites.md).
 

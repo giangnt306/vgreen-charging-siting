@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,7 +25,8 @@ from ..provenance import manifest as snapshot_manifest
 
 REQUIRED_STATION_COLS = {
     "station_id", "station_code", "op_status", "access", "is_operational",
-    "physical_id", "is_primary", "quality_flags",
+    "physical_id", "is_primary", "quality_flags", "lat_raw", "lng_raw",
+    "coord_src", "coord_fix_dist_m", "coord_resolved",
 }
 REQUIRED_CONNECTOR_COLS = {"station_id", "station_code", "connector_standard", "vehicle_class"}
 
@@ -46,6 +48,19 @@ def _tree_sha256(path: Path) -> tuple[str, int, int]:
         total += size
         h.update(f"{p.relative_to(path).as_posix()}\t{size}\t{_sha256(p)}\n".encode())
     return h.hexdigest(), len(files), total
+
+
+def _build_provenance() -> dict[str, object]:
+    """Record the code generation that produced canonical data (F20)."""
+    def run(*args: str) -> str | None:
+        proc = subprocess.run(args, cwd=PROJECT_ROOT, text=True, capture_output=True)
+        return proc.stdout.strip() if proc.returncode == 0 else None
+
+    return {
+        "git_head": run("git", "rev-parse", "HEAD"),
+        "git_dirty": bool(run("git", "status", "--porcelain")),
+        "coordinate_policy": "raw-valid; exact-code official replace if invalid or drift>=200m; fuzzy never moves",
+    }
 
 
 def _validate_sources() -> tuple[pd.DataFrame, pd.DataFrame, dict, int]:
@@ -116,6 +131,7 @@ def export(out_dir: Path) -> Path:
                            "n_files": connector_files, "bytes": connector_bytes,
                            "required_columns": sorted(REQUIRED_CONNECTOR_COLS)},
             "forbidden_columns": ["gold_station_id"],
+            "build_provenance": _build_provenance(),
         }
         (tmp / "HANDOFF.json").write_text(json.dumps(handoff, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         os.replace(tmp, out_dir)

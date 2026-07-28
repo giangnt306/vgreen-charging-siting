@@ -19,13 +19,14 @@ DATA = PROJECT_ROOT / "data"
 # --- raw, immutable crawl output (data/raw/evcs) ---
 RAW_DIR = DATA / "raw" / "evcs"
 CATALOG_DIR = RAW_DIR / "catalog"
-CATALOG_CSV = CATALOG_DIR / "evcs_catalog.csv"
-ALL_CODES = CATALOG_DIR / "evcs_all_codes.txt"
 LOAD_TS = RAW_DIR / "load_ts.csv"
 TIMESERIES_RUNS_DIR = RAW_DIR / "timeseries_runs"
 
 # --- cleaned / derived (data/interim) ---
 INTERIM_DIR = DATA / "interim"
+# Discovery inputs stay raw; merge output is derived and must not mutate raw.
+CATALOG_CSV = INTERIM_DIR / "evcs_catalog.csv"
+ALL_CODES = INTERIM_DIR / "evcs_all_codes.txt"
 TS_DIR = INTERIM_DIR / "evcs_timeseries"
 MASTER_CSV = INTERIM_DIR / "stations_master_evcs.csv"
 QUALITY_REPORT = INTERIM_DIR / "quality_report.json"

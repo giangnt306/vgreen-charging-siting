@@ -58,7 +58,7 @@ theo kiểu **streaming**, không nạp cả file vào pandas.
 ```
   evcs_enumerate ── lưới VN + POST /search (Playwright qua Cloudflare) ──▶ raw/evcs/catalog/evcs_{stations,bss,other}.csv
         │
-  merge_catalog     ──▶ raw/evcs/catalog/evcs_catalog.csv + evcs_all_codes.txt
+  merge_catalog     ──▶ interim/evcs_catalog.csv + interim/evcs_all_codes.txt
         │
   evcs_scrape       ── Socket.IO 'history' ──▶ raw/evcs/timeseries_runs/load_ts_<run-id>.csv
                                                │       (bất biến, retry qua .done/.failed)
@@ -104,10 +104,10 @@ theo tên file → **ghép 1-1, không orphan**. Cột chính:
 | `name`, `address`, `lat`, `lng` | Thông tin trạm |
 | `province_code` | Tiền tố tỉnh suy từ mã (chỉ trạm VinFast) |
 | `num_connectors` | **Số súng sạc lắp đặt** = `sum(totalEvse)` của `evsePowers` (khớp `stations.num_connectors` SCHEMA_CONTRACT) |
-| `connector_types` | Nhãn tier công suất/dòng điện, `|`-joined, vd `DC-120kW\|AC-3.5kW`. ⚠️ evcs.vn **không lộ chuẩn cắm** (CCS2/Type2) — đây là nhãn công suất, không phải chuẩn cắm |
-| `current_type` | `AC` / `DC` / `MIXED` (suy từ ngưỡng ≤25 kW = AC) |
+| `connector_types` | Nhãn công suất `|`-joined; evcs.vn không lộ chuẩn cắm (CCS2/Type2) |
+| `current_type` | `AC` / `DC` / `MIXED` chỉ khi registry first-party xác nhận; `UNKNOWN` nếu evcs-only — không suy từ ngưỡng kW |
 | `max_power_kw`, `total_power_kw` | Công suất súng cao nhất + tổng công suất lắp đặt (`Σ type·totalEvse`) |
-| `num_ports` | = `totalCharging` thô. ⚠️ Thực chất là **số xe đang sạc** (biến động), KHÔNG phải số cổng lắp đặt — dùng `num_connectors` cho cấu hình cung |
+| `n_charging_snapshot` | = `totalCharging` thô. ⚠️ Thực chất là **số xe đang sạc** (biến động), không phải số cổng lắp đặt — dùng canonical `num_connectors` cho cấu hình cung |
 | `verified`, `status`, `working_time`, `is_public` | Cờ verified, trạng thái depot, giờ hoạt động, công khai |
 | `evse_powers` | JSON thô `evsePowers` (giữ nguyên vẹn để audit/dẫn xuất lại) |
 | `has_timeseries` | Có time-series hay không (19.218 = True) |

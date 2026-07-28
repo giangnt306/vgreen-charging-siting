@@ -61,6 +61,11 @@ WATER_WETLAND_MAX = 0.70
 CROP_DOMINANT = 0.60
 #: 5% <= built < 15% -> phạt mềm (hạ tầng mỏng).
 LOW_BUILTUP = 0.15
+# F14: WorldCover/OSM coverage không đủ chắc để hard-exclude hai tín hiệu này.
+NOT_BUILT_PENALTY = 0.35
+NO_ROAD_PENALTY = 0.25
+SUBSTATION_PENALTY_SCALE_M = 50_000.0  # scale vật lý, không phụ thuộc AOI
+MAX_POP_NO_ROAD_FRAC = 0.20            # vượt = road input không đủ coverage
 
 #: Bộ lọc âm từ OSM: tag -> nhãn cờ loại trừ.
 OSM_EXCLUSION_TAGS = {

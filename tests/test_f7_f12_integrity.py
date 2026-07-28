@@ -4,7 +4,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ev_siting.data.evcs.evcs_enumerate import _load_resume_catalog, _load_resume_checkpoint, _save_checkpoint_atomic
+from ev_siting.data.evcs.evcs_enumerate import (
+    _load_resume_catalog,
+    _load_resume_checkpoint,
+    _resume_force_seeds,
+    _save_checkpoint_atomic,
+)
 from ev_siting.data.evcs import transform_canonical
 from ev_siting.data.vinfast_official.match_official import enrich, match
 
@@ -60,6 +65,15 @@ def test_f12_resume_rejects_invalid_station_code(tmp_path):
     catalog.write_text("code,name\nC.OK,ok\nbad code,broken\n", encoding="utf-8")
     with pytest.raises(SystemExit, match="F12 FAIL"):
         _load_resume_catalog(str(catalog))
+
+
+def test_f8_resume_reseeds_only_found_station_outside_coverage():
+    found = {
+        "C.COVERED": {"lat": "21.0", "lng": "105.8"},
+        "C.EDGE": {"lat": "21.2", "lng": "106.0"},
+    }
+    out = _resume_force_seeds(found, (8.0, 23.6, 102.0, 110.0), [21.0], [105.8], [5.0])
+    assert out == [(21.2, 106.0, True)]
 
 
 def test_f7_rejects_xref_from_different_master(tmp_path, monkeypatch):
@@ -133,3 +147,31 @@ def test_f12_canonical_swap_replaces_whole_generation(tmp_path, monkeypatch):
     assert not (canonical / "stations" / "old.txt").exists()
     assert list((canonical / "stations").rglob("*.parquet"))
     assert list((canonical / "connectors").rglob("*.parquet"))
+
+
+def test_f20_exact_official_coordinate_replaces_large_raw_drift():
+    df = pd.DataFrame(
+        [{
+            "lat": 21.0, "lng": 105.8, "official_lat": 21.02, "official_lng": 105.82,
+            "match_method": "exact_code", "quality_flags": ["COORD_INVALID"],
+        }]
+    )
+    out = transform_canonical.resolve_coordinates(df).iloc[0]
+    assert out["coord_src"] == "vinfast_official_exact"
+    assert out["coord_resolved"]
+    assert out["lat"] == 21.02
+    assert "COORD_REPAIRED_OFFICIAL" in out["quality_flags"]
+    assert "COORD_INVALID" not in out["quality_flags"]
+
+
+def test_f20_unresolved_coordinate_is_dirty_and_has_no_fake_point():
+    df = pd.DataFrame(
+        [{
+            "lat": 0.0, "lng": 0.0, "official_lat": np.nan, "official_lng": np.nan,
+            "match_method": "none", "quality_flags": [],
+        }]
+    )
+    out = transform_canonical.resolve_coordinates(df).iloc[0]
+    assert out["coord_src"] == "unresolved"
+    assert not out["coord_resolved"]
+    assert "COORD_PLACEHOLDER" in out["quality_flags"]

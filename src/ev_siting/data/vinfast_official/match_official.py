@@ -204,6 +204,8 @@ def match(ev: pd.DataFrame, off: pd.DataFrame,
             "match_name_sim": round(name_sim, 1) if pd.notna(name_sim) else np.nan,
             "official_charging_status": o["charging_status"] if o is not None else None,
             "official_access_type": o["access_type"] if o is not None else None,
+            "official_lat": float(o["lat"]) if o is not None and coord_ok(o["lat"], o["lng"]) else None,
+            "official_lng": float(o["lng"]) if o is not None and coord_ok(o["lat"], o["lng"]) else None,
             "official_status": bool(o["status"]) if o is not None else None,
             "official_charging_publish": bool(o["charging_publish"]) if o is not None else None,
             "official_n_connectors": (int(o["official_n_connectors"])

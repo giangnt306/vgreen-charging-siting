@@ -16,7 +16,7 @@ Phân tầng anchor (ưu tiên khi gộp về 1/ô):
   (T3 rest_area/nút giao QL cần road-class từ .pbf — để roadmap, xem docs)
 
 Lọc: chỉ giữ anchor rơi vào ô `buildable=True` (buildable_h3, P5) và trong AOI;
-loại anchor mang cờ toạ độ bẩn (DUP_COORD/COORD_ADDR_MISMATCH — §7 #1).
+loại anchor mang cờ toạ độ bẩn do producer hiện tại sinh (F4).
 
 Output: data/processed/candidate_sites.parquet (+ .geojson cho Kỳ)
 Chạy:
@@ -274,19 +274,17 @@ def build(aoi, R_km=R_BASELINE_KM, p_hint=20, strict=True, max_candidates=CAND_M
     cand = _dedup_one_per_cell(cand)
 
     # enrich cột bàn giao từ buildable_h3 (penalty, dist_substation, capex proxy)
-    bcols = ["h3_r8", "penalty", "dist_substation_m", "built_up_frac"]
+    bcols = ["h3_r8", "penalty", "penalty_flags", "dist_substation_m", "built_up_frac"]
     cand = cand.merge(buildable[bcols], on="h3_r8", how="left")
     # T0 sát biên AOI có tâm ô ngoài lưới buildable -> không được chấm land-use.
     # Trạm hiện có đã có điện/mặt bằng -> penalty land-use = 0 (không phạt thêm).
     existing_na = cand["is_existing"] & cand["penalty"].isna()
     cand.loc[existing_na, "penalty"] = 0.0
-    cand["province_code"] = None  # enrich khi có admin (§8 bước 8)
     cand["capex_class"] = np.where(
         cand["is_existing"],
         "low",
         np.where(cand["tier"] == "T4", "high", np.where(cand["penalty"].fillna(0) >= 0.5, "high", "mid")),
     )
-    cand["exclusion_flags"] = [[] for _ in range(len(cand))]
     cand.insert(0, "candidate_id", [f"cand-{aoi.name}-{i:05d}" for i in range(len(cand))])
 
     # --- QA gate ---
@@ -300,7 +298,6 @@ def build(aoi, R_km=R_BASELINE_KM, p_hint=20, strict=True, max_candidates=CAND_M
         "lat",
         "lng",
         "h3_r8",
-        "province_code",
         "tier",
         "anchor_type",
         "source_ref",
@@ -308,8 +305,8 @@ def build(aoi, R_km=R_BASELINE_KM, p_hint=20, strict=True, max_candidates=CAND_M
         "built_up_frac",
         "dist_substation_m",
         "penalty",
+        "penalty_flags",
         "capex_class",
-        "exclusion_flags",
     ]
     out = cand[out_cols]
     out.to_parquet(CANDIDATE_SITES, index=False)

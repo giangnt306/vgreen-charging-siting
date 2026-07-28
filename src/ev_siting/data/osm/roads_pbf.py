@@ -115,6 +115,9 @@ def download_pbf(force=False):
                     print(f"\r      {got/1e6:6.0f}/{total/1e6:.0f} MB "
                           f"({100*got/total:4.1f}%)", end="", file=sys.stderr)
         print("", file=sys.stderr)
+        if total and got != total:
+            tmp.unlink(missing_ok=True)
+            raise RuntimeError(f"PBF tải thiếu: got={got:,}, expected={total:,}")
         tmp.replace(PBF_PATH)
     print(f"[pbf] xong -> {PBF_PATH} ({PBF_PATH.stat().st_size/1e6:.0f} MB)")
 

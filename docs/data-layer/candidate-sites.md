@@ -1,6 +1,6 @@
 # CANDIDATE SITES & LAND-USE FILTER (P5)
 
-> Cập nhật: **2026-07-24** · Nhánh `data/giang` · Xử lý **[P5](../known-issues.md)** (candidate set + lọc land-use).
+> Cập nhật: **2026-07-28** · Nhánh `data/giang` · Xử lý **[P5](../known-issues.md)** (candidate set + lọc land-use).
 >
 > Điểm chạm interop thứ 3 giữa **Giang → Kỳ** (ngoài demand proxy & GeoJSON kết quả).
 
@@ -76,11 +76,9 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | --- | --- | --- |
 | Mặt nước | WorldCover | `frac_water ≥ 0,50` (`WATER`) |
 | Nước + ngập nước | WorldCover | `frac_water + frac_wetland ≥ 0,70` (`WETLAND`) |
-| Núi/rừng/đất trống | WorldCover | `built_up_frac < 0,05` (`NOT_BUILT_UP`) |
 | Đất cấm | OSM | `landuse=military` · `boundary=protected_area` · `leisure=nature_reserve` · `aeroway=aerodrome` · `natural=water`/`reservoir` |
-| Không có đường vào | `demand_h3` | `road_len_m ≤ 0` (`NO_ROAD_ACCESS`) — rẻ nhất, lọc nhiều nhất |
 | Ngoài AOI | `aoi.py` | ngoài lõi + buffer 5 km |
-| Toạ độ bẩn (T0) | `stations` | cờ `COORD_INVALID` / `COORD_ADDR_MISMATCH` / `COORD_PLACEHOLDER` / `DUP_COORD_SUSPECT` (F4, tập dùng chung `features/paths.py:DIRTY_COORD_FLAGS`) |
+| Toạ độ bẩn (T0) | `stations` | cờ `COORD_INVALID` / `COORD_PLACEHOLDER` / `DUP_COORD_SUSPECT` (F4, tập dùng chung `features/paths.py:DIRTY_COORD_FLAGS`) |
 
 > **`built_up_frac`** (tỷ lệ pixel WorldCover class 50) là chỉ số chủ lực: bắt cả nước, núi, rừng,
 > và "đã có hạ tầng xây dựng" trong một lần quét.
@@ -91,8 +89,9 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | --- | --- | --- |
 | Đất nông nghiệp | `frac_crop ≥ 0,60` (`CROP`) | +0,3 |
 | Hạ tầng mỏng | `built_up_frac < 0,15` (`LOW_BUILTUP`) | +0,2 |
-| Dân không đường | `pop>0 & road=0` (`POP_NO_ROAD`, §7 #9) | flag (không phạt) |
-| Xa trạm biến áp | dist tới `power=substation` | +0,5·(d/dmax) — proxy đấu nối lưới |
+| Chưa xây dựng | `built_up_frac < 0,05` (`NOT_BUILT_UP`) | +0,35 |
+| Không thấy đường | `road_len_m ≤ 0` (`NO_ROAD_ACCESS`) | +0,25; `pop>0` cũng gắn `POP_NO_ROAD` |
+| Xa trạm biến áp | dist tới `power=substation` | +0,5·min(d/50 km, 1) — mẫu số vật lý cố định |
 
 Trạm hiện có (T0) đã có điện/mặt bằng → `penalty = 0` (không phạt land-use thêm).
 
@@ -121,16 +120,14 @@ FAIL bất kỳ gate nào (mặc định) → exit ≠ 0, **không bàn giao K�
 | `candidate_id` | string | **PK** (`cand-<city>-<idx>`) |
 | `lat`, `lng` | double | toạ độ thật (explainability) |
 | `h3_r8` | string | ô coverage (**unique** — ≤1/ô) |
-| `province_code` | string | null → enrich khi có admin (`E-DQ3`) |
 | `tier` | string | T0–T4 |
 | `anchor_type` | string | `existing_station`/`parking`/`fuel`/`mall`/`retail`/`apartments`/`gapfill_synthetic` |
 | `source_ref` | string | `station_id` \| `osm_type/osm_id` \| `synthetic:<h3>` |
 | `is_existing` | bool | T0 → CapEx=0 ở Sprint 3 (incumbent bắt buộc mở) |
 | `built_up_frac` | double | tỷ lệ đô thị hoá của ô |
 | `dist_substation_m` | double | proxy đấu nối lưới |
-| `penalty` | double | phạt mềm land-use ∈ [0,1] |
+| `penalty`, `penalty_flags` | double/list | phạt mềm land-use ∈ [0,1] + lý do audit |
 | `capex_class` | string | `low`/`mid`/`high` — ràng buộc ngân sách Sprint 3 |
-| `exclusion_flags` | list | rỗng (đã loại ô cấm) — dành cho audit |
 
 Format: **parquet** (canonical) + **GeoJSON điểm** (cho Kỳ, cùng chuẩn demand proxy).
 
@@ -158,11 +155,10 @@ spatial-join ranh giới — module tiêu thụ không đổi.
 
 ---
 
-## 8. Kết quả MVP Hà Nội (2026-07-24)
+## 8. Kết quả MVP Hà Nội (snapshot lịch sử 2026-07-24)
 
 - **AOI:** tâm (21,028 · 105,834), lõi 25 km + buffer 5 km → **3.141 ô H3**.
-- **buildable_h3:** 2.471/3.141 = **79% buildable**. Loại cứng: NOT_BUILT_UP 596 · WATER_OSM 71 · WATER 63 ·
-  WETLAND 25 · NO_ROAD_ACCESS 8 · MILITARY 7. Chỉ **17%** ô `pop>0` bị loại → ngưỡng `BUILT_UP_MIN=0,05` hợp lý.
+- Các số mục này dùng policy trước F14; chỉ là mốc lịch sử, không so với build hiện tại.
 - **candidate_sites:** **1.672** candidate — T0 1.411 · T1 96 · T2 54 · **T4 111**. CapEx: low 1.411 · mid 148 · high 113.
 - **QA gate:** upper-bound coverage 1,00 · freedom 1.672 (≥100) · size 1.672 (≤3.000) · anti-degenerate 1,00 ·
   grid_radius 3,0 → **5/5 PASS**.
@@ -171,10 +167,10 @@ spatial-join ranh giới — module tiêu thụ không đổi.
 
 ## 9. Ngưỡng & hiệu chỉnh
 
-Ngưỡng đặt trong `data/landuse/paths.py` + `features/paths.py`. `BUILT_UP_MIN = 0,05` chọn theo cảm quan
-rồi **kiểm bằng dữ liệu**: `validate.py` WARN nếu >70% ô `pop>0` bị loại (Hà Nội: 17% → OK). Nếu chạy thành phố
-khác mà tỷ lệ vọt lên → hạ `BUILT_UP_MIN`. `GAPFILL_TOP_Q`, `CROP_DOMINANT`, các trọng số phạt mềm có thể tinh
-chỉnh; đã cô lập thành hằng số để không rải rác trong code.
+Ngưỡng đặt trong `data/landuse/paths.py` + `features/paths.py`. `BUILT_UP_MIN = 0,05` nay chỉ kích hoạt
+penalty, không loại dân cư nông thôn bằng một raster nhiễu. Gate F14 **FAIL** nếu tỷ lệ ô `pop>0 & road=0`
+vượt 20%, để phát hiện thiếu coverage road. `GAPFILL_TOP_Q`, `CROP_DOMINANT` và penalty substation (mẫu số
+vật lý 50 km) đều là hằng số, không phụ thuộc AOI.
 
 ---
 
@@ -200,23 +196,15 @@ Ngoài MVP 1 thành phố, pipeline chạy được **toàn Việt Nam** trên *
 
 Mọi ngưỡng scope-aware **override được** qua CLI (`--max-candidates`, `--p-hint`, `--gapfill-q`, `--serve-radius-km`).
 
-**Kết quả toàn quốc (2026-07-24):**
+**Kết quả toàn quốc (rebuild 2026-07-28, F14):**
 
 - **WorldCover:** 16 tile đất (2 tile biển 404 bỏ qua) → `landuse_h3` **1.419.043 ô đất** (stride 8).
 - **OSM exclusion:** **694 ô** bị cấm (MILITARY 327 · PROTECTED 210 · AIRPORT 158) + **2.432 trạm biến áp**.
-- **buildable_h3:** 268.404 ô lưới quốc gia → **60.354 buildable (22%)**. Loại cứng chủ yếu `NOT_BUILT_UP`
-  200.636 (VN 51% rừng, phần lớn lưới là nông thôn/rừng/núi) · `NO_ROAD_ACCESS` 13.352 · `WATER` 7.296 ·
-  `WETLAND` 4.741. **47% ô `pop>0` bị loại** (cao hơn Hà Nội 17% nhưng dưới gate 70%): nông thôn VN có
-  `built_up_frac` thấp ngay cả nơi có dân → xem limitation bên dưới.
-- **candidate_sites:** **16.793 candidate** — T0 12.856 · T1 2.133 · T2 877 · T4 927. CapEx: low 12.856 ·
-  mid 2.876 · high 1.061.
-- **QA gate: 5/5 PASS** — upper-bound coverage **0,913** (chỉ nhỉnh trên ngưỡng 0,90) · freedom 16.793 (≥4.000) ·
-  size 16.793 (≤80.000) · anti-degenerate 1,00 · grid_radius 3,0. Chạy buildable+candidate ~11 s (đã vector hoá).
-
-> **Phát hiện đáng chú ý:** upper-bound coverage toàn quốc chỉ **91,3%** — nghĩa là ~**9% dân số** *không thể*
-> được phủ bởi tập candidate hiện tại vì họ ở ô nông thôn thưa bị `NOT_BUILT_UP` loại và không có anchor
-> buildable trong 3 km. Đây là ràng buộc thật của cách tiếp cận land-use (không đặt trạm ở làng quá thưa),
-> không phải lỗi. Nếu muốn phủ nhóm này cần hạ `BUILT_UP_MIN` hoặc thêm chiến lược anchor nông thôn (roadmap).
+- **buildable_h3:** 268.404 ô → **259.324 buildable (97%)**. Loại cứng: WATER 7.296 · WETLAND 4.741 ·
+  PROTECTED 210 · MILITARY 327 · AIRPORT 158. `pop>0 & road=0` = **6.352/104.171 = 6%**, PASS gate ≤20%.
+- **candidate_sites:** **28.075** — T0 12.834 · T1 8.688 · T2 1.828 · T4 4.725. CapEx: low 12.834 · mid 6.361 · high 8.880.
+- **QA gate: 5/5 PASS** — upper-bound coverage **0,9438** · freedom 28.075 (≥4.000) · size 28.075 (≤80.000) ·
+  anti-degenerate 1,00 · grid_radius 3,0.
 
 ---
 
@@ -228,6 +216,5 @@ Mọi ngưỡng scope-aware **override được** qua CLI (`--max-candidates`, `
 - **Bias đô thị của OSM POI** — giảm nhẹ bằng T4, không khử được.
 - Candidate **`SYNTHETIC` (T4)** phải kèm cảnh báo khảo sát thực địa, không dùng như khuyến nghị chốt.
 - T3 (rest_area/nút giao QL) chưa có → hành lang liên tỉnh phủ chưa tối ưu (roadmap).
-- **Phủ nông thôn (national):** `BUILT_UP_MIN=0,05` loại 47% ô `pop>0` toàn quốc → ~9% dân số không nằm
-  trong tập candidate. Đúng về mặt kinh tế (không đặt trạm ở làng quá thưa) nhưng nếu mục tiêu Nhà nước
-  đòi phủ nông thôn thì cần hạ ngưỡng hoặc thêm anchor nông thôn — quyết định chính sách, không phải lỗi data.
+- **Phủ nông thôn (national):** `NOT_BUILT_UP`/`NO_ROAD_ACCESS` là penalty, không phải quyết định loại cứng.
+  Candidate có cờ này vẫn cần khảo sát hạ tầng thực địa trước khi đề xuất.

@@ -21,6 +21,8 @@ export PYTHONPATH=src
 PY="${PY:-python3}"
 M="$PY -u -m ev_siting.data.evcs"
 CAT=data/raw/evcs/catalog
+MERGED_CAT=data/interim/evcs_catalog.csv
+MERGED_CODES=data/interim/evcs_all_codes.txt
 
 TS_RUN_ID="${EVCS_TS_RUN:-$(date +%Y-%m-%dT%H-%M-%S)-$$}"
 TS_RAW="data/raw/evcs/timeseries_runs/load_ts_${TS_RUN_ID}.csv"
@@ -28,12 +30,12 @@ mkdir -p "$(dirname "$TS_RAW")"
 
 if [[ "${EVCS_REENUM:-0}" == "1" ]]; then
   echo "======== STEP 1 (REENUM): bổ sung cột cung cho trạm đã biết $(date) ========"
-  if [[ ! -s "$CAT/evcs_catalog.csv" ]]; then
-    echo "!! REENUM cần $CAT/evcs_catalog.csv (chạy 1 lần crawl thường trước). Dừng."; exit 3
+  if [[ ! -s "$MERGED_CAT" ]]; then
+    echo "!! REENUM cần $MERGED_CAT (chạy 1 lần crawl thường trước). Dừng."; exit 3
   fi
   # enrich-from lấy toạ độ trạm đã biết trong catalog cũ, lấp evsePowers vào đúng station_code.
-  $M.evcs_enumerate --type cs    --out $CAT/evcs_stations.csv --enrich-from $CAT/evcs_catalog.csv --sleep 0.3
-  $M.evcs_enumerate --type other --out $CAT/evcs_other.csv    --enrich-from $CAT/evcs_catalog.csv --sleep 0.3
+  $M.evcs_enumerate --type cs    --out $CAT/evcs_stations.csv --enrich-from "$MERGED_CAT" --sleep 0.3
+  $M.evcs_enumerate --type other --out $CAT/evcs_other.csv    --enrich-from "$MERGED_CAT" --sleep 0.3
 else
   # Catalog discovery ghi đè nếu FRESH; ngược lại resume.
   ENUM_ARGS=()
@@ -50,7 +52,7 @@ echo "======== STEP 2: merge catalog $(date) ========"
 $M.merge_catalog
 
 echo "======== STEP 3: history 168h over ALL codes -> $TS_RAW $(date) ========"
-$M.evcs_scrape --codes-file $CAT/evcs_all_codes.txt --hours 168 --out "$TS_RAW"
+$M.evcs_scrape --codes-file "$MERGED_CODES" --hours 168 --out "$TS_RAW"
 
 echo "======== STEP 4: merge $TS_RAW -> data/interim/evcs_timeseries/ $(date) ========"
 $M.split_timeseries --input "$TS_RAW"
