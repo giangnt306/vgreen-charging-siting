@@ -45,8 +45,12 @@
 | **E-DQ9**  | E     | Grid toàn quốc vs MVP 1 thành phố (`demand_h3` toàn bảng)                                                                            | 🟡   | SIMPLIFY              | Giang       | **2026-07-27** | ☑           |
 | **E-DQ2**  | E     | Trùng chéo nguồn (evcs vs official)                                                                                                       | 🟠   | FIX                   | Giang       | **2026-07-27** | ☑           |
 | **E-DQ1**  | E     | Toạ độ placeholder / trùng khít                                                                                                         | 🟠   | FIX                   | Giang       | **2026-07-28** | ☑           |
-| **E-DQ7**  | E     | Cầu chưa audit (`pop`, POI/road)                                                                                                         | 🟠   | FIX                   | Giang       | —                   | ☐           |
-| **E-DQ8**  | E     | Dân cư không có đường (`pop>0 & road=0`)                                                                                            | 🟡   | FIX                   | Giang       | —                   | ☐           |
+| **E-DQ7a** | E     | **POI ngoài lãnh thổ VN** — Overpass query bằng `VN_BBOX` thô, không clip biên giới → **53,3%** POI nằm ở Campuchia/Lào/Thái/TQ | 🔴   | **FIX (chặn)**  | Giang       | —                   | ☐           |
+| **E-DQ7b** | E     | **`road_len` sai ngữ nghĩa** — `track`+`service` tính là đường sinh cầu (19,9%); double-count 2 chiều (motorway 96,9% `oneway`); `_MAJOR` gộp cao tốc + quốc lộ + tỉnh lộ | 🟠   | FIX                   | Giang       | —                   | ☐           |
+| **E-DQ7c** | E     | **POI thiếu & lẫn đơn vị** — OSM chỉ phủ ~30% cây xăng; `n_poi` cộng `apartments` (toà nhà) với `mall` (trung tâm) tỉ lệ 1:1; 496 trùng node/way | 🟠   | SIMPLIFY + DOC        | Giang       | —                   | ☐           |
+| **E-DQ7e** | E     | **`pop` chưa hiệu chuẩn** — raster UN-**unadjusted** (99,63M, +2,35% so 97,34M); 69 ô > 48.000 người/km² (đỉnh 83.565) | 🟡   | FIX + DOC             | Giang       | —                   | ☐           |
+| **E-DQ8**  | E     | Dân cư không có đường (`pop>0 & road=0`) — *số liệu chỉ chốt được sau `E-DQ7a`+`E-DQ7b`*                        | 🟡   | FIX                   | Giang       | —                   | ☐           |
+| **E-DQ7d** | E     | **Proxy cầu chưa kiểm chứng ngoại vi** — ρ(proxy, 18,6M occupancy) ≈ **0,30**; 983 ô có sạc thật nhưng mọi input proxy = 0 | 🔴   | **FIX (chặn)**  | Giang       | —                   | ☐           |
 | **E-DQ4**  | E     | Cấu hình khuyết (`current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0`)                                            | 🟡   | FIX                   | Giang       | —                   | ☐           |
 | **E-DQ5**  | E     | Trường`operator` bẩn                                                                                                                    | 🟡   | FIX                   | Giang       | —                   | ☐           |
 | **E-DQ6**  | E     | Text tự do bẩn (`name`, `address`)                                                                                                     | ⚪   | SIMPLIFY              | Giang       | —                   | ☐           |
@@ -229,7 +233,19 @@ năm coi hạ tầng bảo trì là brownfield hiện hữu); model có thể lo
 
 Các dòng **E-DQ** trong [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn-đề-đã-gộp) đã được **sắp theo thứ tự xử lý** (trên → dưới) — mỗi bước làm nhỏ tập lỗi cho bước sau:
 
-> `E-DQ10` freeze inputs ✅ → `E-DQ9` clip MVP city ✅ → `E-DQ2` dedup chéo nguồn ✅ → `E-DQ1` sửa toạ độ ✅ → `E-DQ7`+`E-DQ8` audit cầu → `E-DQ4` xử lý khuyết → `E-DQ5`+`E-DQ6` chuẩn hoá categorical → `E-DQ3` enrich admin (cũng trọng tài `COORD_ADDR_MISMATCH` của E-DQ1).
+> `E-DQ10` freeze inputs ✅ → `E-DQ9` clip MVP city ✅ → `E-DQ2` dedup chéo nguồn ✅ → `E-DQ1` sửa toạ độ ✅ →
+> **`E-DQ7a` clip biên giới VN** → `E-DQ7b` retype road → `E-DQ7c` + `E-DQ7e` → `E-DQ8` dân cư không đường →
+> `E-DQ7d` kiểm chứng ngoại vi (**gate của `demand_weight`**) → `E-DQ4` xử lý khuyết →
+> `E-DQ5`+`E-DQ6` chuẩn hoá categorical → `E-DQ3` enrich admin (cũng trọng tài `COORD_ADDR_MISMATCH` của E-DQ1).
+
+**Hai ràng buộc thứ tự trong nhóm `E-DQ7`** (lý do tách 5 dòng thay vì 1):
+
+- **`E-DQ7a`/`E-DQ7b` phải xong trước `E-DQ8`.** Con số của E-DQ8 (`pop>0 & road=0`, hiện **6.352 ô / 1,27M người**)
+  **chưa ổn định**: bỏ `track`+`service` khỏi `road_len_m` (7b) làm **tăng** số ô `road=0`, còn clip biên giới (7a)
+  **xoá 6.889 ô** khỏi lưới. Đo E-DQ8 trước = phải đo lại lần hai.
+- **`E-DQ7a` mở khoá `E-DQ3`.** Để clip POI theo biên giới phải trích **polygon `admin_level=2`** từ chính `.pbf`
+  đã freeze — đúng artefact mà `E-DQ3` cần để spatial-join admin, và do đó cũng giải phóng **758 `COORD_ADDR_MISMATCH`**
+  mà E-DQ1 cố ý hoãn. Một artefact, ba issue → làm 7a **sớm nhất** dù E-DQ3 nằm cuối hàng.
 
 Thứ tự này thay cho *kế hoạch làm sạch §8* trước đây ở `data-layer-overview.md` (đã gỡ — thứ tự nay nằm ngay ở bảng). Nguyên tắc chung không đổi: **flag dòng, không xoá**; đối soát `input = output + quarantined + merged` ở mọi bước.
 

@@ -195,13 +195,26 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | 5  | **`P8`** (Done 27/07)      | Null trạng thái / truy cập          | `status`→`op_status`, `is_public`→`access`, `is_operational` |
 | 6  | `E-DQ5`                        | Trường `operator` bẩn             | `operator`                                               |
 | 7  | `E-DQ6`                        | Text tự do bẩn                       | `name`, `address`                                       |
-| 8  | `E-DQ7`                        | Cầu chưa audit                       | `pop`, POI/road                                          |
+| 8a | `E-DQ7a`                       | POI ngoài lãnh thổ VN (53,3%)        | `n_poi`, `n_parking`, `n_fuel` → cần cờ `in_vn`      |
+| 8b | `E-DQ7b`                       | `road_len` sai ngữ nghĩa            | `road_len_m` (bỏ `track`/`service`), `road_len_mt_m` (tách cao tốc / trunk-primary, sửa double-count 2 chiều) |
+| 8c | `E-DQ7c`                       | POI thiếu & lẫn đơn vị             | `n_poi` → tách `n_apartments` / `n_retail_mall`; dedup node/way |
+| 8d | `E-DQ7d`                       | Proxy cầu chưa kiểm chứng ngoại vi | `demand_weight` (gate ρ vs 18,6M occupancy)              |
+| 8e | `E-DQ7e`                       | `pop` chưa hiệu chuẩn               | `pop` (scale UN-adj) + cờ `POP_DENSITY_OUTLIER`         |
 | 9  | `E-DQ8`                        | Dân cư không có đường           | `pop` vs `road_len_m`                                   |
 | 10 | **`E-DQ9`** (Done 27/07) | Grid toàn quốc / MVP 1 thành phố   | `demand_h3` (toàn bảng) → AOI clip (`aoi.py`)         |
 | 11 | **`P5`** (Done 24/07)      | Chưa định nghĩa candidate site     | — → [candidate-sites.md](candidate-sites.md)          |
 | 12 | **`E-DQ10`** (Done 27/07) | Freeze snapshot / provenance          | `data/raw/MANIFEST.json` (checksum mọi nguồn raw)     |
 
 > **Lưu ý:** #2, #10 và #8 là 3 điểm **thiếu trong kế hoạch gốc** — và #8 (audit cầu) là nơi khả năng lộ vấn đề thật cao nhất vì demand chính là hàm mục tiêu. (#2 **E-DQ2** đã đóng 27/07 — identity resolution `physical_id`, **không** dedup H3 thô; chi tiết [known-issues.md](../known-issues.md#e-dq2--trùng-chéo-nguồn-evcs--official-bước-2).)
+>
+> **Dự đoán đó đã đúng.** Audit sơ bộ 28/07 tách #8 thành **5 vấn đề độc lập (`E-DQ7a`–`E-DQ7e`)**, trong đó **2 lỗi
+> nghiêm trọng**: **53,3% POI không nằm trong lãnh thổ VN** (`VN_BBOX` thô, không clip biên giới → 6.889 ô "ma" trong
+> lưới) và **proxy cầu gần như không dự báo được nhu cầu sạc thật** (ρ ≈ 0,30 trên 18,6M bản ghi occupancy; 983 ô có
+> sạc thật nhưng proxy = 0). Chi tiết + bằng chứng: [known-issues.md §2](../known-issues.md#2-bảng-tổng-hợp-vấn-đề-đã-gộp).
+>
+> **Bất đối xứng khiến lỗi bị bỏ sót:** `road` lấy từ Geofabrik (**đã clip theo quốc gia**), `POI` lấy từ Overpass
+> (**không clip**) — `osm/validate.py` chỉ kiểm POI nằm trong `VN_BBOX`, tức đúng cái hộp sinh ra lỗi. `demand_h3` là
+> bảng **duy nhất** chưa có cổng QA (cung có 3 validator + 2 khối 5 cổng), dù nó chính là **hàm mục tiêu**.
 
 ---
 
