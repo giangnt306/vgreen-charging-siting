@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """overpass_poi.py — Trích POI Việt Nam từ Overpass API (OpenStreetMap).
 
-Các nhóm POI (theo [problem-analysis.md] mục 2 #5 — sinh cầu sạc):
-  - fuel       : amenity=fuel                         -> demand_h3.n_fuel
-  - parking    : amenity=parking                      -> demand_h3.n_parking
-  - mall       : shop=mall / shop=department_store    -> demand_h3.n_poi (TTTM)
-  - apartments : building=apartments                  -> demand_h3.n_poi (chung cư)
-  - retail     : shop=supermarket / amenity=marketplace -> demand_h3.n_poi
+Các nhóm CRAWL (theo [problem-analysis.md] mục 2 #5 — sinh cầu sạc):
+  - fuel       : amenity=fuel
+  - parking    : amenity=parking
+  - mall       : shop=mall / shop=department_store
+  - apartments : building=apartments
+  - retail     : shop=supermarket / amenity=marketplace
+
+⚠️ **E-DQ7c — nhóm crawl KHÔNG phải lớp ngữ nghĩa.** Mỗi nhóm ở trên còn lẫn hai loại
+cầu khác hẳn nhau bên trong (`retail` = 1.698 chợ + 1.409 siêu thị; `mall` = 1.137
+department_store + 262 mall; `parking` = bãi đỗ + 149 chỗ đỗ ven đường). Vì vậy `tags`
+được GIỮ nguyên trong raw JSON và việc phân lớp làm ở `poi_semantics.classify()` —
+đổi định nghĩa lớp = chạy lại `build_osm_h3`, **không** phải crawl lại.
 
 CƠ CHẾ:
   - Query `nwr[<tag>](bbox); out center tags;` -> node lấy lat/lon trực tiếp,

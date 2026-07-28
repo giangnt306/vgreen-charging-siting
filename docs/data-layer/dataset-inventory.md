@@ -97,15 +97,20 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 
 | Artifact | Dòng (ô H3) | Cột | Ghi chú |
 | --- | ---: | ---: | --- |
-| `demand/demand_h3.parquet` | **254.035** | 12 | `pop` + `road_access_m`/`road_len_m`/`road_lane_mw_m`/`road_lane_ar_m`/`road_bridge_m` (**E-DQ7b**) + `n_poi`/`n_parking`/`n_fuel` + `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` ≈ 99,62 M |
+| `demand/demand_h3.parquet` | **254.035** | 19 | `pop` + 5 cột `road_*` (**E-DQ7b**) + **10 cột POI theo lớp tag** (**E-DQ7c**: `n_fuel` 4.830 · `n_parking_off` 2.147 · `n_parking_street` 149 · `n_mall` 252 · `n_dept_store` 1.133 · `n_supermarket` 1.386 · `n_market` 1.661 · `n_apartment` 5.157 · `n_apartment_complex` **1.370** · `apartment_levels_sum`) + `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` ≈ 99,62 M. ⚠️ `n_poi`/`n_parking` **khai tử** |
 | `worldpop/worldpop_pop_h3.parquet` | 104.171 | 2 | chỉ ô có dân |
-| `osm/osm_demand_components_h3.parquet` | 255.054 | 9 | thành phần OSM (5 cột `road_*` suy ra) |
+| `osm/osm_demand_components_h3.parquet` | 255.054 | 16 | thành phần OSM — cột **suy ra** từ 2 bảng lớp (10 POI + 5 `road_*`) |
 | `osm/osm_roads_h3.parquet` | 255.052 | 29 | **bảng LỚP** (E-DQ7b): `m_`/`lane_m_`/`lane_obs_m_` × 9 lớp `highway` + `bridge_m` |
-| `osm/osm_poi_points.parquet` | 37.362 | 9 | POI dạng điểm (có `h3_r8`, `h3_r9`, `in_vn`) |
+| `osm/osm_poi_h3.parquet` | 6.932 | 20 | **bảng LỚP** (E-DQ7c): `poi_<lớp>` + `poi_<lớp>_restricted` × 8 lớp tag + `poi_apartment_complex`/`_levels`/`_levels_obs` |
+| `osm/osm_poi_points.parquet` | 37.349 | 15 | POI dạng điểm — `h3_r8`/`h3_r9`/`in_vn` (E-DQ7a) + `poi_class`/`poi_access`/`poi_physical_id`/`is_poi_primary`/`complex_id`/`levels` (E-DQ7c). **37.014 bản chính + 335 bản trùng** |
+| `osm/osm_poi_recall.json` | — | — | độ phủ POI đo bằng nguồn độc lập (E-DQ7c): fuel **35,9%** / parking **8,6%**, kèm tỉ số thiên lệch theo tầng `pop` |
 
 > ⚠️ `demand_h3` từng là bảng **duy nhất chưa có cổng QA** dù nó chính là hàm mục tiêu — đã có 7 cổng từ
-> `E-DQ7a`/`E-DQ7b`. Audit 28/07 phát hiện **54,2% POI nằm ngoài lãnh thổ VN** (`E-DQ7a`, đã sửa),
-> `road_len` sai ngữ nghĩa (`E-DQ7b`, đã sửa) + proxy cầu ρ ≈ 0,30 so với occupancy thật (`E-DQ7d`, **chưa**).
+> `E-DQ7a`/`E-DQ7b` + 8 cổng từ `E-DQ7c`. Audit 28/07 phát hiện **54,2% POI nằm ngoài lãnh thổ VN** (`E-DQ7a`,
+> đã sửa), `road_len` sai ngữ nghĩa (`E-DQ7b`, đã sửa), `n_poi` lẫn đơn vị + POI thiếu/trùng (`E-DQ7c`, đã sửa)
+> + proxy cầu ρ ≈ 0,30 so với occupancy thật (`E-DQ7d`, **chưa**).
+> ⚠️ **Đọc `n_fuel`/`n_parking_off` như "số cây xăng/bãi đỗ" là SAI**: recall OSM đo được chỉ **35,9%** và
+> **8,6%**; riêng parking còn **lệch đô thị** (tỉ số tầng cao/thấp = 2,67). Chúng là tín hiệu **tương đối**.
 > **Chưa có cột `demand_weight`.** Xem [known-issues.md](../known-issues.md).
 
 ### 3.3 Bảng land-use (bộ lọc khả thi candidate — P5)

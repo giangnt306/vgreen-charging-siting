@@ -52,7 +52,8 @@ PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop --force-download
 | `h3_r8` | string | lưới H3 res 8 |
 | `pop` | double | WorldPop (số người trong ô) |
 | `road_access_m`, `road_len_m`, `road_lane_mw_m`, `road_lane_ar_m`, `road_bridge_m` | double | OSM roads theo lớp ([crawler-osm.md](osm.md)) — **E-DQ7b** |
-| `n_poi`, `n_parking`, `n_fuel` | int | OSM POI |
+| `n_fuel`, `n_parking_off`, `n_parking_street`, `n_mall`, `n_dept_store`, `n_supermarket`, `n_market`, `n_apartment`, `n_apartment_complex` | int | OSM POI theo **lớp tag** ([crawler-osm.md](osm.md)) — **E-DQ7c** (`n_poi`/`n_parking` khai tử) |
+| `apartment_levels_sum` | double | Σ `building:levels` quan sát được (36,1% toà có tag) — **E-DQ7c** |
 
 **Còn thiếu (enrich sau, ngoài phạm vi bộ crawl này):**
 - `admin_l1_code`, `province_name`, `commune_name`, `commune_kind` — cần join ranh giới hành chính.

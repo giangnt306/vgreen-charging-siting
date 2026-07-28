@@ -8,7 +8,7 @@ Hai nguồn OSM độc lập, gộp về **lưới H3 res 8**:
 
 | Nguồn | Lấy gì | Cột `demand_h3` sinh ra | Công cụ |
 | --- | --- | --- | --- |
-| **Overpass API** | POI: trạm xăng, bãi đỗ, TTTM, chung cư, siêu thị/chợ | `n_fuel`, `n_parking`, `n_poi` | `requests` |
+| **Overpass API** | POI: trạm xăng, bãi đỗ, TTTM, chung cư, siêu thị/chợ | 10 cột theo **lớp tag** (E-DQ7c) — `n_fuel`, `n_parking_off`, `n_parking_street`, `n_mall`, `n_dept_store`, `n_supermarket`, `n_market`, `n_apartment`, `n_apartment_complex`, `apartment_levels_sum` | `requests` |
 | **Geofabrik `.pbf`** | Mạng lưới đường theo **lớp** `highway` (km + lane-mét) | `road_access_m`, `road_len_m`, `road_lane_mw_m`, `road_lane_ar_m`, `road_bridge_m` | `osmium` (stream) |
 
 > `pop` (WorldPop) **chưa** thuộc phạm vi bộ này → ghép ở bước demand sau. Bảng
@@ -25,6 +25,8 @@ src/ev_siting/data/osm/
 ├── roads_pbf.py        #  tải .pbf + stream osmium -> road_len theo H3
 ├── vn_boundary.py      #  ★ polygon lãnh thổ VN + tỉnh, trích từ .pbf đã freeze (E-DQ7a)
 ├── road_semantics.py   #  ★ phân lớp highway + suy dẫn cột road_* (E-DQ7b)
+├── poi_semantics.py    #  ★ phân lớp tag POI + khử trùng + gộp khu + suy dẫn cột (E-DQ7c)
+├── poi_recall.py       #  ★ đo độ phủ POI bằng nguồn ĐỘC LẬP (trạm sạc tại cây xăng/bãi đỗ)
 └── build_osm_h3.py     #  gộp POI + road về H3 -> bảng thành phần demand
 
 data/raw/osm/                        # BẤT BIẾN
@@ -35,10 +37,11 @@ data/interim/osm/                    # đã xử lý / dẫn xuất
 ├── vn_boundary.parquet              #   ★ 1 polygon adm2 (VN) + 40 polygon adm4 (tỉnh) — E-DQ7a/E-DQ3
 ├── vn_boundary.geojson              #   bản xem/QA trên map
 ├── vn_boundary_report.json          #   6 cổng QA polygon
-├── osm_poi_points.parquet           #   1 dòng/POI + h3_r8/h3_r9 + in_vn (để map/QA)
+├── osm_poi_points.parquet           #   1 dòng/POI + h3/in_vn + poi_class/is_poi_primary/complex_id (E-DQ7c)
+├── osm_poi_h3.parquet               #   ★ đếm POI theo LỚP tag × ô H3 (E-DQ7c)
 ├── osm_roads_h3.parquet             #   ★ km/lane-mét theo LỚP highway × ô H3 (E-DQ7b)
-├── osm_demand_components_h3.parquet #   ★ h3_r8, n_poi, n_parking, n_fuel, road_access_m, road_len_m,
-│                                    #     road_lane_mw_m, road_lane_ar_m, road_bridge_m
+├── osm_demand_components_h3.parquet #   ★ cột SUY RA từ 2 bảng lớp: 10 cột POI + 5 cột road_*
+├── osm_poi_recall.json              #   ★ độ phủ POI + thiên lệch theo tầng pop (E-DQ7c)
 └── osm_quality_report.json          #   thống kê QA từ validate.py
 ```
 
@@ -54,7 +57,9 @@ data/interim/osm/                    # đã xử lý / dẫn xuất
   vn_boundary ── .pbf đã freeze ─▶ relation adm2 id 49915 + adm4 ─▶ interim/osm/vn_boundary.parquet
         │                            (linemerge + polygonize; KHÔNG dùng with_areas — xem ghi chú)
         │
-  build_osm_h3 ── clip POI mức ĐIỂM (in_vn) + đếm theo ô + road_semantics.derive()
+  build_osm_h3 ── clip POI mức ĐIỂM (in_vn) + poi_semantics: phân lớp tag / khử trùng
+        │            node↔area 30 m / gộp khu chung cư 150 m ─▶ interim/osm/osm_poi_h3.parquet
+        │            ─▶ poi_semantics.derive() + road_semantics.derive()
         │                                  ──▶ interim/osm/osm_demand_components_h3.parquet
         │
   validate ── cổng QA (in_vn, đối soát số đếm/Σ lớp, lane quan sát, ô có trạm phải có lối vào)
@@ -77,18 +82,36 @@ PYTHONPATH=src python -m ev_siting.data.osm.overpass_poi --only fuel parking
 PYTHONPATH=src python -m ev_siting.data.osm.roads_pbf --force-download
 ```
 
-## Ánh xạ tag OSM → nhóm POI
+## Ánh xạ tag OSM → lớp POI → cột (**E-DQ7c**)
 
-| Nhóm (`category`) | Tag OSM | Cột đếm | Ý nghĩa (problem-analysis #5) |
-| --- | --- | --- | --- |
-| `fuel` | `amenity=fuel` | `n_fuel` | Trạm xăng (điểm sạc tương lai / lưu lượng xe) |
-| `parking` | `amenity=parking` | `n_parking` | Bãi đỗ (chỗ đặt trụ + dừng đỗ lâu) |
-| `mall` | `shop=mall`, `shop=department_store` | `n_poi` | TTTM |
-| `apartments` | `building=apartments` | `n_poi` | Chung cư (sạc qua đêm cư dân) |
-| `retail` | `shop=supermarket`, `amenity=marketplace` | `n_poi` | Siêu thị / chợ (điểm đến đông) |
+`overpass_poi.py` crawl theo **5 nhóm**, nhưng **nhóm crawl ≠ lớp ngữ nghĩa**: mỗi nhóm
+còn lẫn hai loại cầu khác hẳn nhau bên trong. Vì vậy raw JSON **giữ nguyên `tags`** và
+việc phân lớp làm ở
+[`poi_semantics.classify()`](../../src/ev_siting/data/osm/poi_semantics.py) — đổi định
+nghĩa lớp = chạy lại `build_osm_h3` (vài giây), **không** phải crawl lại Overpass.
 
-> `n_poi` = POI **sinh cầu** (mall + apartments + retail). `fuel`/`parking` tách riêng
-> để khớp đúng 3 cột đếm của [SCHEMA_CONTRACT.md](../schema/schema-contract.md#🟡-demand_h3--nhu-cầu-theo-ô-h3-11-cột--key-h3_r8).
+| Nhóm crawl | Tag OSM | **Lớp** (E-DQ7c) | Cột suy ra | n (`in_vn`, bản chính) |
+| --- | --- | --- | --- | ---: |
+| `fuel` | `amenity=fuel` | `FUEL` | `n_fuel` | 4.830 |
+| `parking` | `amenity=parking` | `PARKING_OFF` | `n_parking_off` | 2.265 (−118 `RESTRICTED` = **2.147**) |
+| `parking` | + `parking=street_side\|lane\|on_kerb\|…` | `PARKING_STREET` | `n_parking_street` | 164 (−15 = **149**) |
+| `mall` | `shop=mall` | `MALL` | `n_mall` | 252 |
+| `mall` | `shop=department_store` | `DEPT_STORE` | `n_dept_store` | 1.133 |
+| `retail` | `shop=supermarket` | `SUPERMARKET` | `n_supermarket` | 1.386 |
+| `retail` | `amenity=marketplace` | `MARKET` | `n_market` | 1.661 |
+| `apartments` | `building=apartments` | `APARTMENT` | `n_apartment` · `n_apartment_complex` | 5.157 toà → **1.370 khu** |
+
+> ⚠️ **`n_poi` và `n_parking` đã KHAI TỬ.** `n_poi` cộng một TOÀ chung cư với một TRUNG
+> TÂM thương mại tỉ lệ 1:1 — đo được: ở **top-100 ô theo `n_poi`, 84,8% số đếm là
+> apartments**, tức feature xếp hạng theo mật độ toà nhà chứ không theo cầu sạc.
+> `n_parking` thì gộp **149 chỗ đỗ ven đường** (không đặt được trụ) với bãi đỗ, và đếm cả
+> `access=private`. Trọng số giữa các lớp **cố ý chưa gán** — `E-DQ7d`/`P1` fit bằng
+> 18,6M bản ghi occupancy (xem [known-issues.md — E-DQ7c](../known-issues.md#e-dq7c--poi-thiếu--lẫn-đơn-vị-bước-6)).
+
+> ⚠️ **Đừng đọc `n_fuel`/`n_parking_off` như "số cây xăng/bãi đỗ".** Recall OSM đo bằng
+> nguồn độc lập (`poi_recall.py`) chỉ **35,9%** và **8,6%**. Cái đáng lo không phải mức
+> tuyệt đối mà là **thiên lệch**: fuel thiếu gần như ĐỀU (tỉ số pop cao/thấp = **1,12**,
+> lành tính cho một covariate tương đối) còn parking thiếu **lệch đô thị** (**2,67**).
 
 ## Ánh xạ loại đường → cột `road_*` (**E-DQ7b**)
 

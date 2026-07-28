@@ -3,14 +3,14 @@
 
 Đầu vào:
   - data/interim/worldpop/worldpop_pop_h3.parquet         (h3_r8, pop)
-  - data/interim/osm/osm_demand_components_h3.parquet     (h3_r8, n_poi, n_parking,
-                                                           n_fuel, road_* — E-DQ7b)
+  - data/interim/osm/osm_demand_components_h3.parquet     (h3_r8, n_* POI theo lớp tag
+                                                           — E-DQ7c; road_* — E-DQ7b)
   - data/interim/osm/vn_boundary.parquet                  (polygon lãnh thổ — E-DQ7a)
 
 Đầu ra:
   - data/interim/demand/demand_h3.parquet  — **lưới mô hình** (INSIDE + BORDER):
     h3_r8, pop, road_access_m, road_len_m, road_lane_mw_m, road_lane_ar_m,
-    road_bridge_m, n_poi, n_parking, n_fuel, cell_state, frac_in_vn. Cột admin
+    road_bridge_m, 10 cột POI theo lớp tag (E-DQ7c), cell_state, frac_in_vn. Cột admin
     (admin_l1_code, province_name, commune_*) enrich sau (E-DQ3); `demand_weight`
     chốt ở Sprint 2.
   - data/interim/demand/demand_h3_clipped_out.parquet — ô OUTSIDE (cách ly, để đối soát)
@@ -29,6 +29,12 @@ Lưu ý `road_len`: dump Geofabrik **không** cắt đúng biên giới (cắt b
 → 8.934 km đường nằm ngoài VN, 96% trong vòng 10 km quanh biên. Ghi chú "Geofabrik đã
 clip theo quốc gia" ở tài liệu cũ là sai — clip ở đây xử lý cả road, không chỉ POI.
 
+**E-DQ7c — `n_poi`/`n_parking` khai tử.** `n_poi` cộng toà chung cư với trung tâm
+thương mại tỉ lệ 1:1 (84,8% số đếm ở top-100 ô là apartments) và `n_parking` gộp đỗ ven
+đường với bãi đỗ, đếm cả `access=private`. Nay `demand_h3` mang **10 cột tách rời theo
+lớp tag** để E-DQ7d/P1 fit trọng số bằng 18,6M bản ghi occupancy thay vì gán tay. Xem
+`osm/poi_semantics.py`.
+
 **E-DQ7b — hai cột đường, hai nhiệm vụ.** `road_access_m` (mọi đường lái xe được, GỒM
 `service`+`track`) dùng cho **lối vào** (`buildable_h3`, E-DQ8); `road_len_m` (TRỪ
 `service`+`track`) dùng cho **cầu**. `road_len_mt_m` đã khai tử → `road_lane_mw_m`
@@ -44,14 +50,17 @@ import sys
 import pandas as pd
 
 from ev_siting.data.osm.paths import DEMAND_COMPONENTS
+from ev_siting.data.osm.poi_semantics import DERIVED_COLUMNS as POI_DERIVED
 from ev_siting.data.osm.road_semantics import DERIVED_COLUMNS
 from ev_siting.data.osm.vn_boundary import classify_cells
 from ev_siting.data.provenance.manifest import load_manifest
 from .paths import (DEMAND_H3, DEMAND_H3_CLIPPED, DEMAND_REPORT, POP_H3,
                     ensure_dirs)
 
-_NUM_COLS = ["pop"] + DERIVED_COLUMNS
-_INT_COLS = ["n_poi", "n_parking", "n_fuel"]
+# `apartment_levels_sum` là Σ số tầng (số ĐO, có thể lẻ khi thiếu tag) -> cột số thực;
+# mọi cột POI còn lại là số đếm nguyên.
+_NUM_COLS = ["pop"] + DERIVED_COLUMNS + ["apartment_levels_sum"]
+_INT_COLS = [c for c in POI_DERIVED if c != "apartment_levels_sum"]
 _ALL_COLS = ["h3_r8"] + _NUM_COLS + _INT_COLS + ["cell_state", "frac_in_vn"]
 
 
@@ -122,6 +131,11 @@ def run():
     if missing:
         raise SystemExit(f"{DEMAND_COMPONENTS.name} thiếu {missing} (bản trước E-DQ7b) "
                          f"— chạy lại `make osm`")
+    # E-DQ7c: artefact trước bản vá có `n_poi`/`n_parking` và thiếu cột theo lớp tag
+    missing = [c for c in POI_DERIVED if c not in osm.columns]
+    if missing:
+        raise SystemExit(f"{DEMAND_COMPONENTS.name} thiếu {missing} (bản trước E-DQ7c) "
+                         f"— chạy lại `make osm`")
     df = pop.merge(osm, on="h3_r8", how="outer")
 
     for c in _NUM_COLS:
@@ -144,8 +158,8 @@ def run():
     print("  theo trạng thái ô:", by_state)
     print("  tổng (lưới giữ lại):", {
         "pop_M": round(keep["pop"].sum() / 1e6, 3),
-        "n_poi": int(keep.n_poi.sum()), "n_parking": int(keep.n_parking.sum()),
-        "n_fuel": int(keep.n_fuel.sum()),
+        **{c: int(keep[c].sum()) for c in _INT_COLS},
+        "apartment_levels_sum": int(keep.apartment_levels_sum.sum()),
         "road_access_km": round(keep.road_access_m.sum() / 1e3),
         "road_km": round(keep.road_len_m.sum() / 1e3),
         "lane_mw_km": round(keep.road_lane_mw_m.sum() / 1e3),

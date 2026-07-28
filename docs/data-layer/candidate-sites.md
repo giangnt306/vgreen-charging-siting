@@ -48,10 +48,18 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | Tier | Nguồn | Lý do | `capex_class` |
 | --- | --- | --- | --- |
 | **T0** | trạm hiện có (`canonical/stations`) | brownfield: đã có điện, mặt bằng, giấy phép | `low` |
-| **T1** | `amenity=parking`, `amenity=fuel` | có sân đỗ, quen mô hình dừng-đỗ | `mid` |
-| **T2** | `shop=mall`, `retail`, `building=apartments` | dwell time dài, có bãi đỗ đi kèm | `mid` |
-| **T4** | **gap-fill tổng hợp** — centroid ô demand cao **không** có anchor T0–T2 | chống thiên vị đô thị của OSM | `high` |
+| **T1** | lớp `PARKING_OFF`, `FUEL` (**E-DQ7c**) | có sân đỗ, quen mô hình dừng-đỗ | `mid` |
+| **T2** | lớp `MALL`, `DEPT_STORE`, `SUPERMARKET`, `MARKET`, `APARTMENT` (**E-DQ7c**) | dwell time dài, có bãi đỗ đi kèm | `mid` |
+| **T4** | **gap-fill tổng hợp** — centroid ô demand cao **không** có anchor T0–T2 | chống thiên vị đô thị của OSM — **đã định lượng ở E-DQ7c**: recall POI của OSM chỉ 35,9% (fuel) / 8,6% (parking), riêng parking còn lệch đô thị (tỉ số tầng pop cao/thấp = 2,67) ⇒ **không được lọc cứng theo việc VẮNG POI** | `high` |
 
+- **E-DQ7c — ba bộ lọc "một địa điểm vật lý = một anchor".** (1) `PARKING_STREET` **không** làm anchor: 149 chỗ
+  đỗ ven đường/lòng đường không phải mặt bằng đặt được trụ. (2) chỉ nhận `is_poi_primary` — bản node và bản way
+  của **cùng một** cây xăng không được thành hai anchor (335 bản trùng toàn quốc). (3) một `complex_id` = **một**
+  anchor chung cư (5.157 toà → 1.370 khu), nếu không thì một khu đô thị sinh 5–10 anchor rải qua nhiều ô. Thêm
+  bộ lọc P8-style: bãi đỗ `access=private/employees/permit` bị loại khỏi T1, nhưng `UNKNOWN` **được giữ** (80%
+  bãi đỗ không có tag `access`). Hiệu ứng đo được ở MVP Hà Nội: T1 112 → **108**, T2 giữ nguyên **60** nhưng
+  thành phần nay đọc được (`market 21 · apartment 20 · supermarket 14 · dept_store 5` thay vì `retail 30 /
+  apartments 27 / mall 3`).
 - **T0 là incumbent bắt buộc mở** (ràng buộc thiết kế MCLP) và `is_existing=True` → Sprint 3 tính CapEx=0 / loại khỏi ngân sách;
   cũng để DoD Sprint 2 so sánh "mạng hiện tại vs. model đề xuất".
 - **T4 bắt buộc, không phải nice-to-have.** POI OSM thưa ở vùng ven → nếu chỉ POI-anchored thì MCLP *không thể*

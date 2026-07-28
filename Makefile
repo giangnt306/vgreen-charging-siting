@@ -1,4 +1,4 @@
-.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand
+.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand poi-recall
 
 CITY ?= hanoi
 
@@ -34,8 +34,11 @@ official:  ## Fetch official VinFast source registry (verified cross-ref) -> dat
 boundary:  ## Extract VN territory + province polygons from the frozen .pbf  [E-DQ7a, unlocks E-DQ3]
 	PYTHONPATH=src python -m ev_siting.data.osm.vn_boundary
 
-osm:  ## Rebuild OSM demand components (POI clipped to VN at point level)  [E-DQ7a]
+osm:  ## Rebuild OSM demand components (POI clipped + classified + deduped)  [E-DQ7a, E-DQ7c]
 	PYTHONPATH=src python -m ev_siting.data.osm.build_osm_h3
+
+poi-recall:  ## Measure OSM POI coverage against EV stations sited at fuel/parking  [E-DQ7c]
+	PYTHONPATH=src python -m ev_siting.data.osm.poi_recall
 
 demand:  ## Rebuild demand_h3 grid (cells classified/clipped to VN territory)  [E-DQ7a]
 	PYTHONPATH=src python -m ev_siting.data.worldpop.build_demand_h3

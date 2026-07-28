@@ -126,10 +126,12 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 - **P7:** `connector_standard` lấy từ registry chính thức (`official_connectors.standard`),
   đã sửa **1.588 connector 20-22 kW** bị power tier gán nhầm AC → **DC CCS2**.
 
-### 🟡 `demand_h3` — 7 cột, 268.404 ô (key `h3_r8`)
+### 🟡 `demand_h3` — 19 cột, 254.035 ô (key `h3_r8`)
 
 - `pop` (Σ = 99,62M ≈ dân số VN) · `road_access_m` · `road_len_m` · `road_lane_mw_m` · `road_lane_ar_m` ·
-  `road_bridge_m` (**E-DQ7b**) · `n_poi` · `n_parking` · `n_fuel` · `cell_state` · `frac_in_vn` (**E-DQ7a**).
+  `road_bridge_m` (**E-DQ7b**) · `n_fuel` · `n_parking_off` · `n_parking_street` · `n_mall` · `n_dept_store` ·
+  `n_supermarket` · `n_market` · `n_apartment` · `n_apartment_complex` · `apartment_levels_sum` (**E-DQ7c** —
+  `n_poi`/`n_parking` **khai tử**) · `cell_state` · `frac_in_vn` (**E-DQ7a**).
 - ⚠️ **Lệch hợp đồng:** SCHEMA_CONTRACT ghi 11 cột (kèm admin); file hiện **7 cột, chưa có admin**.
   Chưa có `demand_weight`. Chưa có bảng rollup `demand_commune`. 61% ô `pop=0` (grid toàn quốc).
 
@@ -174,6 +176,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | **Thiếu lọc trạng thái/access** *(P8)*                | `status`/`is_public` chưa lọc → trạm ngừng/tư nhân tính là cung; 72/80 null giữ ngầm                                                                                    | Resolve**official-first** `op_status`/`access` + boolean `is_operational` (loại cứng 42 OUT_OF_SERVICE); cờ tường minh, giữ dòng; T0 loại 63 trạm OUT_OF_SERVICE∪RESTRICTED.                                                                                                                                                                                                                                                   |
 | **Chưa freeze snapshot** *(E-DQ10)*                      | `.pbf` tên `latest`, không checksum → input có thể trôi giữa sprint, phá đối soát                                                                                       | `data/raw/MANIFEST.json` (sha256 mọi nguồn, `snapshot_id=2026-07-20` neo P9); pin OSM về replication seq 4852; khoá read-only 23.280 file; cổng drift ở `validate.py`; `make freeze`/`verify-snapshot`.                                                                                                                                                                                                                              |
 | **Trùng chéo nguồn** *(E-DQ2)*                         | 1 trạm vật lý = nhiều dòng (nhiều app cùng 1 store official; cùng trạm ở 2 feed) → inflate cung, T0 double-count                                                            | Identity resolution`physical_id` ở `dedup_crosssource.py`: T1 cùng `official_store_id`, T2 coord<50m + tên≥82, guard blob đậm đặc → `DUP_COORD_SUSPECT` (E-DQ1). FLAG không xoá (`is_primary`); 19.178 primary / 329 dup; 5 cổng QA chặn ở `transform_canonical`.                                                                                                                                                          |
+| **POI lẫn đơn vị & thiếu** *(E-DQ7c)* | `n_poi` cộng toà chung cư với TTTM 1:1 (**84,8%** số đếm ở top-100 ô là chung cư); `retail` gộp 1.698 chợ với 1.409 siêu thị; `parking` gộp 149 chỗ đỗ ven đường + `access=private`; cổng `poi_no_dup` kiểm đúng cái `drop_duplicates` vừa chạy nên **không bao giờ FAIL** | Phân lớp theo **tag** ở `poi_semantics.py` (tách TRÍCH XUẤT khỏi CHÍNH SÁCH — R1 của E-DQ7b); `n_poi`/`n_parking` **khai tử** → 10 cột tách rời để **E-DQ7d fit** trọng số; khử trùng node↔area 30 m → `poi_physical_id`/`is_poi_primary` (giữ dòng); gộp khu chung cư 150 m (**3,76×**); 8 cổng mới **có thể FAIL** gồm 2 cổng **ngoại vi** đo recall + **thiên lệch** recall. |
 | **POI/road ngoài lãnh thổ VN** *(E-DQ7a)*              | Overpass crawl bằng`VN_BBOX` thô → 54,2% POI ở Campuchia/Lào/Thái/TQ; Geofabrik cắt có đệm → 8.934 km road ngoài biên; cổng QA cũ kiểm đúng cái bbox sinh ra lỗi | Polygon`admin_level=2` (rel 49915) trích từ `.pbf` **đã freeze** ở `vn_boundary.py` (tự ráp ring vì `with_areas()` trả rỗng im lặng). Clip POI mức **điểm** (`in_vn`), phân loại lưới mức **ô** bằng giao lục giác (`cell_state`/`frac_in_vn`) — test theo tâm ô sẽ xoá nhầm 74.642 dân. Lưới 268.404→**254.035** ô; 6 + 6 cổng QA; kiểm chứng chéo 19.503/19.507 trạm. |
 
 ---
@@ -199,7 +202,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | 7  | `E-DQ6`                         | Text tự do bẩn                                                  | `name`, `address`                                                                                                             |
 | 8a | **`E-DQ7a`** (Done 28/07) | POI ngoài lãnh thổ VN (54,2%)**+ road rò rỉ 8.934 km** | `n_poi`/`n_parking`/`n_fuel` → cờ `in_vn` (mức điểm); `demand_h3` → `cell_state`/`frac_in_vn` (mức ô)       |
 | 8b | **`E-DQ7b`** (Done 28/07) | `road_len` sai ngữ nghĩa                                      | `road_access_m` (lối vào, = `road_len_m` cũ) vs `road_len_m` (cầu, bỏ `track`/`service`); `road_len_mt_m` **khai tử** → `road_lane_mw_m` + `road_lane_ar_m` (lane-mét) + `road_bridge_m` |
-| 8c | `E-DQ7c`                        | POI thiếu & lẫn đơn vị                                       | `n_poi` → tách `n_apartments` / `n_retail_mall`; dedup node/way                                                           |
+| 8c | **`E-DQ7c`** (Done 28/07) | POI thiếu & lẫn đơn vị                                       | `n_poi`+`n_parking` **khai tử** → 10 cột theo **lớp tag**; khu chung cư 5.157 toà→**1.370 khu**; 335 trùng node/way → `poi_physical_id`; recall ngoại vi **fuel 35,9% · parking 8,6%** |
 | 8d | `E-DQ7d`                        | Proxy cầu chưa kiểm chứng ngoại vi                           | `demand_weight` (gate ρ vs 18,6M occupancy)                                                                                    |
 | 8e | `E-DQ7e`                        | `pop` chưa hiệu chuẩn                                        | `pop` (scale UN-adj) + cờ `POP_DENSITY_OUTLIER`                                                                              |
 | 9  | `E-DQ8`                         | Dân cư không có đường                                      | `pop` vs `road_access_m` (**số đã chốt sau 7b: 6.350 ô / 1,268M dân**)                                          |
@@ -228,7 +231,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 
 Các hạng mục **xây thêm** (ngoài làm sạch nhóm `E-DQ` — xem [known-issues.md](../known-issues.md)), đồng bộ [SCHEMA_CONTRACT.md §6](../schema/schema-contract.md):
 
-- [ ] **`demand_weight = f(pop, road_lane_mw_m, road_lane_ar_m, n_poi, n_parking, n_fuel, …)`** (`features/build_demand_proxy.py`). ⚠️ `road_len_mt_m` đã **khai tử** ở **E-DQ7b** — dùng cặp lane-mét cao tốc / trục đô thị, và **không** dùng `road_access_m` (cột lối vào, không phải cột cầu).
+- [ ] **`demand_weight = f(pop, road_lane_mw_m, road_lane_ar_m, n_fuel, n_parking_off, n_mall, n_dept_store, n_supermarket, n_market, n_apartment_complex, …)`** (`features/build_demand_proxy.py`). ⚠️ `road_len_mt_m` khai tử ở **E-DQ7b** — dùng cặp lane-mét cao tốc / trục đô thị, **không** dùng `road_access_m`. ⚠️ `n_poi`/`n_parking` khai tử ở **E-DQ7c** — 10 cột POI tách rời chính là để **E-DQ7d/P1 fit** trọng số bằng 18,6M bản ghi occupancy thay vì gán tay 1:1; dùng `n_apartment_complex` (**khu**) chứ không phải `n_apartment` (toà), và biết trước `n_parking_off` là feature **độ tin thấp** (recall 8,6%, thiên lệch 2,67).
 - [ ] **`demand_commune`** rollup (sau enrich admin — `E-DQ3`).
 - [X] **Candidate sites (P5)** — `data/processed/candidate_sites.{parquet,geojson}` (mô hình lai ≤1/ô +
   T0–T4 + `buildable_h3` + QA gate 5 cổng). Chi tiết [candidate-sites.md](candidate-sites.md).

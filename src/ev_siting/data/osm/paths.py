@@ -25,10 +25,12 @@ PBF_PATH = RAW_DIR / "vietnam-latest.osm.pbf"       # Geofabrik dump (nguồn ro
 
 # --- cleaned / derived (data/interim/osm) ---
 INTERIM_DIR = DATA / "interim" / "osm"
-POI_POINTS = INTERIM_DIR / "osm_poi_points.parquet"     # 1 dòng/POI (đã gán h3 + in_vn)
-ROADS_H3 = INTERIM_DIR / "osm_roads_h3.parquet"         # road_len theo ô H3
-DEMAND_COMPONENTS = INTERIM_DIR / "osm_demand_components_h3.parquet"  # gộp POI+road theo H3
+POI_POINTS = INTERIM_DIR / "osm_poi_points.parquet"     # 1 dòng/POI (h3 + in_vn + lớp/khử trùng)
+POI_H3 = INTERIM_DIR / "osm_poi_h3.parquet"             # bảng LỚP POI theo ô H3 (E-DQ7c)
+ROADS_H3 = INTERIM_DIR / "osm_roads_h3.parquet"         # bảng LỚP road theo ô H3 (E-DQ7b)
+DEMAND_COMPONENTS = INTERIM_DIR / "osm_demand_components_h3.parquet"  # cột SUY RA từ 2 bảng lớp
 QUALITY_REPORT = INTERIM_DIR / "osm_quality_report.json"
+POI_RECALL_REPORT = INTERIM_DIR / "osm_poi_recall.json"  # đo độ phủ POI (E-DQ7c)
 
 # --- ranh giới hành chính trích từ chính .pbf đã freeze (E-DQ7a) ---
 VN_BOUNDARY = INTERIM_DIR / "vn_boundary.parquet"        # polygon adm2 (VN) + adm4 (tỉnh)

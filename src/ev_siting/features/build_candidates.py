@@ -10,8 +10,8 @@ Mô hình lai (xem docs/candidate-sites.md):
 
 Phân tầng anchor (ưu tiên khi gộp về 1/ô):
   T0 trạm hiện có (brownfield, is_existing=True)         <- canonical/stations
-  T1 amenity=parking / amenity=fuel                       <- osm_poi_points (parking/fuel)
-  T2 mall / retail / apartments (dwell dài, có bãi đỗ)    <- osm_poi_points (mall/retail/apartments)
+  T1 bãi đỗ ngoài lòng đường / trạm xăng                  <- osm_poi_points (PARKING_OFF/FUEL)
+  T2 mall / dept_store / supermarket / market / chung cư  <- osm_poi_points (E-DQ7c)
   T4 gap-fill tổng hợp: ô demand cao, buildable, chưa có anchor -> centroid (SYNTHETIC)
   (T3 rest_area/nút giao QL cần road-class từ .pbf — để roadmap, xem docs)
 
@@ -34,20 +34,31 @@ from ev_siting.aoi import add_aoi_args, aoi_from_args
 from ev_siting.data.evcs.paths import STATIONS_DIR
 from ev_siting.data.landuse.paths import BUILDABLE_H3
 from ev_siting.data.osm.paths import POI_POINTS
+from ev_siting.data.osm.poi_semantics import trip_gen_interim
 from ev_siting.data.worldpop.paths import DEMAND_H3
 from .paths import (CANDIDATE_GEOJSON, CANDIDATE_SITES, CAND_MAX, CAND_MIN_MULT,
                     COVERAGE_MIN, DEGEN_MIN, GAPFILL_TOP_Q, R_BASELINE_KM,
                     ensure_dirs)
 
-# tier -> (anchor_type từ POI category), theo thứ tự ưu tiên tăng dần rank (0=tốt nhất)
+# lớp POI (E-DQ7c) -> (tier, anchor_type). Trước E-DQ7c bảng này khoá theo `category`
+# của nhóm crawl, nên `retail` gộp siêu thị với chợ truyền thống và `parking` gộp bãi đỗ
+# với chỗ đỗ VEN ĐƯỜNG. `PARKING_STREET` **cố ý vắng mặt**: 149 chỗ đỗ ven đường/lòng
+# đường không phải mặt bằng đặt được trụ sạc — đó chính là lý do tách lớp.
 _POI_TIER = {
-    "parking": ("T1", "parking"),
-    "fuel": ("T1", "fuel"),
-    "mall": ("T2", "mall"),
-    "retail": ("T2", "retail"),
-    "apartments": ("T2", "apartments"),
+    "PARKING_OFF": ("T1", "parking"),
+    "FUEL": ("T1", "fuel"),
+    "MALL": ("T2", "mall"),
+    "DEPT_STORE": ("T2", "dept_store"),
+    "SUPERMARKET": ("T2", "supermarket"),
+    "MARKET": ("T2", "market"),
+    "APARTMENT": ("T2", "apartment"),
 }
 _TIER_RANK = {"T0": 0, "T1": 1, "T2": 2, "T3": 3, "T4": 4}
+
+#: Cột `demand_h3` mà `trip_gen_interim` cần (E-DQ7c) — giữ ở một chỗ để đổi chính
+#: sách điểm sinh cầu không phải sửa hai nơi.
+_TRIP_GEN_COLS = ["n_mall", "n_dept_store", "n_supermarket", "n_market",
+                  "n_apartment_complex"]
 
 # E-DQ1: dùng cột `coord_resolved` (đầu ra chuẩn của fix_coords) thay cho lọc theo cờ:
 # COORD_PLACEHOLDER (toạ độ chắc chắn sai) -> coord_resolved=False -> loại T0/cung.
@@ -86,12 +97,28 @@ def _load_stations(aoi):
 
 
 def _load_poi(aoi):
-    """T1/T2: POI anchor trong AOI."""
-    df = pd.read_parquet(POI_POINTS, columns=["osm_type", "osm_id", "category", "lat", "lng", "h3_r8"])
-    df = df[df["category"].isin(_POI_TIER)].copy()
+    """T1/T2: POI anchor trong AOI.
+
+    E-DQ7c — hai bộ lọc mới, cùng lý do "một địa điểm vật lý = một anchor":
+      - `is_poi_primary`: bản node và bản way của **cùng một** cây xăng không được
+        thành hai anchor (335 bản trùng toàn quốc);
+      - một `complex_id` = **một** anchor chung cư: 5.157 toà gộp về 1.370 khu, không
+        gộp thì một khu đô thị sinh 5–10 anchor rải qua nhiều ô.
+    """
+    cols = ["osm_type", "osm_id", "poi_class", "poi_access", "is_poi_primary",
+            "complex_id", "lat", "lng", "h3_r8"]
+    df = pd.read_parquet(POI_POINTS, columns=cols)
+    df = df[df["poi_class"].isin(_POI_TIER) & df["is_poi_primary"]].copy()
+    # P8-style: bãi đỗ `access=private/employees/permit` không phải chỗ sạc công cộng.
+    # UNKNOWN được GIỮ (80% bãi đỗ không có tag `access` — loại ngầm cái không biết
+    # chính là lỗi P8 đã sửa cho evcs).
+    df = df[~((df["poi_class"] == "PARKING_OFF") & (df["poi_access"] == "RESTRICTED"))]
+    df = df.sort_values(["osm_type", "osm_id"])
+    apt = df["poi_class"] == "APARTMENT"
+    df = pd.concat([df[~apt], df[apt].drop_duplicates("complex_id", keep="first")])
     df = df[_in_aoi(aoi, df)].copy()
-    df["tier"] = df["category"].map(lambda c: _POI_TIER[c][0])
-    df["anchor_type"] = df["category"].map(lambda c: _POI_TIER[c][1])
+    df["tier"] = df["poi_class"].map(lambda c: _POI_TIER[c][0])
+    df["anchor_type"] = df["poi_class"].map(lambda c: _POI_TIER[c][1])
     df["source_ref"] = df["osm_type"].astype(str) + "/" + df["osm_id"].astype(str)
     df["is_existing"] = False
     return df[["lat", "lng", "h3_r8", "tier", "anchor_type", "source_ref", "is_existing"]]
@@ -101,8 +128,8 @@ def _gapfill(aoi, buildable, occupied_cells, gapfill_q=GAPFILL_TOP_Q):
     """T4: ô demand cao, buildable, chưa có anchor -> centroid (SYNTHETIC)."""
     empty = pd.DataFrame(columns=["lat", "lng", "h3_r8", "tier", "anchor_type",
                                   "source_ref", "is_existing"])
-    dem = pd.read_parquet(DEMAND_H3)[["h3_r8", "pop", "n_poi",
-                                      "road_lane_mw_m", "road_lane_ar_m"]]
+    dem = pd.read_parquet(DEMAND_H3)[["h3_r8", "pop", "road_lane_mw_m",
+                                      "road_lane_ar_m"] + _TRIP_GEN_COLS]
     b = buildable[buildable["buildable"]][["h3_r8"]]
     cand = b.merge(dem, on="h3_r8", how="left").fillna(0.0)
     cand = cand[~cand["h3_r8"].isin(occupied_cells)]
@@ -126,7 +153,11 @@ def _gapfill(aoi, buildable, occupied_cells, gapfill_q=GAPFILL_TOP_Q):
     # cao tốc có pop trung vị 73, gần như vô hình trong hạng `pop` nhưng lại đúng chỗ
     # cần sạc nhanh liên tỉnh. ⚠️ Trọng số đặt tay, tạm thời — E-DQ7d/P1 sẽ hiệu chuẩn
     # bằng 18,6M bản ghi occupancy.
-    score = (cand["pop"] + 50 * cand["n_poi"]
+    # E-DQ7c: `n_poi` đã khai tử (84,8% số đếm ở top-100 ô là toà chung cư ⇒ nó xếp
+    # hạng theo mật độ toà nhà, không theo cầu sạc). `trip_gen_interim` giữ nguyên
+    # thang (nhân 50) nhưng đếm chung cư theo KHU và bỏ đỗ ven đường — hai cải thiện
+    # KHÔNG cần fit. Trọng số vẫn đặt tay: E-DQ7d/P1 hiệu chuẩn bằng occupancy.
+    score = (cand["pop"] + 50 * trip_gen_interim(cand)
              + 0.025 * cand["road_lane_ar_m"] + 0.05 * cand["road_lane_mw_m"])
     thr = score.quantile(gapfill_q)
     pick = cand[score >= thr].copy()
