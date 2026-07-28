@@ -25,10 +25,13 @@ Chay:
     PYTHONPATH=src python -m ev_siting.data.evcs.transform_canonical
     PYTHONPATH=src python -m ev_siting.data.evcs.transform_canonical --keep-bss
 """
+
 import argparse
+import hashlib
 import json
 import re
 import shutil
+import uuid
 
 import h3
 import pandas as pd
@@ -36,7 +39,7 @@ import pandas as pd
 from ..vinfast_official.paths import CONNECTORS_PARQUET as OFFICIAL_CONNECTORS
 from ..vinfast_official.paths import XREF_PARQUET
 from .dedup_crosssource import DUP_COLS, assign_physical_id, dedup_report
-from .paths import CONNECTORS_DIR, MASTER_CSV, PROJECT_ROOT, STATIONS_DIR
+from .paths import CANONICAL_DIR, CONNECTORS_DIR, MASTER_CSV, PROJECT_ROOT, STATIONS_DIR
 
 H3_RES = 8
 
@@ -50,12 +53,17 @@ CAR_STANDARDS = {"CCS2", "TYPE2"}
 
 # Cot provenance/doi chieu nguon chinh thuc (match_official.py), join theo station_code.
 XREF_COLS = [
-    "official_matched", "match_method", "official_store_id",
-    "match_dist_m", "match_name_sim", "official_charging_status",
-    "official_access_type", "provenance",
+    "official_matched",
+    "match_method",
+    "official_store_id",
+    "match_dist_m",
+    "match_name_sim",
+    "official_charging_status",
+    "official_access_type",
+    "provenance",
 ]
-AC_MAX_W = 25000                       # <=25 kW = AC, >25 kW = DC (khop build_master_evcs)
-VN_BBOX = (8.0, 23.6, 102.0, 110.0)    # lat_min, lat_max, lng_min, lng_max
+AC_MAX_W = 25000  # <=25 kW = AC, >25 kW = DC (khop build_master_evcs)
+VN_BBOX = (8.0, 23.6, 102.0, 110.0)  # lat_min, lat_max, lng_min, lng_max
 # Cot admin chua co nguon ranh gioi (Step B) -> tao san de dung schema, dien sau.
 ADMIN_COLS = ["admin_l1_code", "province_name", "commune_name", "commune_kind"]
 
@@ -68,17 +76,20 @@ ADMIN_COLS = ["admin_l1_code", "province_name", "commune_name", "commune_kind"]
 # op_status: gom telemetry occupancy (Available/AllBusy/BUSY) ve OPERATIONAL; maintenance
 # la tam thoi; OUT_OF_SERVICE la da ngung. access: Public/Restricted/Unknown.
 OFFICIAL_OP_STATUS = {
-    "ACTIVE": "OPERATIONAL", "BUSY": "OPERATIONAL",
+    "ACTIVE": "OPERATIONAL",
+    "BUSY": "OPERATIONAL",
     "INACTIVE": "MAINTENANCE",
-    "OUTOFSERVICE": "OUT_OF_SERVICE", "UNAVAILABLE": "OUT_OF_SERVICE",
+    "OUTOFSERVICE": "OUT_OF_SERVICE",
+    "UNAVAILABLE": "OUT_OF_SERVICE",
 }
 EVCS_OP_STATUS = {
-    "Available": "OPERATIONAL", "AllBusy": "OPERATIONAL",
-    "Maintaining": "MAINTENANCE", "OutOfService": "OUT_OF_SERVICE",
+    "Available": "OPERATIONAL",
+    "AllBusy": "OPERATIONAL",
+    "Maintaining": "MAINTENANCE",
+    "OutOfService": "OUT_OF_SERVICE",
 }
 # Co P8 gan vao quality_flags theo op_status/access -> model (Ky) tu quyet loc them.
-OP_STATUS_FLAG = {"OUT_OF_SERVICE": "NOT_OPERATIONAL",
-                  "MAINTENANCE": "UNDER_MAINTENANCE", "UNKNOWN": "STATUS_UNKNOWN"}
+OP_STATUS_FLAG = {"OUT_OF_SERVICE": "NOT_OPERATIONAL", "MAINTENANCE": "UNDER_MAINTENANCE", "UNKNOWN": "STATUS_UNKNOWN"}
 ACCESS_FLAG = {"RESTRICTED": "NON_PUBLIC", "UNKNOWN": "ACCESS_UNKNOWN"}
 
 
@@ -108,6 +119,7 @@ def resolve_status_access(df: pd.DataFrame) -> pd.DataFrame:
             if cand and cand not in fl:
                 fl.append(cand)
         return fl
+
     df["quality_flags"] = df.apply(_add_flags, axis=1)
     return df
 
@@ -154,8 +166,7 @@ def load_official_std():
         columns=["store_id", "standard", "power_type", "max_electric_power_kw"],
     )
     lut = {}
-    for code, kw, std, pt in zip(oc["store_id"], oc["max_electric_power_kw"],
-                                 oc["standard"], oc["power_type"]):
+    for code, kw, std, pt in zip(oc["store_id"], oc["max_electric_power_kw"], oc["standard"], oc["power_type"]):
         try:
             key = (code, round(float(kw), 1))
         except (TypeError, ValueError):
@@ -194,24 +205,26 @@ def explode_connectors(evse_powers_json, sid, code, prov, std_lut):
         pw = round(w / 1000, 1) if w else None
         official = std_lut.get((code, pw)) if pw is not None else None
         if official:
-            std_short, cur = official                 # chuan cam + AC/DC first-party
+            std_short, cur = official  # chuan cam + AC/DC first-party
         else:
-            std_short = "UNKNOWN"                       # evcs-only: khong xac minh duoc
-            cur = "AC" if 0 < w <= AC_MAX_W else "DC"   # fallback power tier
+            std_short = "UNKNOWN"  # evcs-only: khong xac minh duoc
+            cur = "AC" if 0 < w <= AC_MAX_W else "DC"  # fallback power tier
         veh = "CAR" if std_short in CAR_STANDARDS else "UNVERIFIED"
-        rows.append({
-            "connector_id": f"{sid}-c{idx}",
-            "station_id": sid,
-            "station_code": code,
-            "province_code": prov,
-            "power_kw": pw,
-            "current_type": cur if w > 0 else None,
-            "connector_standard": std_short,
-            "vehicle_class": veh,
-            "connector_label": f"{cur}-{w / 1000:g}kW" if w > 0 else None,
-            "count_total": n_total,
-            "count_available": n_avail,
-        })
+        rows.append(
+            {
+                "connector_id": f"{sid}-c{idx}",
+                "station_id": sid,
+                "station_code": code,
+                "province_code": prov,
+                "power_kw": pw,
+                "current_type": cur if w > 0 else None,
+                "connector_standard": std_short,
+                "vehicle_class": veh,
+                "connector_label": f"{cur}-{w / 1000:g}kW" if w > 0 else None,
+                "count_total": n_total,
+                "count_available": n_avail,
+            }
+        )
     return rows
 
 
@@ -231,19 +244,50 @@ def completeness(row) -> float:
     return round(sum(ind) / len(ind), 3)
 
 
-def join_xref(df: pd.DataFrame) -> pd.DataFrame:
+def _sha256(path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def join_xref(df: pd.DataFrame, *, require_xref: bool = True) -> pd.DataFrame:
     """Left-join provenance tu official_xref.parquet theo `station_code`.
 
-    Neu chua co xref -> tra cot provenance rong (pipeline van chay doc lap)."""
+    Xref phai match byte-for-byte master hien tai. `--allow-missing-xref` chi
+    dung cho recovery co chu dich; mac dinh fail-fast, khong fallback am tham."""
     # bo cot cung ten tu master (verified/confidence tho) de xref lam chu.
-    df = df.drop(columns=[c for c in ("verified", "confidence", *XREF_COLS)
-                          if c in df.columns])
+    df = df.drop(columns=[c for c in ("verified", "confidence", *XREF_COLS) if c in df.columns])
     if XREF_PARQUET.exists():
         xref = pd.read_parquet(XREF_PARQUET)
+        required = {"station_code", "source_master_sha256"}
+        missing = required - set(xref.columns)
+        if missing:
+            raise SystemExit(f"F7 FAIL: xref thieu cot gate {sorted(missing)}; chay match_official lai")
+        hashes = set(xref["source_master_sha256"].dropna().astype(str))
+        current = _sha256(MASTER_CSV)
+        if hashes != {current}:
+            raise SystemExit("F7 FAIL: official_xref stale so voi stations_master_evcs.csv; chay match_official lai")
+        if xref["station_code"].duplicated().any():
+            raise SystemExit("F7 FAIL: official_xref station_code khong unique")
+        # PHU chu khong BANG: matcher chay tren master DAY DU (28.625), con `df` o day
+        # da bo BATTERY_SWAP (19.507 car-only). Doi hoi bang nhau => canonical FAIL 100%
+        # o duong mac dinh. Dieu kien dung: xref phai phu MOI ma canonical can.
+        need_codes = set(df["station_code"].astype(str))
+        xref_codes = set(xref["station_code"].astype(str))
+        missing_codes = need_codes - xref_codes
+        if missing_codes:
+            raise SystemExit(
+                f"F7 FAIL: official_xref thieu {len(missing_codes)} station_code cua master "
+                f"(vd {sorted(missing_codes)[:3]}); chay match_official lai"
+            )
         keep = ["station_code", "confidence", "verified"] + XREF_COLS
         xref = xref[[c for c in keep if c in xref.columns]]
         df = df.merge(xref, on="station_code", how="left")
         df["_has_xref"] = df["official_matched"].notna()
+    elif require_xref:
+        raise SystemExit("F7 FAIL: thieu official_xref.parquet; chay `make match-official` truoc canonical")
     else:
         for c in ["confidence", "verified", *XREF_COLS]:
             df[c] = pd.NA
@@ -264,7 +308,34 @@ def redefine_confidence(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def run(keep_bss: bool = False):
+def _write_partitioned_atomically(stations: pd.DataFrame, connectors: pd.DataFrame) -> None:
+    """Build both datasets off-path, then swap whole canonical generation."""
+    parent = CANONICAL_DIR.parent
+    tmp = parent / f".canonical-tmp-{uuid.uuid4().hex}"
+    backup = parent / f".canonical-prev-{uuid.uuid4().hex}"
+    tmp_stations, tmp_connectors = tmp / "stations", tmp / "connectors"
+    try:
+        tmp.mkdir(parents=True)
+        stations.to_parquet(tmp_stations, partition_cols=["province_code"], index=False)
+        connectors.to_parquet(tmp_connectors, partition_cols=["province_code"], index=False)
+        moved_old = False
+        if CANONICAL_DIR.exists():
+            CANONICAL_DIR.replace(backup)
+            moved_old = True
+        try:
+            tmp.replace(CANONICAL_DIR)
+        except Exception:
+            if CANONICAL_DIR.exists():
+                shutil.rmtree(CANONICAL_DIR)
+            if moved_old and backup.exists():
+                backup.replace(CANONICAL_DIR)
+            raise
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+        shutil.rmtree(backup, ignore_errors=True)
+
+
+def run(keep_bss: bool = False, *, require_xref: bool = True):
     if not MASTER_CSV.exists():
         raise SystemExit(f"thieu {MASTER_CSV} — chay build_master_evcs truoc")
 
@@ -279,8 +350,7 @@ def run(keep_bss: bool = False):
     # --- so gau du lieu ban dau ---
     df["station_id"] = df["station_code"].map(station_id)
     df["h3_r8"] = [
-        h3.latlng_to_cell(la, ln, H3_RES) if coord_ok(la, ln) else None
-        for la, ln in zip(df["lat"], df["lng"])
+        h3.latlng_to_cell(la, ln, H3_RES) if coord_ok(la, ln) else None for la, ln in zip(df["lat"], df["lng"])
     ]
     # freshness = so ngay ke tu telemetry cuoi (moc "as-of" = end moi nhat toan tap).
     as_of = pd.to_numeric(df["ts_time_end_ms"], errors="coerce").max()
@@ -294,26 +364,54 @@ def run(keep_bss: bool = False):
     df["num_connectors"] = num_conn
     for c in ("max_power_kw", "total_power_kw"):
         df[c] = pd.to_numeric(df[c], errors="coerce")
-    df["is_public"] = df["is_public"].map(
-        {True: True, False: False, "True": True, "False": False})
+    df["is_public"] = df["is_public"].map({True: True, False: False, "True": True, "False": False})
     for c in ADMIN_COLS:
-        df[c] = pd.NA                       # dien o Step B (enrich ranh gioi)
+        df[c] = pd.NA  # dien o Step B (enrich ranh gioi)
 
     # --- provenance/verified/confidence tu doi chieu nguon chinh thuc ---
-    df = join_xref(df)
+    df = join_xref(df, require_xref=require_xref)
     df = redefine_confidence(df)
 
     stations_cols = [
-        "station_id", "station_code", "lat", "lng", "h3_r8",
-        "admin_l1_code", "province_name", "province_code", "commune_name", "commune_kind",
-        "name", "address", "operator", "station_type", "vehicle_class",
-        "current_type", "max_power_kw", "total_power_kw", "num_connectors", "connector_types",
-        "status", "is_public", "op_status", "access", "is_operational",
-        "verified", "has_timeseries",
-        "confidence", "freshness", "quality_flags",
+        "station_id",
+        "station_code",
+        "lat",
+        "lng",
+        "h3_r8",
+        "admin_l1_code",
+        "province_name",
+        "province_code",
+        "commune_name",
+        "commune_kind",
+        "name",
+        "address",
+        "operator",
+        "station_type",
+        "vehicle_class",
+        "current_type",
+        "max_power_kw",
+        "total_power_kw",
+        "num_connectors",
+        "connector_types",
+        "status",
+        "is_public",
+        "op_status",
+        "access",
+        "is_operational",
+        "verified",
+        "has_timeseries",
+        "confidence",
+        "freshness",
+        "quality_flags",
         # provenance / doi chieu nguon chinh thuc (vinfastauto.com)
-        "provenance", "official_matched", "match_method", "official_store_id",
-        "match_dist_m", "match_name_sim", "official_charging_status", "official_access_type",
+        "provenance",
+        "official_matched",
+        "match_method",
+        "official_store_id",
+        "match_dist_m",
+        "match_name_sim",
+        "official_charging_status",
+        "official_access_type",
         # E-DQ2: dedup cheo nguon (physical_id/is_primary/dup_*)
         *DUP_COLS,
     ]
@@ -323,34 +421,48 @@ def run(keep_bss: bool = False):
     conn_rows = []
     for _, r in df.iterrows():
         conn_rows.extend(
-            explode_connectors(r["evse_powers"], r["station_id"], r["station_code"],
-                               r["province_code"], std_lut)
+            explode_connectors(r["evse_powers"], r["station_id"], r["station_code"], r["province_code"], std_lut)
         )
-    connectors = pd.DataFrame(conn_rows, columns=[
-        "connector_id", "station_id", "station_code", "province_code",
-        "power_kw", "current_type", "connector_standard", "vehicle_class",
-        "connector_label", "count_total", "count_available",
-    ])
+    connectors = pd.DataFrame(
+        conn_rows,
+        columns=[
+            "connector_id",
+            "station_id",
+            "station_code",
+            "province_code",
+            "power_kw",
+            "current_type",
+            "connector_standard",
+            "vehicle_class",
+            "connector_label",
+            "count_total",
+            "count_available",
+        ],
+    )
 
     # --- P7: roll-up tu connector da sua chuan cam ve station ---
     # current_type dung (AC/DC/MIXED) suy tu connector, ghi de nhan power-tier cu.
     def _roll_current(s):
         has_ac, has_dc = (s == "AC").any(), (s == "DC").any()
         return "MIXED" if has_ac and has_dc else ("AC" if has_ac else "DC" if has_dc else None)
+
     cur_by_st = connectors.groupby("station_id")["current_type"].apply(_roll_current)
     # vehicle_class: CAR neu moi connector la chuan o to; UNVERIFIED neu con connector
     # chua co chuan chinh thuc (evcs-only); UNKNOWN neu tram khong co connector nao.
     veh_by_st = connectors.groupby("station_id")["vehicle_class"].apply(
-        lambda s: "CAR" if (s == "CAR").all() else "UNVERIFIED")
-    n_wrong_ct = int((df["station_id"].map(cur_by_st).notna()
-                      & (df["current_type"] != df["station_id"].map(cur_by_st))).sum())
+        lambda s: "CAR" if (s == "CAR").all() else "UNVERIFIED"
+    )
+    n_wrong_ct = int(
+        (df["station_id"].map(cur_by_st).notna() & (df["current_type"] != df["station_id"].map(cur_by_st))).sum()
+    )
     df["current_type"] = df["station_id"].map(cur_by_st).fillna(df["current_type"])
     df["vehicle_class"] = df["station_id"].map(veh_by_st).fillna("UNKNOWN")
     # flag tuong minh cho tram CO connector nhung chua xac minh duoc chuan cam
     # (khong default ngam). Tram khong co connector da co INCOMPLETE_CONFIG rieng.
     unv = df["vehicle_class"] == "UNVERIFIED"
     df.loc[unv, "quality_flags"] = df.loc[unv, "quality_flags"].apply(
-        lambda l: l if "STD_UNVERIFIED" in l else l + ["STD_UNVERIFIED"])
+        lambda l: l if "STD_UNVERIFIED" in l else l + ["STD_UNVERIFIED"]
+    )
 
     # --- P8: loc trang thai van hanh & access (official-first, tuong minh) ---
     df = resolve_status_access(df)
@@ -366,16 +478,10 @@ def run(keep_bss: bool = False):
 
     stations = df[stations_cols].reset_index(drop=True)
 
-    # --- ghi Parquet Hive-partitioned theo province_code (ghi de sach) ---
-    for d in (STATIONS_DIR, CONNECTORS_DIR):
-        if d.exists():
-            shutil.rmtree(d)
-        d.mkdir(parents=True, exist_ok=True)
     # province_code rong -> "NA" de khong vo partition.
     stations["province_code"] = stations["province_code"].fillna("").replace("", "NA")
     connectors["province_code"] = connectors["province_code"].fillna("").replace("", "NA")
-    stations.to_parquet(STATIONS_DIR, partition_cols=["province_code"], index=False)
-    connectors.to_parquet(CONNECTORS_DIR, partition_cols=["province_code"], index=False)
+    _write_partitioned_atomically(stations, connectors)
 
     # --- bao cao ---
     rel = lambda p: p.relative_to(PROJECT_ROOT)
@@ -393,13 +499,14 @@ def run(keep_bss: bool = False):
     print(f"  connector_standard      : {connectors['connector_standard'].value_counts().to_dict()}")
     print(f"  vehicle_class (station) : {stations['vehicle_class'].value_counts().to_dict()}")
     print(f"  current_type sua tu tier : {n_wrong_ct:,} tram (20-22 kW: AC->DC CCS2)")
-    print(f"  STD_UNVERIFIED (evcs-only): {int(stations['quality_flags'].apply(lambda l: 'STD_UNVERIFIED' in l).sum()):,}")
+    print(
+        f"  STD_UNVERIFIED (evcs-only): {int(stations['quality_flags'].apply(lambda l: 'STD_UNVERIFIED' in l).sum()):,}"
+    )
     print("--- P8 (trang thai van hanh & access, official-first) ------")
     print(f"  op_status               : {stations['op_status'].value_counts().to_dict()}")
     print(f"  access                  : {stations['access'].value_counts().to_dict()}")
     print(f"  is_operational=False    : {int((~stations['is_operational']).sum()):,} (OUT_OF_SERVICE, loai khoi cung)")
-    n_supply = int((stations['is_operational'] & (stations['access'] == 'PUBLIC')
-                    & stations['is_primary']).sum())
+    n_supply = int((stations["is_operational"] & (stations["access"] == "PUBLIC") & stations["is_primary"]).sum())
     print(f"  cung cong khai kha dung : {n_supply:,} (is_operational & access=PUBLIC & is_primary)")
     print("--- E-DQ2 (dedup cheo nguon evcs<->official) --------------")
     print(f"  primary (cung that)     : {dq2['n_primary']:,}")
@@ -418,10 +525,12 @@ def run(keep_bss: bool = False):
 
 def main():
     ap = argparse.ArgumentParser(description="master CSV -> canonical parquet (stations/connectors)")
-    ap.add_argument("--keep-bss", action="store_true",
-                    help="giu lai BATTERY_SWAP (mac dinh bo — du an chi nham oto)")
+    ap.add_argument("--keep-bss", action="store_true", help="giu lai BATTERY_SWAP (mac dinh bo — du an chi nham oto)")
+    ap.add_argument(
+        "--allow-missing-xref", action="store_true", help="recovery explicit: cho phep canonical khong co official_xref"
+    )
     args = ap.parse_args()
-    run(keep_bss=args.keep_bss)
+    run(keep_bss=args.keep_bss, require_xref=not args.allow_missing_xref)
 
 
 if __name__ == "__main__":

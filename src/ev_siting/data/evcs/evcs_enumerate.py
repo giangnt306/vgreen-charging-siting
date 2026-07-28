@@ -28,6 +28,7 @@ import csv
 import json
 import math
 import os
+import re
 import time
 
 import numpy as np
@@ -92,6 +93,7 @@ FIELDS = [
     "n_battery",
     "n_battery_avail",
 ]
+CODE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
 def rec_from_search(s):
@@ -113,6 +115,59 @@ def rec_from_search(s):
         "n_battery": s.get("nBattery"),
         "n_battery_avail": s.get("nBatteryAvail"),
     }
+
+
+def _load_resume_checkpoint(path: str) -> tuple[list[float], list[float], list[float]]:
+    """Reject partial/corrupt checkpoint before it can silently skip scan area."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            ck = json.load(f)
+        q_lat, q_lng, q_r = ck["q_lat"], ck["q_lng"], ck["q_r"]
+        if not all(isinstance(x, list) for x in (q_lat, q_lng, q_r)) or not (
+            len(q_lat) == len(q_lng) == len(q_r)
+        ):
+            raise ValueError("q_lat/q_lng/q_r khong cung do dai")
+        out = []
+        for lat, lng, radius in zip(q_lat, q_lng, q_r):
+            lat, lng, radius = float(lat), float(lng), float(radius)
+            if not (math.isfinite(lat) and math.isfinite(lng) and math.isfinite(radius)
+                    and VN_BBOX[0] <= lat <= VN_BBOX[1]
+                    and VN_BBOX[2] <= lng <= VN_BBOX[3] and radius >= 0):
+                raise ValueError("toa do/radius khong hop le")
+            out.append((lat, lng, radius))
+        return ([x[0] for x in out], [x[1] for x in out], [x[2] for x in out])
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"F12 FAIL: checkpoint hong {path}: {exc}; chay --overwrite hoac doi ten file")
+
+
+def _save_checkpoint_atomic(path: str, q_lat, q_lng, q_r) -> None:
+    tmp = f"{path}.tmp-{os.getpid()}"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"q_lat": q_lat, "q_lng": q_lng, "q_r": q_r}, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def _load_resume_catalog(path: str) -> dict:
+    """Validate persisted codes: malformed record must stop resume, not poison it."""
+    found = {}
+    try:
+        with open(path, newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                code = row.get("code")
+                if not isinstance(code, str) or not CODE_RE.fullmatch(code):
+                    raise ValueError(f"ma tram khong hop le: {code!r}")
+                if code in found:
+                    raise ValueError(f"ma tram trung: {code}")
+                found[code] = row
+    except (OSError, csv.Error, ValueError) as exc:
+        raise SystemExit(f"F12 FAIL: catalog resume hong {path}: {exc}; chay --overwrite hoac sua file")
+    return found
 
 
 def haversine_km(lat1, lng1, lat2, lng2):
@@ -366,12 +421,10 @@ def main():
     q_lat, q_lng, q_r = [], [], []  # đĩa đã truy vấn (tâm + bán kính km)
     found = {}  # code -> record
     if not args.overwrite and not args.no_resume and os.path.exists(ckpt_path):
-        ck = json.load(open(ckpt_path, encoding="utf-8"))
-        q_lat, q_lng, q_r = ck["q_lat"], ck["q_lng"], ck["q_r"]
+        q_lat, q_lng, q_r = _load_resume_checkpoint(ckpt_path)
         print(f"    resume: {len(q_lat)} đĩa đã truy vấn từ {ckpt_path}")
     if not args.overwrite and not args.no_resume and os.path.exists(args.out):
-        for row in csv.DictReader(open(args.out, encoding="utf-8")):
-            found[row["code"]] = row
+        found = _load_resume_catalog(args.out)
         print(f"    resume: {len(found)} trạm đã có trong {args.out}")
 
     new_file = args.overwrite or (not os.path.exists(args.out)) or os.path.getsize(args.out) == 0
@@ -388,7 +441,7 @@ def main():
     t0 = time.time()
 
     def save_ckpt():
-        json.dump({"q_lat": q_lat, "q_lng": q_lng, "q_r": q_r}, open(ckpt_path, "w", encoding="utf-8"))
+        _save_checkpoint_atomic(ckpt_path, q_lat, q_lng, q_r)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)

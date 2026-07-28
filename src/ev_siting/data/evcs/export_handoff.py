@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .paths import CATALOG_CSV, CONNECTORS_DIR, PROJECT_ROOT, STATIONS_DIR
+from .paths import CATALOG_CSV, CONNECTORS_DIR, LOAD_TS, PROJECT_ROOT, STATIONS_DIR
 from ..provenance import manifest as snapshot_manifest
 
 REQUIRED_STATION_COLS = {
@@ -57,6 +57,8 @@ def _validate_sources() -> tuple[pd.DataFrame, pd.DataFrame, dict, int]:
         raise SystemExit(f"F10 FAIL: frozen manifest lệch ({issues[0]})")
     if not CATALOG_CSV.exists():
         raise SystemExit(f"F10 FAIL: thiếu catalog {CATALOG_CSV}")
+    if not LOAD_TS.exists():
+        raise SystemExit(f"F10 FAIL: thiếu frozen telemetry {LOAD_TS}")
     with CATALOG_CSV.open(newline="", encoding="utf-8") as f:
         catalog = list(csv.DictReader(f))
     codes = [r.get("code") for r in catalog]
@@ -89,6 +91,9 @@ def export(out_dir: Path) -> Path:
     try:
         (tmp / "canonical").mkdir(parents=True)
         shutil.copy2(CATALOG_CSV, tmp / "catalog.csv")
+        # Consumer bronze/liveness can only be rebuilt from the same verified
+        # telemetry. Omitting this file leaves F10 half-migrated.
+        shutil.copy2(LOAD_TS, tmp / "load_ts.csv")
         shutil.copy2(snapshot_manifest.MANIFEST_PATH, tmp / "SOURCE_MANIFEST.json")
         shutil.copytree(STATIONS_DIR, tmp / "canonical" / "stations")
         shutil.copytree(CONNECTORS_DIR, tmp / "canonical" / "connectors")
@@ -102,6 +107,8 @@ def export(out_dir: Path) -> Path:
             "source_manifest_sha256": _sha256(snapshot_manifest.MANIFEST_PATH),
             "catalog": {"rows": catalog_rows,
                         "sha256": _sha256(tmp / "catalog.csv")},
+            "telemetry": {"sha256": _sha256(tmp / "load_ts.csv"),
+                          "bytes": (tmp / "load_ts.csv").stat().st_size},
             "stations": {"rows": len(stations), "tree_sha256": station_hash,
                          "n_files": station_files, "bytes": station_bytes,
                          "required_columns": sorted(REQUIRED_STATION_COLS)},

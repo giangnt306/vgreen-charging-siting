@@ -1,4 +1,4 @@
-.PHONY: help setup test data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0 covered0-national freeze verify-snapshot
+.PHONY: help setup test data proxy model opex-electricity crawl crawl-validate canonical official match-official landuse candidates landuse-national candidates-national covered0 covered0-national freeze verify-snapshot
 
 CITY ?= hanoi
 PY = uv run python
@@ -30,7 +30,10 @@ crawl:  ## Run full EVCS crawl pipeline (enum -> scrape -> split -> master -> QA
 crawl-validate:  ## Re-run only the EVCS QA gate over existing data/interim
 	$(PY) -m ev_siting.data.evcs.validate
 
-canonical:  ## Transform master CSV -> canonical parquet (stations/connectors, car-only)
+match-official:  ## Match current master with official registry -> verified xref (F7)
+	$(PY) -m ev_siting.data.vinfast_official.match_official
+
+canonical: match-official ## Transform master CSV -> canonical parquet; xref current required (F7)
 	$(PY) -m ev_siting.data.evcs.transform_canonical
 
 official:  ## Fetch official VinFast source registry (verified cross-ref) -> data/interim/vinfast_official/

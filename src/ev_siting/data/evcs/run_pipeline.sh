@@ -11,7 +11,7 @@
 #                     bùng nổ 1-query-mỗi-trạm). Time-series GIỮ NGUYÊN (STEP 3 resume theo .done),
 #                     master ghép lại theo station_code. Đây là cách "map dữ liệu mới vào bản ghi
 #                     cũ" mà KHÔNG cào lại 4h telemetry. Yêu cầu: $CAT/evcs_catalog.csv đã tồn tại.
-set -u
+set -euo pipefail
 # evcs/ -> data -> ev_siting -> src -> repo root
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 cd "$ROOT"
@@ -34,7 +34,6 @@ if [[ "${EVCS_REENUM:-0}" == "1" ]]; then
   # enrich-from lấy toạ độ trạm đã biết trong catalog cũ, lấp evsePowers vào đúng station_code.
   $M.evcs_enumerate --type cs    --out $CAT/evcs_stations.csv --enrich-from $CAT/evcs_catalog.csv --sleep 0.3
   $M.evcs_enumerate --type other --out $CAT/evcs_other.csv    --enrich-from $CAT/evcs_catalog.csv --sleep 0.3
-  echo "step1 exit=$?"
 else
   # Catalog discovery ghi đè nếu FRESH; ngược lại resume.
   ENUM_ARGS=()
@@ -45,32 +44,21 @@ else
   $M.evcs_enumerate --type cs    --out $CAT/evcs_stations.csv --sleep 1.2 "${ENUM_ARGS[@]}"
   $M.evcs_enumerate --type other --out $CAT/evcs_other.csv    --sleep 1.2 "${ENUM_ARGS[@]}"
   $M.evcs_enumerate --type bss   --out $CAT/evcs_bss.csv      --sleep 1.2 "${ENUM_ARGS[@]}"
-  echo "step1 exit=$?"
 fi
 
 echo "======== STEP 2: merge catalog $(date) ========"
 $M.merge_catalog
-echo "step2 exit=$?"
 
 echo "======== STEP 3: history 168h over ALL codes -> $TS_RAW $(date) ========"
 $M.evcs_scrape --codes-file $CAT/evcs_all_codes.txt --hours 168 --out "$TS_RAW"
-echo "step3 exit=$?"
 
 echo "======== STEP 4: merge $TS_RAW -> data/interim/evcs_timeseries/ $(date) ========"
 $M.split_timeseries --input "$TS_RAW"
-echo "step4 exit=$?"
 
 echo "======== STEP 5: dựng master ĐỘC LẬP (khóa station_code) $(date) ========"
 $M.build_master_evcs
-echo "step5 exit=$?"
 
 echo "======== STEP 6: QA validation (cổng chặn) $(date) ========"
 $M.validate
-qa=$?
-echo "step6 exit=$qa"
-if [[ $qa -ne 0 ]]; then
-  echo "!! QA FAIL (CRITICAL) — xem data/interim/quality_report.json. Dừng pipeline."
-  exit $qa
-fi
 
 echo "======== ALL DONE $(date) ========"
