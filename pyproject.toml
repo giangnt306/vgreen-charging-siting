@@ -16,11 +16,21 @@ dependencies = [
     "rasterio>=1.3",
     "requests>=2.31",
     "scikit-learn>=1.4",
+    "scipy>=1.11",
     "shapely>=2.0",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.0", "ruff>=0.4"]
+dev = [
+    "matplotlib>=3.10.9",
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+pilot = [
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    "uvicorn>=0.30",
+]
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

@@ -1,7 +1,12 @@
-.PHONY: help setup test data proxy model opex-electricity crawl crawl-validate canonical official match-official landuse candidates landuse-national candidates-national covered0 covered0-national freeze verify-snapshot
+.PHONY: help setup test data proxy model mclp mclp-bench pilot spotcheck opex-electricity crawl crawl-validate canonical official match-official landuse candidates landuse-national candidates-national covered0 covered0-national freeze verify-snapshot assess assess-occupancy t1 sizing dossier
 
 CITY ?= hanoi
 LABEL ?= sprint2-2026-07-28
+SCOPE ?= vietnam
+HOST ?= 127.0.0.1
+PORT ?= 8000
+MODE ?= brownfield
+P ?= 100
 PY = uv run python
 
 help:  ## Show this help (list all commands)
@@ -10,7 +15,7 @@ help:  ## Show this help (list all commands)
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 setup:  ## Install env (uv sync) + Playwright browser for the crawl layer
-	uv sync --group dev
+	uv sync --group dev --group pilot
 	uv run playwright install chromium
 
 test:  ## Run unit tests
@@ -67,10 +72,34 @@ landuse-national:  ## Build buildable_h3 for ALL Vietnam (national grid, ~1.5GB 
 candidates-national:  ## Build MCLP candidate sites for ALL Vietnam (needs `make landuse-national`)  [P5]
 	$(PY) -m ev_siting.features.build_candidates --national
 
+assess-occupancy:  ## Build cache occupancy per-trạm duration-weighted (F19, cap 30') từ load_ts frozen
+	$(PY) -m ev_siting.assess.cli build-occupancy
+
+assess:  ## Chấm CSV điểm NPP nộp (IN=points.csv OUT=scored.csv) — assess() v0, cần cache occupancy
+	$(PY) -m ev_siting.assess.cli score --in $(IN) --out $(OUT)
+
+t1:  ## T1 retrodiction theo pre-reg B2 (chạy MỘT lần as-is; kết quả -> outputs/assess/t1/)
+	$(PY) -m ev_siting.assess.cli t1
+
+sizing:  ## Build benchmark định cỡ: utilization theo (loại trụ × mật độ × số cổng)
+	$(PY) -m ev_siting.assess.cli sizing
+
+dossier:  ## DELIVERABLE v1 — lập hồ sơ thẩm định từ CSV điểm (IN=points.csv)
+	$(PY) -m ev_siting.assess.cli dossier --in $(IN)
+
+spotcheck:  ## B8 — chấm 20 điểm bẫy + oracle độc lập; exit != 0 nếu có lỗi fact
+	$(PY) -m ev_siting.assess.cli spotcheck
+
+pilot:  ## B7 — chạy API pilot (POST /dossier · /dossier/markdown · /dossier/batch CSV→CSV)
+	uv run uvicorn ev_siting.assess.api:app --host $(HOST) --port $(PORT)
+
 proxy:  ## Build or refresh demand proxy  (TODO — build_demand_proxy còn là stub, xem F-register)
 	@echo "TODO: demand proxy chưa được hiện thực (docs/known-issues.md §F)"
 
-model:  ## Run model training / optimization  (TODO — mclp.py còn là stub)
-	@echo "TODO: MCLP solver chưa được hiện thực (docs/known-issues.md §F)"
+mclp:  ## Giải MCLP trên bundle frozen (SCOPE=vietnam MODE=brownfield P=100)
+	$(PY) -m ev_siting.models.mclp --scope $(SCOPE) --mode $(MODE) --p $(P) --label $(LABEL)
+
+mclp-bench:  ## B6 — bấm giờ solver thật: p ∈ {20,100,800} × {brownfield, greenfield}
+	$(PY) -m ev_siting.models.mclp --bench --scope $(SCOPE)
 
 .DEFAULT_GOAL := help
