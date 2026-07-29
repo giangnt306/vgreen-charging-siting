@@ -19,11 +19,33 @@ Dữ liệu không nằm trong git (trừ `data/raw/MANIFEST.json`). Snapshot ch
 `data/interim/evcs_timeseries.tar.zst` và `data/raw/vinfast_official/details.tar.zst`
 tại chỗ, rồi chạy `make verify-snapshot HASHES=1` (phải PASS).
 
+## Sản phẩm: hồ sơ thẩm định vị trí
+
+Deliverable hiện tại **không phải điểm số** — là **hồ sơ facts** cho người duyệt (2 kết luận:
+`Đủ điều kiện xem xét` / `Cần khảo sát`, không bao giờ tự "Từ chối"). Lý do đổi:
+`docs/…/postmortem-assess-v0.md` phía repo kế hoạch.
+
+```bash
+make assess-occupancy            # cache occupancy duration-weighted (F19) — chạy một lần
+make sizing                      # benchmark định cỡ: utilization theo (loại trụ × mật độ × cổng)
+make dossier IN=points.csv       # CSV (lat,lng[,point_id]) -> hồ sơ .md + bảng phẳng .csv
+make spotcheck                   # 20 điểm bẫy + oracle độc lập; exit != 0 nếu có lỗi fact
+make pilot                       # API: POST /dossier · /dossier/markdown · /dossier/batch (CSV->CSV)
+make mclp-bench                  # bấm giờ solver MCLP quốc gia (HiGHS + greedy)
+```
+
+Chấm một điểm ~0,3 s (ngữ cảnh dựng 2 s một lần). Mọi output mang `data_version`,
+`model_version` và nhãn hiệu chỉnh; không output nào chứa toạ độ/mã trạm vault.
+
 ## Trạng thái & register vấn đề
 
 - **Nguồn chân lý vấn đề:** [`docs/known-issues.md`](docs/known-issues.md) — P1–P11, E-DQ1–10, và **F1–F19** (review 28/07).
 - **Review pipeline gần nhất:** [`docs/sprint-reviews/data-pipeline-review-2026-07-28.md`](docs/sprint-reviews/data-pipeline-review-2026-07-28.md) (bảng phát hiện + bằng chứng + thứ tự ưu tiên fix).
-- `build_demand_proxy` / `mclp` / `export_geojson` hiện là **stub** (chưa hiện thực).
+- `build_demand_proxy` / `export_geojson` hiện là **stub** (chưa hiện thực) —
+  vị trí + hợp đồng đã chốt ở [`docs/data-layer/overview.md` §2](docs/data-layer/overview.md).
+- `models/mclp.py` **đã hiện thực** (29/07): solver HiGHS + greedy + bench bấm giờ — bài quốc gia
+  giải tối ưu chứng minh được trong ~4 s (`make mclp-bench`). Mục tiêu hiện là `cov@pop`, **chưa**
+  phải `cov@demand_weight` (còn chờ `build_demand_proxy`).
 
 ## Project structure
 
@@ -46,10 +68,10 @@ ev-charging-siting/
 ├── data/                      # gitignored, trừ raw/MANIFEST.json (E-DQ10)
 │   ├── raw/                   # crawl thô BẤT BIẾN (freeze read-only, checksum trong MANIFEST)
 │   ├── interim/               # master/canonical/landuse/demand + evcs_timeseries/ (19.218 csv)
-│   ├── processed/             # model-ready: candidate_sites, covered0
+│   ├── processed/             # model-ready: candidate_sites, covered0 + bundle <label>/<scope>/
 │   └── external/              # biểu giá điện EVN
 │
-├── src/ev_siting/
+├── src/ev_siting/             # MỖI package có paths.py neo PROJECT_ROOT + hằng số của tầng
 │   ├── aoi.py                 # AOI city/national duck-typed (E-DQ9)
 │   ├── data/
 │   │   ├── evcs/              # enumerate → scrape → split → master → canonical → dedup → validate
@@ -58,10 +80,16 @@ ev-charging-siting/
 │   │   ├── worldpop/          # pop → demand_h3
 │   │   ├── landuse/           # worldcover + osm_exclusion → buildable_h3
 │   │   └── provenance/        # freeze/verify snapshot (E-DQ10)
-│   ├── features/              # build_candidates, build_covered0, build_demand_proxy (stub)
-│   ├── models/                # mclp.py (stub)
-│   └── viz/                   # export_geojson.py (stub)
+│   ├── features/              # build_candidates, build_covered0, freeze_processed, demand_proxy (stub)
+│   ├── models/                # paths.py (hợp đồng λ/R) + mclp.py (solver+bench), assess.py
+│   └── viz/                   # paths.py + export_geojson.py (stub)
 │
-├── tests/                     # pytest (15 test; cần bổ sung theo F16)
-└── .github/workflows/ci.yml   # uv sync + ruff + pytest
+├── notebooks/                 # thăm dò (không phải pipeline) — xem notebooks/README.md
+├── reports/                   # bài viết bàn giao + figures/ được chọn kèm bài
+├── outputs/                   # gitignored: nghiệm MCLP, hình, map — tái lập được
+│
+└── tests/                     # pytest (44 test) — `make test`
 ```
+
+> CI chưa được nối lại sau khi gỡ workflow (commit `rm ci`); cổng chất lượng hiện chạy tay:
+> `make test` + `uv run ruff check src tests`.

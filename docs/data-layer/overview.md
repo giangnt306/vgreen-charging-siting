@@ -1,8 +1,12 @@
 # DATA LAYER — Tổng quan tầng dữ liệu (Giang)
 
-> Cập nhật lần cuối: **2026-07-24** · Nhánh `data/giang`.
+> Cập nhật lần cuối: **2026-07-28** · Nhánh `devky/optimization`.
 >
 > **24/07 — chốt xử lý P4:** giữ lưới **H3 res 8**, chốt **bán kính MCLP R = 3 km**.
+>
+> **28/07 — chốt cấu trúc trước khi mở 2 track (optimization + viz):** `models/` và `viz/` có
+> `paths.py` riêng theo đúng quy ước các package hiện có; chốt chỗ cho `notebooks/`, `reports/`,
+> `outputs/` — xem §2.
 
 ---
 
@@ -53,9 +57,14 @@ flowchart TD
 
 ---
 
-## 2. Cấu trúc code (`src/ev_siting/data/`)
+## 2. Cấu trúc code (`src/ev_siting/`)
 
-Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT_ROOT` + hằng số (bbox, H3 res, URL).
+**Quy ước xuyên suốt:** mỗi package có `paths.py` neo `PROJECT_ROOT` theo vị trí file
+(`Path(__file__).resolve().parents[N]`) và giữ mọi hằng số của tầng đó (bbox, H3 res, URL,
+ngưỡng, tham số hợp đồng). Không module nào tự ghép đường dẫn tương đối, nên chạy ở thư mục
+nào cũng đúng và một hằng số chỉ có **một** chỗ khai báo.
+
+### 2.1 Tầng dữ liệu (`src/ev_siting/data/`) — mỗi nguồn một sub-package
 
 | Package               | Script chính                                                                     | Nhiệm vụ                                                                                           |
 | --------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -71,9 +80,36 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 | `landuse/`          | `worldcover.py` · `osm_exclusion.py` · `build_buildable_h3.py` · `validate.py` | **Bộ lọc khả thi candidate (P5)** — WorldCover + OSM cấm + road access → `buildable_h3` |
 | `data/`             | `opex_electricity.py`                                                           | Biểu giá điện OpEx (nguồn pháp lý) →`data/external/`                                       |
 
-> Ngoài `data/`: `aoi.py` (vùng nghiên cứu MVP dùng chung), `features/build_candidates.py`
-> (**candidate sites — P5, DONE**), `features/build_demand_proxy.py` (demand_weight — TODO),
-> `models/mclp.py` (Kỳ), `viz/export_geojson.py` (GeoJSON hiện trạng — TODO).
+### 2.2 Tầng feature → model → trình bày
+
+| Package     | Script chính                                          | Nhiệm vụ                                                                                       |
+| ----------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| *(gốc)*     | `aoi.py`                                              | Vùng nghiên cứu MVP/national dùng chung, duck-typed (E-DQ9)                                     |
+| `features/` | `build_candidates.py` · `build_covered0.py`           | **Candidate sites (P5, DONE)** + baseline phủ hiện trạng → `data/processed/`                   |
+|             | `build_demand_proxy.py`                               | `demand_weight` — **TODO**                                                                     |
+|             | `freeze_processed.py`                                 | Đóng băng `data/processed/` → bundle sprint bất biến `<label>/<scope>/` + `FREEZE.json`        |
+| `models/`   | `mclp.py` (**DONE 29/07**)                            | Solver MCLP (HiGHS) + greedy 1−1/e + bench B6 — đọc **bundle đã đóng băng**, ghi `outputs/mclp/` |
+|             | `assess.py` (**DONE**)                                | Nghĩa vụ báo cáo §10: cảnh báo khảo sát · phân rã `penalty_flags`×`capex_class` · gate λ        |
+| `viz/`      | `export_geojson.py` (**TODO**)                        | Bản đồ/heatmap trình bày → `outputs/`; **không** sinh lại GeoJSON bàn giao của `features/`      |
+
+> **Vì sao MCLP đọc bundle chứ không đọc thẳng `data/processed/*.parquet`:** `build_candidates`
+> và `build_covered0` ghi vào *cùng đường dẫn* cho mọi AOI, nên thư mục phẳng có thể đang lẫn
+> scope (candidate national cạnh covered0 của một thành phố). `freeze_processed` chặn đúng lỗi
+> đó (`_assert_same_aoi`) rồi mới đóng băng ⇒ input hợp lệ của model là
+> `data/processed/<label>/<scope>/` (`models.paths.frozen_scope_dir`).
+
+### 2.3 Artefact ở đâu
+
+| Nơi           | Nội dung                                                        | Git            |
+| ------------- | --------------------------------------------------------------- | -------------- |
+| `data/`       | Dữ liệu mọi tầng (xem bảng §1)                                  | gitignored¹    |
+| `outputs/`    | Script sinh ra, tái lập được: nghiệm MCLP, hình, map            | **gitignored** |
+| `notebooks/`  | Thăm dò — không phải pipeline; import package, không hard-code path | commit (đã xoá output) |
+| `reports/`    | Bài viết bàn giao + `figures/` được chọn kèm bài                 | commit         |
+| `docs/`       | Tài liệu sống: schema, register vấn đề, cách chạy                | commit         |
+
+¹ trừ `data/raw/MANIFEST.json` (E-DQ10). Quy tắc từng thư mục: [`notebooks/README.md`](../../notebooks/README.md) ·
+[`reports/README.md`](../../reports/README.md).
 
 ---
 

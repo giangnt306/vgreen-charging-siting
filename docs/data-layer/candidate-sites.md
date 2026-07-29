@@ -124,6 +124,7 @@ FAIL bất kỳ gate nào (mặc định) → exit ≠ 0, **không bàn giao K�
 | `anchor_type` | string | `existing_station`/`parking`/`fuel`/`mall`/`retail`/`apartments`/`gapfill_synthetic` |
 | `source_ref` | string | `station_id` \| `osm_type/osm_id` \| `synthetic:<h3>` |
 | `is_existing` | bool | T0 → CapEx=0 ở Sprint 3 (incumbent bắt buộc mở) |
+| `n_existing_in_cell` | int32 | số trạm đang vận hành **trong chính ô này** — thứ duy nhất ràng buộc ≤1/ô xoá mất (18.902 trạm → 12.834 ô; ô đông nhất 12). Ràng buộc **không** mất phủ (đo 29/07: union trước/sau dedup trùng bit), nên nó được giữ; muốn tiêu thụ cột này phải đổi sang MCLP **có sức chứa** |
 | `built_up_frac` | double | tỷ lệ đô thị hoá của ô |
 | `dist_substation_m` | double | proxy đấu nối lưới |
 | `penalty`, `penalty_flags` | double/list | phạt mềm land-use ∈ [0,1] + lý do audit |

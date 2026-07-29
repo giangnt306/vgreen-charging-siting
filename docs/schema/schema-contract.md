@@ -75,6 +75,7 @@
 | `anchor_type` | string | `existing_station`/`parking`/`fuel`/`mall`/`retail`/`apartments`/`gapfill_synthetic` |
 | `source_ref` | string | `station_id` \| `osm_type/osm_id` \| `synthetic:<h3>` |
 | `is_existing` | bool | T0 → CapEx=0 Sprint 3 (incumbent bắt buộc mở) |
+| `n_existing_in_cell` | int32 | số trạm đang vận hành trong chính ô (đếm **trước** dedup ≤1/ô) — sức chứa tại-ô cho MCLP Sprint 3 |
 | `built_up_frac`, `dist_substation_m`, `penalty`, `penalty_flags` | double/list<string> | tín hiệu/penalty land-use và đấu nối; `NOT_BUILT_UP`/`NO_ROAD_ACCESS` là phạt mềm, không phải loại cứng |
 | `capex_class` | string | `low`/`mid`/`high` — ràng buộc ngân sách Sprint 3 |
 
