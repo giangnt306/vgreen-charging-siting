@@ -88,7 +88,13 @@
       "Bash(PYTHONPATH=src timeout 1800 python -m ev_siting.data.osm.validate)",
       "Bash(PYTHONPATH=src timeout 1800 python -m ev_siting.features.build_candidates --city hanoi)",
       "Bash(PYTHONPATH=src timeout 600 python -m pytest tests/ -q)",
-      "Bash(grep -n \"E-DQ7d/P1 sẽ hiệu chuẩn\\\\|bằng 18,6M bản ghi occupancy.$\" docs/known-issues.md)"
+      "Bash(grep -n \"E-DQ7d/P1 sẽ hiệu chuẩn\\\\|bằng 18,6M bản ghi occupancy.$\" docs/known-issues.md)",
+      "Bash(PYTHONPATH=src timeout 900 python /tmp/claude-1000/-home-wanderer210-Documents-AI-vgreen-charging-siting/90a2e0d2-9203-4f0d-8cba-5617a3f71749/scratchpad/edq7d_audit.py)",
+      "Bash(PYTHONPATH=src timeout 1200 python /tmp/claude-1000/-home-wanderer210-Documents-AI-vgreen-charging-siting/90a2e0d2-9203-4f0d-8cba-5617a3f71749/scratchpad/edq7d_cell.py)",
+      "Bash(sed -i 's/j\\\\.pop\\\\.isna\\(\\)/j[\"pop\"].isna\\(\\)/' edq7d_cell.py)",
+      "Bash(PYTHONPATH=/home/wanderer210/Documents/AI/vgreen-charging-siting/src timeout 1200 python edq7d_cell.py)",
+      "Bash(PYTHONPATH=/home/wanderer210/Documents/AI/vgreen-charging-siting/src timeout 1800 python edq7d_fixes.py)",
+      "Bash(awk -F'|' 'NR>=31 && NR<=60 {print NR\": \"NF\" cols\"}' docs/known-issues.md)"
     ]
   }
 }

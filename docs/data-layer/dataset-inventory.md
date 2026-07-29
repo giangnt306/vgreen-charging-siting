@@ -108,7 +108,9 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 > ⚠️ `demand_h3` từng là bảng **duy nhất chưa có cổng QA** dù nó chính là hàm mục tiêu — đã có 7 cổng từ
 > `E-DQ7a`/`E-DQ7b` + 8 cổng từ `E-DQ7c`. Audit 28/07 phát hiện **54,2% POI nằm ngoài lãnh thổ VN** (`E-DQ7a`,
 > đã sửa), `road_len` sai ngữ nghĩa (`E-DQ7b`, đã sửa), `n_poi` lẫn đơn vị + POI thiếu/trùng (`E-DQ7c`, đã sửa)
-> + proxy cầu ρ ≈ 0,30 so với occupancy thật (`E-DQ7d`, **chưa**).
+> + proxy cầu chỉ đạt ρ = **0,33** so với trần đo được **0,865** của occupancy thật, **644** ô có sạc thật mà
+> mọi input proxy = 0 (`E-DQ7d`, **chưa** — chẩn đoán 29/07, bàn giao **Kỳ**; con số cũ "ρ ≈ 0,30 · 983 ô" đã
+> được đính chính).
 > ⚠️ **Đọc `n_fuel`/`n_parking_off` như "số cây xăng/bãi đỗ" là SAI**: recall OSM đo được chỉ **35,9%** và
 > **8,6%**; riêng parking còn **lệch đô thị** (tỉ số tầng cao/thấp = 2,67). Chúng là tín hiệu **tương đối**.
 > **Chưa có cột `demand_weight`.** Xem [known-issues.md](../known-issues.md).

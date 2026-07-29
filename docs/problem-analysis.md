@@ -111,6 +111,20 @@ Phân vai tổng quát:
 
 > **Phụ thuộc:** **demand proxy (01/08)** là mốc chặn — Kỳ không chạy được MCLP "thật" nếu chưa có nó. Vì vậy Kỳ làm **toy example trước** để dựng khung model, còn Giang ưu tiên xong proxy giữa sprint. *Giang tự xây demand từ nguồn công khai (WorldPop/OSM/POI) → chủ động hoàn toàn tiến độ proxy.*
 
+> **⚠️ Đổi phân vai trong mốc 01/08 (29/07) — `E-DQ7d` bàn giao Kỳ.** Việc hiệu chuẩn & kiểm chứng
+> `demand_weight` chuyển sang **Kỳ** (gộp với **P1**), vì audit cho thấy đây là bài toán **mô hình** chứ
+> không phải làm sạch dữ liệu. Seam chia **theo tầng**, không theo vấn đề, để không đảo ngược điểm chạm
+> interop #1:
+>
+> - **Giang vẫn giao đúng hạn 01/08:** lưới `demand_h3` (254.035 ô, 10 cột POI + 5 cột road đã làm sạch
+>   qua `E-DQ7a/7b/7c`) · target `occ_h3` dựng từ 18,6M bản ghi occupancy · harness
+>   `demand_validation.py` + 12 cổng QA.
+> - **Kỳ nhận:** dạng hàm và trọng số của `demand_weight`, bổ sung **feature dòng chảy**, và trách nhiệm
+>   **vượt cổng**.
+>
+> Hệ quả tiến độ: mốc 01/08 vẫn là mốc chặn nhưng **đổi nội dung** — thứ bàn giao là *lưới + target +
+> cổng*, còn `demand_weight` cuối cùng do Kỳ chốt. **Cần xác nhận hai chiều tại buổi bàn giao 01/08.**
+
 > **Lưu ý coverage:** coverage/gap do **Giang tự tính** theo **bán kính R của MCLP** — chốt **R = 3 km (baseline)**, quét {1,5 · 2 · 3 · 5} km (không dùng ngưỡng cố định 5 km), đồng bộ giữa demand proxy của Giang và bước đo coverage của Kỳ. ⚠️ **R phải > 0,98 km** (khoảng cách tâm–tâm ô res 8), nếu không MCLP suy biến thành `sort top-p` (**P4**).
 
 ### Sprint 3 — Ràng buộc, tích hợp & report cuối *(review 22/08)*
@@ -185,6 +199,13 @@ Trong phạm vi internship, frontend = **map demo** do **Giang** đảm nhiệm,
 ## Phụ lục — Assumptions & Limitations (đề xuất bổ sung)
 
 > **⚠️ Rủi ro & vấn đề đã biết (11 mục P1–P11, kèm nhóm chất lượng dữ liệu E-DQ):** theo dõi & xử lý ở **[known-issues.md](known-issues.md)** — đã kiểm chứng thực nghiệm; **P4 là lỗi FATAL** (bán kính 500 m suy biến MCLP thành sort top-p) — **đã chốt cách xử lý 24/07: giữ lưới H3 res 8, chốt R = 3 km**; quyết định cốt lõi: có dùng 18,6M điểm occupancy để calibrate demand hay không.
+>
+> **Đã trả lời (29/07, `E-DQ7d`): dùng occupancy làm TRỌNG TÀI, chưa phải làm THẦY.** Đo đạc cho thấy fit
+> trọng số trên tập feature hiện tại chỉ hơn `pop` đơn độc **+0,07** và hơn **chính bộ trọng số bị đảo**
+> **+0,06**, trong khi trần đo được của target là **0,865** — nút thắt là **tập feature**, không phải trọng
+> số. Vì vậy occupancy trước mắt dùng để **kiểm chứng** `demand_weight` (12 cổng QA), chưa dùng để huấn
+> luyện nó. **E-DQ7d là mục 🔴 chặn duy nhất còn mở**, đã **bàn giao Kỳ (29/07)**; target `occ_h3` + harness
+> vẫn thuộc tầng dữ liệu (Giang). Chi tiết: [known-issues.md — E-DQ7d](known-issues.md#e-dq7d--proxy-cầu-chưa-kiểm-chứng-ngoại-vi-bước-7).
 
 
 - Phạm vi internship là **model MCLP end-to-end (Kỳ) + toàn bộ data layer & map demo (Giang)**; hạ tầng production (API đầy đủ, auth, CI/CD, monitoring) là hướng mở rộng sau. *(Cần chốt lại với mentor.)*

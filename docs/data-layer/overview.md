@@ -203,7 +203,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | 8a | **`E-DQ7a`** (Done 28/07) | POI ngoài lãnh thổ VN (54,2%)**+ road rò rỉ 8.934 km** | `n_poi`/`n_parking`/`n_fuel` → cờ `in_vn` (mức điểm); `demand_h3` → `cell_state`/`frac_in_vn` (mức ô)       |
 | 8b | **`E-DQ7b`** (Done 28/07) | `road_len` sai ngữ nghĩa                                      | `road_access_m` (lối vào, = `road_len_m` cũ) vs `road_len_m` (cầu, bỏ `track`/`service`); `road_len_mt_m` **khai tử** → `road_lane_mw_m` + `road_lane_ar_m` (lane-mét) + `road_bridge_m` |
 | 8c | **`E-DQ7c`** (Done 28/07) | POI thiếu & lẫn đơn vị                                       | `n_poi`+`n_parking` **khai tử** → 10 cột theo **lớp tag**; khu chung cư 5.157 toà→**1.370 khu**; 335 trùng node/way → `poi_physical_id`; recall ngoại vi **fuel 35,9% · parking 8,6%** |
-| 8d | `E-DQ7d`                        | Proxy cầu chưa kiểm chứng ngoại vi                           | `demand_weight` (gate ρ vs 18,6M occupancy)                                                                                    |
+| 8d | `E-DQ7d` (chẩn đoán 29/07 → **Kỳ**) | Proxy cầu chưa kiểm chứng ngoại vi                           | `demand_weight` (gate ρ vs 18,6M occupancy) — trần target **0,865**, proxy **0,33**; trọng số **không** phải nút thắt (đảo trọng số vẫn 0,266); target thô 77% là **công suất**; **644** ô zero-input (**488** có xe sạc thật) |
 | 8e | `E-DQ7e`                        | `pop` chưa hiệu chuẩn                                        | `pop` (scale UN-adj) + cờ `POP_DENSITY_OUTLIER`                                                                              |
 | 9  | `E-DQ8`                         | Dân cư không có đường                                      | `pop` vs `road_access_m` (**số đã chốt sau 7b: 6.350 ô / 1,268M dân**)                                          |
 | 10 | **`E-DQ9`** (Done 27/07)  | Grid toàn quốc / MVP 1 thành phố                              | `demand_h3` (toàn bảng) → AOI clip (`aoi.py`)                                                                              |
@@ -216,6 +216,15 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 > nghiêm trọng**: **53,3% POI không nằm trong lãnh thổ VN** (`VN_BBOX` thô, không clip biên giới → 6.889 ô "ma" trong
 > lưới) và **proxy cầu gần như không dự báo được nhu cầu sạc thật** (ρ ≈ 0,30 trên 18,6M bản ghi occupancy; 983 ô có
 > sạc thật nhưng proxy = 0). Chi tiết + bằng chứng: [known-issues.md §2](../known-issues.md#2-bảng-tổng-hợp-vấn-đề-đã-gộp).
+>
+> ⚠️ **Đính chính (29/07) — hai số của E-DQ7d ở đoạn trên đã sai.** Đo lại trên artefact sau 7a/7b/7c:
+> **644** ô zero-input (không phải 983), trong đó **488** ô có xe sạc thật; và **ρ ≈ 0,30 chỉ tái lập được
+> bằng cách đo sai** — tính trên cả 254k ô, coi **95,67%** ô *không có trạm* là `occ = 0`, tức đang đo "đô thị hay
+> không" chứ không đo cầu. Ba điều chỉnh khung quan trọng hơn cả hai con số: (a) **trần đo được của target là
+> 0,865** (split-half theo thời gian) nên 0,33 **không** đổ được cho nhiễu; (b) **target thô 77% là công suất**
+> — ρ(occ, số súng) = **0,773**, AC/DC chênh **13×**; (c) **trọng số không phải nút thắt** — fit tối ưu 0,329 vs
+> **đảo trọng số 0,266** vs `pop` đơn 0,261, tức nút thắt là **tập feature** (thiếu dòng chảy), làm **P1** bị bác
+> tiền đề. Chi tiết: [known-issues.md — E-DQ7d](../known-issues.md#e-dq7d--proxy-cầu-chưa-kiểm-chứng-ngoại-vi-bước-7).
 >
 > **Vì sao lỗi bị bỏ sót:** `osm/validate.py` chỉ kiểm POI nằm trong `VN_BBOX` — **đúng cái hộp sinh ra lỗi** →
 > cổng PASS suốt. `demand_h3` khi đó là bảng **duy nhất** chưa có cổng QA (cung có 3 validator + 2 khối 5 cổng),
@@ -231,7 +240,9 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 
 Các hạng mục **xây thêm** (ngoài làm sạch nhóm `E-DQ` — xem [known-issues.md](../known-issues.md)), đồng bộ [SCHEMA_CONTRACT.md §6](../schema/schema-contract.md):
 
-- [ ] **`demand_weight = f(pop, road_lane_mw_m, road_lane_ar_m, n_fuel, n_parking_off, n_mall, n_dept_store, n_supermarket, n_market, n_apartment_complex, …)`** (`features/build_demand_proxy.py`). ⚠️ `road_len_mt_m` khai tử ở **E-DQ7b** — dùng cặp lane-mét cao tốc / trục đô thị, **không** dùng `road_access_m`. ⚠️ `n_poi`/`n_parking` khai tử ở **E-DQ7c** — 10 cột POI tách rời chính là để **E-DQ7d/P1 fit** trọng số bằng 18,6M bản ghi occupancy thay vì gán tay 1:1; dùng `n_apartment_complex` (**khu**) chứ không phải `n_apartment` (toà), và biết trước `n_parking_off` là feature **độ tin thấp** (recall 8,6%, thiên lệch 2,67).
+- [ ] **`demand_weight = f(pop, road_lane_mw_m, road_lane_ar_m, n_fuel, n_parking_off, n_mall, n_dept_store, n_supermarket, n_market, n_apartment_complex, …)`** (`features/build_demand_proxy.py` — **Kỳ**, từ 29/07). ⚠️ `road_len_mt_m` khai tử ở **E-DQ7b** — dùng cặp lane-mét cao tốc / trục đô thị, **không** dùng `road_access_m`. ⚠️ `n_poi`/`n_parking` khai tử ở **E-DQ7c** — dùng `n_apartment_complex` (**khu**) chứ không phải `n_apartment` (toà), và biết trước `n_parking_off` là feature **độ tin thấp** (recall 8,6%, thiên lệch 2,67).
+  ⚠️ **Đừng chỉ fit trọng số trên đúng 10 cột này** (E-DQ7d, 29/07): đã đo — NNLS không âm + spatial CV cho **0,329**, trong khi **đảo ngẫu nhiên chính bộ trọng số đó** vẫn cho **0,266** và `pop` đơn độc cho **0,261**, trần target là **0,865**. Nút thắt là **tập feature**, không phải trọng số ⇒ phải thêm **số hạng catchment k-ring** (k = 2–3, khớp `R = 3 km`) và **covariate dòng chảy** dẫn từ `.pbf` đã freeze (betweenness · nút giao cao tốc · 91 `highway=services|rest_area`). **Cấm** mọi feature dẫn từ cung (số súng đơn độc cho ρ = 0,773 — leakage).
+- [ ] **`occ_h3` + `features/demand_validation.py`** (**Giang** — target & harness của **E-DQ7d**): trung bình occupancy **có trọng số thời gian** (poll không đều — ρ(n_polls, occ) = 0,501), khử nhiễu công suất (offset `log(súng)` hoặc tách AC vs DC/MIXED), cờ censoring (65,8% chạm trần súng), freeze vào MANIFEST (**E-DQ10**); harness chấm điểm **bất kỳ** proxy nào trên **12.811 ô cung** + 12 cổng QA. Xem [known-issues.md — E-DQ7d](../known-issues.md#e-dq7d--proxy-cầu-chưa-kiểm-chứng-ngoại-vi-bước-7).
 - [ ] **`demand_commune`** rollup (sau enrich admin — `E-DQ3`).
 - [X] **Candidate sites (P5)** — `data/processed/candidate_sites.{parquet,geojson}` (mô hình lai ≤1/ô +
   T0–T4 + `buildable_h3` + QA gate 5 cổng). Chi tiết [candidate-sites.md](candidate-sites.md).
