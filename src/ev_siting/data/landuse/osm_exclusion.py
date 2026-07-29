@@ -111,6 +111,26 @@ def _fetch_quadtree(body_selectors, out_clause, bbox, depth=0):
     return {(el["type"], el["id"]): el for el in els}
 
 
+def _load_or_fetch(cache_name, selectors, out_clause, bbox, refetch=False):
+    """Đọc phần tử Overpass từ snapshot ĐÃ FREEZE, chỉ crawl lại khi được yêu cầu.
+
+    E-DQ10: `data/raw/` là **bất biến** (freeze khoá read-only) và mọi bước phía sau là
+    **dẫn xuất** trên nó. Bản trước luôn crawl lại rồi ghi đè chính file thô — vừa phá
+    snapshot vừa làm bước này không tái lập được (Overpass trả khác nhau theo thời
+    điểm). Nay: có cache thì DÙNG cache; muốn nguồn mới thì `--refetch` **và** phải
+    `make freeze` lại một cách tường minh.
+    """
+    path = OSM_EXCL_DIR / cache_name
+    if path.exists() and not refetch:
+        els = json.loads(path.read_text(encoding="utf-8"))
+        print(f"[excl] dùng snapshot đã freeze {cache_name} ({len(els)} phần tử) "
+              f"— không crawl lại (E-DQ10)")
+        return {(el.get("type"), el.get("id")): el for el in els}
+    els = _fetch_quadtree(selectors, out_clause, bbox)
+    path.write_text(json.dumps(list(els.values()), ensure_ascii=False), encoding="utf-8")
+    return els
+
+
 def _poly_of(el):
     """Polygon shapely từ 1 phần tử Overpass `out geom` (way/relation), hoặc None."""
     if el.get("type") == "way" and el.get("geometry"):
@@ -141,7 +161,7 @@ def _flag_of(tags):
     return None
 
 
-def build_exclusion(aoi, skip_water=False):
+def build_exclusion(aoi, skip_water=False, refetch=False):
     """Lấy polygon cấm -> đánh cờ ô H3 có tâm rơi trong vùng cấm (STRtree bulk).
 
     `skip_water=True` (national): bỏ `natural=water`/`reservoir` — WorldCover đã phủ
@@ -154,9 +174,8 @@ def build_exclusion(aoi, skip_water=False):
         if skip_water and flag == "WATER_OSM":
             continue
         selectors += [f"way{sel}", f"relation{sel}"]
-    els = _fetch_quadtree(selectors, "out geom tags;", aoi.bbox())
-    with open(OSM_EXCL_DIR / "exclusion.json", "w", encoding="utf-8") as f:
-        json.dump(list(els.values()), f, ensure_ascii=False)
+    els = _load_or_fetch("exclusion.json", selectors, "out geom tags;", aoi.bbox(),
+                         refetch=refetch)
     print(f"[excl] {len(els)} phần tử vùng cấm")
 
     polys, flags = [], []
@@ -196,11 +215,10 @@ def build_exclusion(aoi, skip_water=False):
     return df
 
 
-def build_substations(aoi):
+def build_substations(aoi, refetch=False):
     """Lấy điểm power=substation (proxy đấu nối lưới) trong AOI."""
-    els = _fetch_quadtree(list(OSM_SUBSTATION_TAGS), "out center tags;", aoi.bbox())
-    with open(OSM_EXCL_DIR / "substations.json", "w", encoding="utf-8") as f:
-        json.dump(list(els.values()), f, ensure_ascii=False)
+    els = _load_or_fetch("substations.json", list(OSM_SUBSTATION_TAGS),
+                         "out center tags;", aoi.bbox(), refetch=refetch)
     rows = []
     for el in els.values():
         if el.get("type") == "node":
@@ -221,13 +239,16 @@ def build_substations(aoi):
 def run(args=None):
     ap = argparse.ArgumentParser(description="OSM vùng cấm + trạm biến áp theo AOI")
     add_aoi_args(ap)
+    ap.add_argument("--refetch", action="store_true",
+                    help="crawl lại Overpass và GHI ĐÈ snapshot thô (phá E-DQ10 — "
+                         "phải `make freeze` lại sau đó)")
     a = ap.parse_args(args)
     aoi = aoi_from_args(a)
     ensure_dirs()
     national = isinstance(aoi, NationalAOI)
     print(f"[osm-excl] {aoi}  (national={national})")
-    build_exclusion(aoi, skip_water=national)
-    build_substations(aoi)
+    build_exclusion(aoi, skip_water=national, refetch=a.refetch)
+    build_substations(aoi, refetch=a.refetch)
 
 
 if __name__ == "__main__":

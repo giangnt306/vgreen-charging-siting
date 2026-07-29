@@ -18,11 +18,17 @@ DATA = PROJECT_ROOT / "data"
 
 # --- raw, immutable download (data/raw/worldpop) ---
 RAW_DIR = DATA / "raw" / "worldpop"
-POP_TIF = RAW_DIR / "vnm_ppp_2020_constrained.tif"
+# E-DQ7e: nguồn chính thức là bản **UN-adjusted**. Bản unadjusted GIỮ LẠI trên đĩa (đã
+# checksum trong MANIFEST) vì nó là chứng cứ tái lập được của cổng
+# `pop_scale_ratio_is_constant` — không có nó thì khẳng định "UNadj là hằng số quốc gia,
+# thứ hạng ô bất biến" trở lại thành lời hứa.
+POP_TIF = RAW_DIR / "vnm_ppp_2020_UNadj_constrained.tif"
+POP_TIF_UNADJUSTED = RAW_DIR / "vnm_ppp_2020_constrained.tif"
 
 # --- derived (data/interim/worldpop) ---
 INTERIM_DIR = DATA / "interim" / "worldpop"
 POP_H3 = INTERIM_DIR / "worldpop_pop_h3.parquet"        # h3_r8 -> pop
+POP_REPORT = INTERIM_DIR / "worldpop_pop_report.json"   # cổng QA hiệu chuẩn (E-DQ7e)
 
 # demand_h3 đầy đủ (pop + thành phần OSM) — đầu ra tích hợp
 DEMAND_DIR = DATA / "interim" / "demand"
@@ -34,12 +40,30 @@ DEMAND_REPORT = DEMAND_DIR / "demand_h3_report.json"
 
 H3_RES_R8 = 8
 
-# WorldPop Vietnam 2020, constrained (~100m, built-settlement aware), UN-unadjusted.
+# WorldPop Vietnam 2020, constrained (~100m, built-settlement aware), **UN-adjusted**.
 # CC-BY 4.0. Xem https://www.worldpop.org/
-WORLDPOP_URL = (
-    "https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/"
-    "2020/BSGM/VNM/vnm_ppp_2020_constrained.tif"
-)
+#
+# E-DQ7e (chốt 2026-07-29) — vì sao đổi FILE chứ không nhân hệ số trong code:
+# nhân `pop` với 0,979344 cho ra đúng cùng một mảng số, nhưng biến một hằng số ma thuật
+# không truy vết được thành thứ mà E-DQ10 checksum được. Hiệu chuẩn phải là **thuộc
+# tính của nguồn**, không phải của pipeline.
+_WORLDPOP_BASE = ("https://data.worldpop.org/GIS/Population/"
+                  "Global_2000_2020_Constrained/2020/BSGM/VNM/")
+WORLDPOP_URL = _WORLDPOP_BASE + "vnm_ppp_2020_UNadj_constrained.tif"
+WORLDPOP_URL_UNADJUSTED = _WORLDPOP_BASE + "vnm_ppp_2020_constrained.tif"
+
+# --- hằng số hiệu chuẩn E-DQ7e (đo trên chính hai file đã checksum, 2026-07-29) ---
+#: Tổng dân số của raster UNadj (Σ pixel > 0). Neo vào **file đã băm sha256**, KHÔNG
+#: neo vào một con số UN WPP chép tay: UN WPP (bản duyệt 2019) cho VN 2020 là 97,34 M,
+#: còn raster UNadj tổng 97,57 M — lệch 0,24%, tức "UNadj" ≠ "đúng bằng WPP".
+POP_TOTAL_EXPECTED = 97_569_444.24
+POP_TOTAL_TOL = 1e-4                    # 0,01%
+#: Tỉ số UNadj/unadjusted đo trên TỪNG pixel: min = p1 = trung vị = p99 = max.
+POP_UNADJ_RATIO = 0.979344
+#: Đơn điệu = std của tỉ số phải ~0 (đo được 2,5e-08). Nếu WorldPop đổi cách UNadj ở
+#: phiên bản sau, tỉ số hết là hằng số ⇒ khẳng định "thứ hạng bất biến" tan, và mọi kết
+#: luận của E-DQ7d dựa trên nó phải đo lại.
+POP_UNADJ_RATIO_STD_MAX = 1e-6
 
 
 def ensure_dirs():

@@ -1,7 +1,7 @@
 {
   "schema": "vgreen.snapshot-manifest/1",
   "snapshot_id": "2026-07-20",
-  "frozen_at": "2026-07-27T14:12:52.289234+07:00",
+  "frozen_at": "2026-07-29T10:52:33.373448+07:00",
   "hash_algo": "sha256",
   "content_hashed": true,
   "project_root": "/home/wanderer210/Documents/AI/vgreen-charging-siting",
@@ -202,12 +202,21 @@
     {
       "id": "worldpop",
       "name": "WorldPop — VN mật độ dân số 2020 constrained (~100m)",
-      "retrieval_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_constrained.tif",
+      "retrieval_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_UNadj_constrained.tif",
       "license": "CC-BY 4.0",
-      "vintage": "2020 constrained (BSGM), UN-unadjusted",
+      "vintage": "2020 constrained (BSGM), UN-adjusted (UNadj); Σ = 97.569.444 người (E-DQ7e, đổi 2026-07-29 từ UN-unadjusted 99.627.388 — hệ số 0,979344)",
       "members": [
         {
           "role": "population_raster",
+          "path": "data/raw/worldpop/vnm_ppp_2020_UNadj_constrained.tif",
+          "kind": "file",
+          "present": true,
+          "bytes": 17612362,
+          "modified": "2026-07-29T10:36:39.415444+07:00",
+          "sha256": "02f0265983f206f5095a9099cb5f212ae62deb1dd54664109550313b82252ef0"
+        },
+        {
+          "role": "population_raster_unadjusted_legacy",
           "path": "data/raw/worldpop/vnm_ppp_2020_constrained.tif",
           "kind": "file",
           "present": true,

@@ -97,7 +97,16 @@
       "Bash(awk -F'|' 'NR>=31 && NR<=60 {print NR\": \"NF\" cols\"}' docs/known-issues.md)",
       "Bash(python -c \"import shapely, pyogrio\")",
       "Bash(curl -sI --max-time 25 \"https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_UNadj_constrained.tif\")",
-      "Bash(curl -s --max-time 300 -o unadj.tif \"https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_UNadj_constrained.tif\")"
+      "Bash(curl -s --max-time 300 -o unadj.tif \"https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_UNadj_constrained.tif\")",
+      "Bash(PYTHONPATH=src timeout 1800 python -m ev_siting.data.worldpop.worldpop_pop)",
+      "Bash(PYTHONPATH=src timeout 3000 make demand)",
+      "Bash(PYTHONPATH=src timeout 2400 python -m ev_siting.data.landuse.build_buildable_h3 --national)",
+      "Bash(PYTHONPATH=src python -m ev_siting.data.landuse.worldcover --help)",
+      "Bash(PYTHONPATH=src timeout 3000 python -m ev_siting.data.landuse.worldcover --national)",
+      "Bash(PYTHONPATH=src timeout 2400 python -m ev_siting.data.landuse.osm_exclusion --national)",
+      "Bash(PYTHONPATH=src timeout 1200 make freeze)",
+      "Bash(PYTHONPATH=src make verify-snapshot HASHES=1)",
+      "Bash(PYTHONPATH=src timeout 1800 make candidates CITY=hanoi)"
     ]
   }
 }

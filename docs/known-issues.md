@@ -48,7 +48,7 @@
 | **E-DQ7a** | E     | **POI ngoài lãnh thổ VN** — Overpass query bằng `VN_BBOX` thô, không clip biên giới → **54,2%** POI nằm ở Campuchia/Lào/Thái/TQ (và **8.934 km road** rò rỉ: Geofabrik cắt bằng polygon **có đệm**)                                                                                                                                                                                                                                                                       | 🔴   | **FIX (chặn)** | Giang           | **2026-07-28** | ☑           |
 | **E-DQ7b** | E     | **`road_len` sai ngữ nghĩa** — `track`+`service` tính là đường sinh cầu (19,9%); double-count 2 chiều (motorway 96,9% `oneway`); `_MAJOR` gộp cao tốc + quốc lộ + tỉnh lộ                                                                                                                                                                                                                                                                                                                 | 🟠   | FIX                   | Giang           | **2026-07-28** | ☑           |
 | **E-DQ7c** | E     | **POI thiếu & lẫn đơn vị** — `n_poi` cộng `apartments` (toà nhà) với `mall` (trung tâm) tỉ lệ 1:1 (**84,8%** số đếm ở top-100 ô là chung cư); lẫn đơn vị **bên trong** từng nhóm crawl; **335** trùng node/way + 13 đối tượng ở 2 nhóm; recall OSM **fuel 35,9% · parking 8,6%** (đo ngoại vi)                                                                                                                                                   | 🟠   | FIX + DOC             | Giang           | **2026-07-28** | ☑           |
-| **E-DQ7e** | E     | **`pop` chưa hiệu chuẩn TUYỆT ĐỐI** — raster UN-**unadjusted**: 99,627M so với bản UNadj **97,569M** (**+2,11%**). Đo 29/07: UNadj là **hằng số quốc gia 0,979344** (std **2,5e-08** trên 2,64M pixel) ⇒ **không xê dịch thứ hạng**, chỉ làm sai mọi phát biểu **tuyệt đối** (`coverage_pop`, đối chiếu GSO)                                                                                                                                     | 🟡   | FIX + DOC             | Giang           | —                   | ☐           |
+| **E-DQ7e** | E     | **`pop` chưa hiệu chuẩn TUYỆT ĐỐI** — raster UN-**unadjusted**: 99,627M so với bản UNadj **97,569M** (**+2,11%**). Đo 29/07: UNadj là **hằng số quốc gia 0,979344** (std **2,4e-08** trên 2,64M pixel) ⇒ **không xê dịch thứ hạng**, chỉ làm sai mọi phát biểu **tuyệt đối** (`coverage_pop`, đối chiếu GSO). **Đã đổi nguồn sang file UNadj** (không hardcode hệ số) + **3 cổng QA**; Spearman(cũ, mới) = **1,000000** trên 104.171 ô | 🟡   | FIX + DOC             | Giang           | **2026-07-29** | ☑           |
 | **E-DQ7f** | E     | **`pop` phân bổ sai chỗ TRONG ô (dasymetric spike)** — **146 ô / 792.118 dân** bị dồn vào 1–5 pixel (đỉnh **29.337 người/1 pixel 100 m** = 2,9M/km²); ngưỡng mật độ cũ (>48.000/km²) bắt **67 ô lõi TP.HCM CÓ THẬT** và **0/146** ô hỏng — **giao của hai bộ phát hiện = 0**. 17 ô nằm trong **top-500** `pop` toàn quốc, 46 ô `buildable=True` (ứng viên T4 khi chạy national) | 🟠   | FIX                   | Giang           | —                   | ☐           |
 | **E-DQ8**  | E     | Dân cư không có đường (`pop>0 & road_access=0`) — **số liệu đã chốt: 6.350 ô / 1,268M dân** (E-DQ7b không làm xê dịch, xem ghi chú thứ tự)                                                                                                                                                                                                                                                                                                                                                  | 🟡   | FIX                   | Giang           | —                   | ☐           |
 | **E-DQ7d** | E     | **Proxy cầu chưa kiểm chứng ngoại vi** — audit 29/07: trần đo được của target ρ = **0,865**, proxy chỉ đạt **0,33** (38% tín hiệu khả dụng); **trọng số KHÔNG phải nút thắt** (fit tốt nhất 0,329 vs **đảo trọng số 0,266** vs `pop` đơn 0,261); target thô **77% là công suất** (ρ(occ, số súng) = **0,773**); **644** ô (không phải 983) có sạc thật mà mọi input = 0, **488** ô trong đó có xe sạc thật | 🔴   | **FIX (chặn)** | **Kỳ**  | —                   | ☐           |
@@ -254,8 +254,8 @@ năm coi hạ tầng bảo trì là brownfield hiện hữu); model có thể lo
 Các dòng **E-DQ** trong [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn-đề-đã-gộp) đã được **sắp theo thứ tự xử lý** (trên → dưới) — mỗi bước làm nhỏ tập lỗi cho bước sau:
 
 > `E-DQ10` freeze inputs ✅ → `E-DQ9` clip MVP city ✅ → `E-DQ2` dedup chéo nguồn ✅ → `E-DQ1` sửa toạ độ ✅ →
-> **`E-DQ7a` clip biên giới VN ✅** → **`E-DQ7b` retype road ✅** → **`E-DQ7c` retype POI ✅** → `E-DQ7e` hiệu chuẩn tuyệt đối →
-> `E-DQ7f` sửa dồn cục dasymetric → `E-DQ8` dân cư không đường →
+> **`E-DQ7a` clip biên giới VN ✅** → **`E-DQ7b` retype road ✅** → **`E-DQ7c` retype POI ✅** →
+> **`E-DQ7e` hiệu chuẩn tuyệt đối ✅** → `E-DQ7f` sửa dồn cục dasymetric → `E-DQ8` dân cư không đường →
 > `E-DQ7d` kiểm chứng ngoại vi (**gate của `demand_weight`** — chẩn đoán xong 29/07, **bàn giao Kỳ**) → `E-DQ4` xử lý khuyết →
 > `E-DQ5`+`E-DQ6` chuẩn hoá categorical → `E-DQ3` enrich admin (cũng trọng tài `COORD_ADDR_MISMATCH` của E-DQ1).
 
@@ -279,9 +279,11 @@ Các dòng **E-DQ** trong [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn
   đạt ρ = 0,329/0,865. Ràng buộc "7c trước 7d" vẫn đúng, nó chỉ **không đủ**: 7c làm cho tập feature **fit
   được**, không làm cho nó **đủ thông tin**.)*
 - **`E-DQ7d` KHÔNG bị chặn bởi `E-DQ7e`/`E-DQ7f`/`E-DQ8`** dù nằm sau chúng trong hàng (đo 29/07). `E-DQ7e` là
-  phép **rescale đơn điệu** của `pop` — trước đây chỉ là *phỏng đoán* ("gần đơn điệu"), nay **đã đo**: tỉ số
-  UNadj/unadjusted là hằng số **0,979344** với std **2,5e-08** trên mọi pixel ⇒ thứ hạng **bất biến từng bit**,
-  đúng thứ duy nhất mà `demand_weight` và MCLP quan tâm. `E-DQ7f` **có** xê dịch thứ hạng, nhưng chỉ chạm
+  phép **rescale đơn điệu** của `pop` — trước đây chỉ là *phỏng đoán* ("gần đơn điệu"), nay **đã đo hai lần**:
+  tỉ số UNadj/unadjusted là hằng số **0,979344** (std **2,4e-08** trên 2,64M pixel), và sau khi **thực sự đổi
+  nguồn** (29/07), Spearman(`pop` cũ, `pop` mới) = **1,000000** trên toàn bộ 104.171 ô ⇒ thứ hạng **bất biến
+  từng bit**, đúng thứ duy nhất mà `demand_weight` và MCLP quan tâm. Nói cách khác: **7e đã xong và 7d không
+  phải chạy lại vì nó**. `E-DQ7f` **có** xê dịch thứ hạng, nhưng chỉ chạm
   **14/12.811 ô cung** (0,1%) nên không đầu độc phép hiệu chuẩn của 7d; `E-DQ8` không đụng tới target. Cái
   **thật sự** chặn chất lượng target vẫn là **`E-DQ1`/`E-DQ3`**: một trạm sai toạ độ đổ occupancy vào **sai ô**,
   đầu độc trực tiếp biến phụ thuộc. Vì vậy 7d chạy được **ngay**; chỉ cần chạy lại sau 7e/7f (rẻ, nhờ D1 tách
@@ -335,6 +337,14 @@ dù `/data/` bị ignore.
 **Kết quả** (chạy 27/07): snapshot **2026-07-20**, **5 nguồn / 10 member / ~2,19 GB** đóng băng; verify
 nhanh **PASS**, verify content-hash **PASS**, drift test (thêm 1 file lạ) bắt đúng **FAIL**, lock read-only
 xác nhận (ghi vào file thô → *Permission denied*). Lệnh: `make freeze` / `make verify-snapshot`.
+
+> **Cập nhật 29/07 — khoá read-only đã bắt được một lỗi thật.** Khi dựng lại chuỗi downstream của
+> [E-DQ7e](#e-dq7e--pop-chưa-hiệu-chuẩn-tuyệt-đối-bước-8), `landuse/osm_exclusion.py` **crawl lại Overpass và
+> ghi đè** `data/raw/landuse/osm_exclusion/*.json` → bị chặn bằng `PermissionError`. Tức bước **dẫn xuất** này
+> vốn **không tái lập được** (Overpass trả khác nhau theo thời điểm) và âm thầm phá snapshot ở mọi lần chạy
+> trước. Đã sửa: `_load_or_fetch` đọc thẳng snapshot đã freeze, `--refetch` mới crawl lại. Snapshot nay
+> **5 nguồn / 11 member** (worldpop 1 → **2**: raster UNadj + bản unadjusted legacy, tổng **44,1 MB**);
+> `make freeze` + `make verify-snapshot HASHES=1` đều **PASS** (23.281 file khoá).
 
 **Limitation (`DOC`):** git giữ **manifest + checksum**, không giữ blob (WorldPop/OSM hàng trăm MB) → tái
 lập đảm bảo *khi có cùng file nguồn*; nếu upstream (Geofabrik, WorldPop) xoay URL thì re-fetch là
@@ -901,7 +911,7 @@ siêu thị.
 
 #### E-DQ7e — `pop` chưa hiệu chuẩn tuyệt đối (bước 8)
 
-`🟡 FIX + DOC · ☐ Open · Owner: Giang · Chẩn đoán: 29/07`
+`🟡 FIX + DOC · ☑ chốt 2026-07-29 · Owner: Giang`
 
 > **Tách đôi (29/07).** Dòng register cũ "`pop` chưa hiệu chuẩn" gộp **hai khuyết tật độc lập về cả nguyên nhân,
 > hậu quả lẫn cách sửa**: một phép **rescale toàn quốc** (mức tuyệt đối sai, thứ hạng đúng) và một lỗi **phân bổ
@@ -933,25 +943,78 @@ về UN WPP. Chênh lệch không phải chuyện làm tròn: mọi phát biểu
 > **+2,11%** và mốc đúng là **97,569 M**. GSO 2020 (dân số trung bình) là **97,58 M**, tức bản UNadj **khớp GSO
 > tốt hơn** cả hai con số trong register cũ.
 
-**Cách xử lý — đổi FILE NGUỒN, tuyệt đối không hardcode hệ số.**
+**Cách xử lý — đổi FILE NGUỒN, tuyệt đối không hardcode hệ số** (đã thi hành 29/07):
 
-1. **`WORLDPOP_URL` → `…/vnm_ppp_2020_UNadj_constrained.tif`** (đã kiểm: HTTP 200, 17,6 MB, cùng grid
-   8.789×17.796). Nhân `pop` với `0,979344` trong code cho ra **đúng cùng một mảng số**, nhưng biến một hằng số
-   ma thuật không truy vết được thành thứ mà **E-DQ10 checksum được**. Cùng doctrine "clip là bước dẫn xuất trên
-   raw bất biến" của E-DQ7a: hiệu chuẩn cũng phải là **thuộc tính của nguồn**, không phải của pipeline.
-2. **Cập nhật MANIFEST + `vintage`** ở [`manifest.py`](../src/ev_siting/data/provenance/manifest.py) (hiện ghi
-   `"2020 constrained (BSGM), UN-unadjusted"`) và [`worldpop.md`](sources/worldpop.md). Đây là **đổi nguồn thô**
-   ⇒ bắt buộc đi qua E-DQ10, không được sửa lặng.
-3. **Chạy lại `worldpop_pop` → `build_demand_h3`** và **báo cáo Spearman(`pop` cũ, `pop` mới) = 1,000** như một
-   **cổng**, không như một lời hứa.
+1. **`WORLDPOP_URL` → `…/vnm_ppp_2020_UNadj_constrained.tif`** (HTTP 200, 17,6 MB, cùng grid 8.789×17.796,
+   cùng `transform`, **cùng 2.644.884 pixel có dân**). Nhân `pop` với `0,979344` trong code cho ra **đúng cùng
+   một mảng số**, nhưng biến một hằng số ma thuật không truy vết được thành thứ mà **E-DQ10 checksum được**.
+   Cùng doctrine "clip là bước dẫn xuất trên raw bất biến" của E-DQ7a: hiệu chuẩn phải là **thuộc tính của
+   nguồn**, không phải của pipeline.
+2. **GIỮ bản unadjusted trên đĩa** (`population_raster_unadjusted_legacy` trong MANIFEST). Không phải vì tiếc
+   26 MB: không có nó thì cổng ③ không chạy được, và khẳng định "đơn điệu ⇒ E-DQ7d không bị chặn" quay về
+   trạng thái **lời hứa**.
+3. **MANIFEST + `vintage`** cập nhật ở [`manifest.py`](../src/ev_siting/data/provenance/manifest.py); đổi nguồn
+   thô ⇒ **bắt buộc** đi qua E-DQ10 (`make freeze`), không sửa lặng.
+4. **Cổng chặn TRƯỚC khi ghi đè.** `worldpop_pop.py` chấm 3 cổng rồi mới `to_parquet` — FAIL thì artefact cũ
+   **còn nguyên** (nhất quán "flag dòng, không xoá"), kèm `worldpop_pop_report.json`.
 
-**QA gate đề xuất — 3 cổng, đều FAIL được:**
+**QA gate — 3 cổng, kèm giá trị ĐO ĐƯỢC khi chạy 29/07** (mỗi cổng canh **một** giả định, và đều FAIL được):
 
-| Cổng                             | Ngưỡng                                             | Bắt được lỗi gì                                                       |
-| ---------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------- |
-| `pop_total_matches_unadj`        | \|Σ`pop` − 97,569 M\| / 97,569 M ≤ **0,01%** | tải nhầm lại bản unadjusted, hoặc raster bị đổi phiên bản     |
-| `pop_rank_invariant`             | Spearman(pop cũ, pop mới) = **1,000**           | ai đó "hiệu chuẩn" bằng một phép **phi tuyến** (winsorize/log/chuẩn hoá) |
-| `pop_scale_ratio_is_constant`    | std(tỉ số theo pixel) < **1e-6**                  | WorldPop đổi cách UNadj ở phiên bản sau ⇒ giả định đơn điệu tan     |
+| Cổng                             | Ngưỡng                                             | Đo được 29/07                                       | Bắt được lỗi gì                                                   |
+| ---------------------------------- | ----------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `pop_total_matches_unadj`        | lệch ≤ **0,01%** so Σ file UNadj đã băm    | **2,7e-11** (Σ = 97.569.444)                     | tải nhầm lại bản unadjusted; lỗi gộp raster                  |
+| `pop_rank_invariant`             | Spearman(pop cũ, pop mới) = **1,000**           | **1,000000** trên **104.171** ô, tập ô trùng khít | "hiệu chuẩn" bằng một phép **phi tuyến** (winsorize/log/chuẩn hoá) |
+| `pop_scale_ratio_is_constant`    | std(tỉ số theo pixel) < **1e-6**                  | **2,4e-08**; min = max = **0,979344** (2,64M pixel) | WorldPop đổi cách UNadj ở phiên bản sau ⇒ giả định đơn điệu tan |
+
+> Cổng ② là phép đo **duy nhất** biến "rescale đơn điệu nên không ảnh hưởng MCLP" từ lập luận thành **số**: nó
+> so `pop` mới với artefact **ngay trước khi ghi đè**, tức tại lần migrate này nó so đúng bản dẫn từ raster
+> unadjusted. Cổng ③ thiếu file legacy thì hạ xuống **WARN có lý do**, không im lặng PASS — bài học `poi_no_dup`
+> của E-DQ7c (cổng kiểm đúng cái vừa chạy nên không bao giờ FAIL).
+
+**Đã chứng minh cả 3 cổng FAIL được** (doctrine của dự án: dự án này từng ship 3 cổng không bao giờ FAIL được —
+`poi_coords_in_vn` · `road_mt_le_total` · `poi_no_dup`). Bơm lỗi cố ý vào `qa_gates`:
+
+| Lỗi bơm vào                                             | Cổng bắt                                | Kết quả                                  |
+| ----------------------------------------------------------- | ----------------------------------------- | ------------------------------------------- |
+| chia lại cho 0,979344 (= quay về bản unadjusted)             | `pop_total_matches_unadj`               | **FAIL** (lệch 2,11e-02)              |
+| winsorize đỉnh phân vị 99,9%                            | `pop_rank_invariant`                    | **FAIL** (1−ρ = 5,12e-10)             |
+| xoá 5 ô khỏi lưới                                       | `pop_rank_invariant`                    | **FAIL** ("tập ô ĐÃ ĐỔI")           |
+| tỉ số theo pixel hết là hằng (std 4,2e-03)              | `pop_scale_ratio_is_constant`           | **FAIL**                              |
+| thiếu raster legacy / chưa có artefact trước           | ③ / ②                                   | **WARN** (không chặn, không PASS ngầm) |
+
+> ⚠️ Chính phép thử này bắt được **hai lỗi trong bản cổng đầu tiên**: (a) winsorize chỉ kéo ρ xuống ~1e-10 nên
+> `{rho:.6f}` in ra "1,000000" **ngay trên một dòng FAIL** — log tự mâu thuẫn, nay in 9 chữ số kèm `1−ρ`;
+> (b) hai nhánh "không kiểm được" ban đầu trả `True` nên hiện **PASS**, tức lại đúng cái bệnh cổng-không-thể-FAIL
+> mà E-DQ7e đang sửa — nay trả WARN tường minh.
+
+**Kết quả** (chạy 29/07 — `worldpop_pop` → `make demand` → `build_buildable_h3 --national` → `make freeze`):
+
+| Đại lượng                        | Trước          | Sau                  | Ghi chú                                                       |
+| ------------------------------------ | ---------------- | -------------------- | ---------------------------------------------------------------- |
+| Σ`pop` (`worldpop_pop_h3`)     | 99.627.388     | **97.569.444** | −2,058 M (−2,07%); **104.171 ô** không đổi           |
+| Σ`pop` (`demand_h3`, sau clip) | 99.620.916     | **97.563.106** | lưới vẫn **254.035** ô                                 |
+| dân bị clip ngoài VN (E-DQ7a) | 6.472          | **6.338**      | = 6.472 × 0,979344 ⇒ clip **không** đổi hành vi        |
+| thứ hạng ô                     | —              | **bất biến**   | Spearman 1,000000; `demand_h3` sắp xếp y hệt              |
+| `buildable_h3` (national)        | 59.768 ô      | **59.768 ô**  | `pop` mới; **mọi cờ loại cứng/phạt mềm y nguyên**    |
+| `candidate_sites` (Hà Nội)      | 1.707          | **1.707**      | **trùng khít từng `candidate_id`** (T0 1.409 · T4 130 · T1 108 · T2 60) |
+| cổng QA                           | 0 (không có) | **3**          | + 7 cổng `demand_h3` cũ vẫn PASS                            |
+
+Mọi cổng của `make demand`, `osm/validate.py`, `landuse/validate.py` và `build_candidates` **PASS** sau khi đổi
+nguồn (WARN duy nhất là `poi_recall_bias_parking_off` = 2,665 — vốn có từ E-DQ7c, không liên quan).
+`make verify-snapshot HASHES=1` **PASS** sau `make freeze`.
+
+**Dòng cuối cùng của bảng là điểm đáng giá nhất của E-DQ7e:** T4 gap-fill chấm điểm **tuyến tính theo `pop`** rồi
+cắt theo **quantile**, nên một phép rescale đơn điệu **phải** cho ra đúng tập ứng viên cũ. Nó đúng như vậy — 1.707
+`candidate_id` trùng khít. Đây là kiểm chứng **thực nghiệm** cho lập luận "7e không chặn 7d", thay vì chỉ suy từ
+tính đơn điệu.
+
+**Hiệu ứng phụ đã phát hiện & sửa — `osm_exclusion.py` crawl lại Overpass mỗi lần chạy và GHI ĐÈ raw đã freeze.**
+Lộ ra khi dựng lại `buildable_h3`: bước này gọi Overpass rồi ghi đè `data/raw/landuse/osm_exclusion/*.json`, và
+lần này **bị chặn bởi chính khoá read-only của E-DQ10** (`PermissionError`). Đó là lỗi doctrine: bước **dẫn xuất**
+không được đụng vào raw bất biến, và Overpass trả kết quả khác nhau theo thời điểm nên bước này vốn **không tái
+lập được**. Nay `_load_or_fetch` đọc thẳng snapshot đã freeze (`--refetch` mới crawl lại, kèm cảnh báo phải
+`make freeze`). Cùng bài học "re-crawl là phá snapshot" mà **E-DQ7a** đã rút ra khi từ chối query Overpass bằng
+`(poly:…)`.
 
 **Limitation (`DOC`):**
 

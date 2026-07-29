@@ -173,9 +173,16 @@ def source_specs() -> list[dict]:
             "name": "WorldPop — VN mật độ dân số 2020 constrained (~100m)",
             "retrieval_url": wp.WORLDPOP_URL,
             "license": "CC-BY 4.0",
-            "vintage": "2020 constrained (BSGM), UN-unadjusted",
+            # E-DQ7e (2026-07-29): đổi từ bản UN-unadjusted sang **UNadj**. Bản cũ GIỮ
+            # trong snapshot (không xoá) vì cổng `pop_scale_ratio_is_constant` cần nó để
+            # chứng minh phép hiệu chuẩn là hằng số quốc gia -> thứ hạng ô bất biến.
+            "vintage": "2020 constrained (BSGM), UN-adjusted (UNadj); "
+                       "Σ = 97.569.444 người (E-DQ7e, đổi 2026-07-29 từ UN-unadjusted "
+                       "99.627.388 — hệ số 0,979344)",
             "members": [
                 {"role": "population_raster", "path": wp.POP_TIF, "kind": "file"},
+                {"role": "population_raster_unadjusted_legacy",
+                 "path": wp.POP_TIF_UNADJUSTED, "kind": "file"},
             ],
         },
         {

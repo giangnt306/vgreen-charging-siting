@@ -7,32 +7,40 @@
 
 ## Nguồn
 
-- **WorldPop Global 2000–2020 Constrained**, Vietnam 2020, ~100m, UN-unadjusted, **CC-BY 4.0**.
-- File: `vnm_ppp_2020_constrained.tif` (~27 MB) — mỗi pixel = **số người/pixel**.
+- **WorldPop Global 2000–2020 Constrained**, Vietnam 2020, ~100m, **UN-adjusted (UNadj)**, **CC-BY 4.0**.
+- File: **`vnm_ppp_2020_UNadj_constrained.tif`** (~18 MB) — mỗi pixel = **số người/pixel**.
+  Σ = **97.569.444** người trên 2.644.884 pixel.
 - "Constrained" = chỉ phân bổ dân vào ô có dấu hiệu định cư (built-settlement) → sát thực địa,
   ít pixel rỗng hơn bản unconstrained.
-- ⚠️ **Hai hệ quả của lựa chọn này đã được đo (29/07) và đang mở dưới dạng `E-DQ7e` + `E-DQ7f`** —
-  xem [§ Hạn chế đã đo](#hạn-chế-đã-đo-e-dq7e--e-dq7f). Tóm tắt: bản **UN-unadjusted** làm mọi
-  con số **tuyệt đối** lệch **+2,11%**, và cơ chế **constrained** dồn dân của cả xã vào vài pixel ở
-  **146 ô**.
-- URL neo trong [`paths.py`](../src/ev_siting/data/worldpop/paths.py) (`WORLDPOP_URL`).
+- ⚠️ **Đổi từ bản UN-unadjusted sang UNadj ngày 29/07 (`E-DQ7e`, đã đóng).** Bản cũ
+  (`vnm_ppp_2020_constrained.tif`, 99.627.388 người) **vẫn nằm trong snapshot** với vai trò
+  `population_raster_unadjusted_legacy` — nó là **chứng cứ chạy lại được** của cổng
+  `pop_scale_ratio_is_constant`, đừng xoá.
+- ⚠️ Cơ chế **constrained** còn một hệ quả **chưa xử lý**: nó dồn dân của cả xã vào vài pixel ở
+  **146 ô** (`E-DQ7f`, còn mở) — xem [§ Hạn chế đã đo](#hạn-chế-đã-đo-e-dq7e--e-dq7f).
+- URL neo trong [`paths.py`](../src/ev_siting/data/worldpop/paths.py) (`WORLDPOP_URL`; bản cũ giữ ở
+  `WORLDPOP_URL_UNADJUSTED`).
 
 ## Cấu trúc & pipeline
 
 ```
 src/ev_siting/data/worldpop/
-├── paths.py            #  ★ đường dẫn canonical + WORLDPOP_URL
-├── worldpop_pop.py     #  tải .tif + đọc theo strip (rasterio) -> pop theo H3
+├── paths.py            #  ★ đường dẫn canonical + WORLDPOP_URL + hằng số hiệu chuẩn (E-DQ7e)
+├── worldpop_pop.py     #  tải .tif + đọc theo strip (rasterio) -> pop theo H3 + ★ 3 cổng QA
 └── build_demand_h3.py  #  ghép pop + thành phần OSM -> demand_h3
 
-data/raw/worldpop/vnm_ppp_2020_constrained.tif        # BẤT BIẾN (nguồn)
+data/raw/worldpop/vnm_ppp_2020_UNadj_constrained.tif  # ★ BẤT BIẾN (nguồn chính thức, E-DQ7e)
+data/raw/worldpop/vnm_ppp_2020_constrained.tif        #   BẤT BIẾN (bản unadjusted — chứng cứ cổng ③)
 data/interim/worldpop/worldpop_pop_h3.parquet         # h3_r8 -> pop
+data/interim/worldpop/worldpop_pop_report.json        # ★ 3 cổng hiệu chuẩn (E-DQ7e)
 data/interim/demand/demand_h3.parquet                 # ★ demand_h3 (pop + OSM)
 ```
 
 ```
   worldpop_pop  ── tải .tif ─▶ rasterio strip 512 hàng ─▶ pop theo ô H3 res 8
         │                        (gộp số người/pixel vào ô của tâm pixel)
+        ├─ so pixel với bản unadjusted ─▶ tỉ số phải là HẰNG SỐ (cổng ③)
+        ├─ 3 cổng QA ─▶ FAIL thì DỪNG, không ghi đè artefact cũ
         ▼
   worldpop_pop_h3.parquet ─┐
   osm_demand_components_h3 ─┴─ build_demand_h3 (outer join h3_r8) ─▶ demand/demand_h3.parquet
@@ -65,11 +73,12 @@ PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop --force-download
 
 ## Kết quả & kiểm chứng (chạy 2026-07-22)
 
-- **pop:** 99,63 triệu người / **104.171 ô** — khớp dân số VN 2020 (~97–98 triệu; WorldPop
-  UN-unadjusted thường nhỉnh hơn thống kê). ⚠️ *"✅ sanity pass" ban đầu là một **cổng không thể FAIL***:
-  nó chỉ so tổng quốc gia với một dải rộng 97–98 triệu, nên không bắt được **cả hai** khuyết tật mà
-  `E-DQ7e`/`E-DQ7f` sau đó tìm ra — một cái lệch mức (+2,11%), một cái sai **vị trí trong ô** mà tổng
-  quốc gia **vẫn đúng nguyên**. Cùng bài học với `poi_coords_in_vn` ở E-DQ7a.
+- **pop:** ~~99,63~~ → **97,569 triệu người** / **104.171 ô** (cập nhật 29/07 sau `E-DQ7e`; số ô
+  **không đổi** — hai raster có cùng 2.644.884 pixel có dân). ⚠️ *"✅ sanity pass" ban đầu là một
+  **cổng không thể FAIL***: nó chỉ so tổng quốc gia với một dải rộng 97–98 triệu, nên không bắt được
+  **cả hai** khuyết tật mà `E-DQ7e`/`E-DQ7f` sau đó tìm ra — một cái lệch mức (+2,11%), một cái sai
+  **vị trí trong ô** mà tổng quốc gia **vẫn đúng nguyên**. Cùng bài học với `poi_coords_in_vn` ở
+  E-DQ7a. Nay thay bằng **3 cổng có thể FAIL** (§ dưới).
 - **demand_h3:** **268.404 ô** (union pop ∪ đường ∪ POI); 97.819 ô có **cả** dân & đường.
 - Spot-check lõi đô thị (0,83 km²/ô ở VN): HCMC Q1 ≈ 27.600 người, Hà Nội Hoàn Kiếm ≈ 31.200,
   Đà Nẵng ≈ 15.800 — đúng bậc độ dày dân.
@@ -88,21 +97,37 @@ PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop --force-download
   (trung vị 0,825). Mọi ngưỡng **mật độ** phải chia bằng `h3.cell_area(cell, 'km^2')` từng ô —
   dùng một con số phẳng "0,83" lệch tới ±5% và đã từng cho ra số ô outlier sai (**E-DQ7f**).
 
+## Cổng QA hiệu chuẩn (`E-DQ7e`, từ 29/07)
+
+`worldpop_pop.py` chấm **3 cổng rồi mới ghi đè** `worldpop_pop_h3.parquet` — FAIL thì artefact cũ còn
+nguyên (nhất quán "flag dòng, không xoá"). Kết quả ghi ở `worldpop_pop_report.json`.
+
+| Cổng | Ngưỡng | Đo được 29/07 |
+| --- | --- | --- |
+| `pop_total_matches_unadj` | lệch ≤ 0,01% so Σ file UNadj **đã băm sha256** | **2,7e-11** (Σ = 97.569.444) |
+| `pop_rank_invariant` | Spearman(pop cũ, pop mới) = 1,000 **và** tập ô trùng khít | **1,000000** / 104.171 ô |
+| `pop_scale_ratio_is_constant` | std(tỉ số theo pixel) < 1e-6 | **2,4e-08**, min = max = 0,979344 |
+
+> Cổng ③ cần **bản unadjusted còn trên đĩa**. Thiếu nó thì cổng hạ xuống **WARN có lý do** (không im
+> lặng PASS) — vì khẳng định "hiệu chuẩn UN là hằng số ⇒ thứ hạng bất biến ⇒ `E-DQ7d` không phải chạy
+> lại" chính là thứ mà cổng này bảo vệ.
+
 ## Hạn chế đã đo (`E-DQ7e` / `E-DQ7f`)
 
-Hai khuyết tật **độc lập**, cùng nằm ở cột `pop`, phát hiện 29/07. Chi tiết + bằng chứng đầy đủ:
+Hai khuyết tật **độc lập**, cùng nằm ở cột `pop`, phát hiện 29/07 — **`E-DQ7e` đã đóng cùng ngày**,
+`E-DQ7f` **còn mở**. Chi tiết + bằng chứng đầy đủ:
 [known-issues.md — E-DQ7e](../known-issues.md#e-dq7e--pop-chưa-hiệu-chuẩn-tuyệt-đối-bước-8) ·
 [E-DQ7f](../known-issues.md#e-dq7f--pop-phân-bổ-sai-chỗ-trong-ô-dasymetric-spike-bước-9).
 
-| | **E-DQ7e** — mức tuyệt đối | **E-DQ7f** — phân bổ trong ô |
+| | **E-DQ7e** — mức tuyệt đối ✅ **đóng 29/07** | **E-DQ7f** — phân bổ trong ô ☐ **còn mở** |
 | --- | --- | --- |
 | Nguyên nhân | dùng raster **UN-unadjusted** thay vì **UNadj** | mặt nạ built-settlement của BSGM bỏ sót ⇒ dồn dân cả xã vào vài pixel |
 | Quy mô | 99,627 M vs **97,569 M** (**+2,11%**) | **146 ô / 792.118 dân** (0,795% dân số) |
-| Bằng chứng | tỉ số UNadj/unadj = **hằng số 0,979344**, std **2,5e-08** trên 2,64M pixel | đỉnh **29.337 người trên 1 pixel 100 m** (= 2,9M/km²); 3 ô nặng nhất chỉ có **1–2 pixel ≠ 0** |
+| Bằng chứng | tỉ số UNadj/unadj = **hằng số 0,979344**, std **2,4e-08** trên 2,64M pixel | đỉnh **29.337 người trên 1 pixel 100 m** (= 2,9M/km²); 3 ô nặng nhất chỉ có **1–2 pixel ≠ 0** |
 | Thứ hạng ô | **bất biến từng bit** (đơn điệu) | **có xê dịch** — 17/146 ô nằm trong top-500 `pop` toàn quốc |
 | Chặn gì | chỉ phát biểu tuyệt đối (`coverage_pop`, đối chiếu GSO) | T4 gap-fill khi chạy **national** (46/146 ô `buildable`); `POP_NO_ROAD` giả (6 ô) |
 | **KHÔNG** chặn | `E-DQ7d` (đơn điệu) | `E-DQ7d` — chỉ chạm **14/12.811** ô cung |
-| Hướng sửa | đổi `WORLDPOP_URL` sang file **UNadj** + cập nhật MANIFEST (**E-DQ10**) — **không** hardcode hệ số | xuất `n_px`/`max_px`/`top3_px_share`/`pop_lat`/`pop_lon` ngay trong lượt gộp → cờ `POP_PIXEL_IMPLAUSIBLE`, **flag không xoá** |
+| Hướng sửa | ✅ **đã làm**: đổi `WORLDPOP_URL` sang file **UNadj** + MANIFEST (**E-DQ10**) + 3 cổng QA — **không** hardcode hệ số | xuất `n_px`/`max_px`/`top3_px_share`/`pop_lat`/`pop_lon` ngay trong lượt gộp → cờ `POP_PIXEL_IMPLAUSIBLE`, **flag không xoá** |
 
 ⚠️ **Đừng winsorize theo mật độ.** Ngưỡng ">48.000 người/km²" bắt **67 ô lõi TP.HCM CÓ THẬT** (liền
 khối, ~100 pixel/ô, 500–800 người/pixel) và **0/146** ô hỏng — **giao hai tập = 0**. Cắt ngọn sẽ san

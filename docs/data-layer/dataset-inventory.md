@@ -34,7 +34,7 @@
 | 1 | **evcs.vn** | Catalog trạm sạc + telemetry occupancy | crawl 21–22/07/2026; TS `2026-07-13 20:51` → `2026-07-21 00:32` | Proprietary (public map API) | **500 MB** |
 | 2 | **VinFast official** | Store locator first-party (ground truth xác minh) | generation 16, 58.577 locator | Proprietary (public locator) | **268 MB** |
 | 3 | **OpenStreetMap** | Đường (.pbf Geofabrik) + POI (Overpass) | replication seq **4852** @ `2026-07-20T20:21Z` | ODbL 1.0 | **318 MB** |
-| 4 | **WorldPop** | Dân số 2020 constrained (BSGM), UN-**unadjusted** ⚠️ **E-DQ7e** (đúng ra phải là bản **UNadj**: 99,627M → 97,569M, **+2,11%**) | 2020 | CC-BY 4.0 | **26 MB** |
+| 4 | **WorldPop** | Dân số 2020 constrained (BSGM), **UNadj** (Σ **97.569.444**) — đổi từ bản UN-unadjusted ngày 29/07 (**E-DQ7e** ☑); bản cũ giữ trong snapshot làm chứng cứ cổng đơn điệu | 2020 | CC-BY 4.0 | **44 MB** (18 + 26) |
 | 5 | **ESA WorldCover + OSM exclusion** | Land-cover 10 m (17 tile) + vùng cấm/trạm biến áp | WorldCover v200 / 2021 | CC-BY 4.0 / ODbL 1.0 | **1,03 GB** |
 | 6 | **EVN (biểu giá điện)** | Biểu giá điện trạm sạc → OpEx | 2026 | Văn bản pháp lý công khai | 12 KB |
 
@@ -97,8 +97,9 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 
 | Artifact | Dòng (ô H3) | Cột | Ghi chú |
 | --- | ---: | ---: | --- |
-| `demand/demand_h3.parquet` | **254.035** | 19 | `pop` + 5 cột `road_*` (**E-DQ7b**) + **10 cột POI theo lớp tag** (**E-DQ7c**: `n_fuel` 4.830 · `n_parking_off` 2.147 · `n_parking_street` 149 · `n_mall` 252 · `n_dept_store` 1.133 · `n_supermarket` 1.386 · `n_market` 1.661 · `n_apartment` 5.157 · `n_apartment_complex` **1.370** · `apartment_levels_sum`) + `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` ≈ 99,62 M. ⚠️ `n_poi`/`n_parking` **khai tử** |
-| `worldpop/worldpop_pop_h3.parquet` | 104.171 | 2 | chỉ ô có dân |
+| `demand/demand_h3.parquet` | **254.035** | 19 | `pop` + 5 cột `road_*` (**E-DQ7b**) + **10 cột POI theo lớp tag** (**E-DQ7c**: `n_fuel` 4.830 · `n_parking_off` 2.147 · `n_parking_street` 149 · `n_mall` 252 · `n_dept_store` 1.133 · `n_supermarket` 1.386 · `n_market` 1.661 · `n_apartment` 5.157 · `n_apartment_complex` **1.370** · `apartment_levels_sum`) + `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` = **97.563.106** (**E-DQ7e**, raster UNadj — trước 29/07 là 99,62 M). ⚠️ `n_poi`/`n_parking` **khai tử** |
+| `worldpop/worldpop_pop_h3.parquet` | 104.171 | 2 | chỉ ô có dân; Σ = **97.569.444** (**E-DQ7e**) |
+| `worldpop/worldpop_pop_report.json` | — | — | 3 cổng hiệu chuẩn (**E-DQ7e**): tổng khớp file UNadj đã băm · Spearman(cũ, mới) = **1,000000** · tỉ số theo pixel là hằng số (std **2,4e-08**) |
 | `osm/osm_demand_components_h3.parquet` | 255.054 | 16 | thành phần OSM — cột **suy ra** từ 2 bảng lớp (10 POI + 5 `road_*`) |
 | `osm/osm_roads_h3.parquet` | 255.052 | 29 | **bảng LỚP** (E-DQ7b): `m_`/`lane_m_`/`lane_obs_m_` × 9 lớp `highway` + `bridge_m` |
 | `osm/osm_poi_h3.parquet` | 6.932 | 20 | **bảng LỚP** (E-DQ7c): `poi_<lớp>` + `poi_<lớp>_restricted` × 8 lớp tag + `poi_apartment_complex`/`_levels`/`_levels_obs` |
@@ -111,9 +112,10 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 > + proxy cầu chỉ đạt ρ = **0,33** so với trần đo được **0,865** của occupancy thật, **644** ô có sạc thật mà
 > mọi input proxy = 0 (`E-DQ7d`, **chưa** — chẩn đoán 29/07, bàn giao **Kỳ**; con số cũ "ρ ≈ 0,30 · 983 ô" đã
 > được đính chính).
-> ⚠️ **Cột `pop` còn HAI vấn đề mở, đều chưa có cổng nào bắt được** (chẩn đoán 29/07): `E-DQ7e` — raster đang
-> dùng là bản **UN-unadjusted** nên mọi con số **tuyệt đối** lệch **+2,11%** (thứ hạng thì **bất biến**: tỉ số
-> UNadj là hằng số 0,979344, std 2,5e-08); `E-DQ7f` — **146 ô / 792.118 dân** bị BSGM dồn vào 1–5 pixel (đỉnh
+> ✅ **`E-DQ7e` đã đóng 29/07** — đổi hẳn sang raster **UNadj** (Σ 99,627M → **97,569M**), thêm **3 cổng QA**;
+> thứ hạng ô **bất biến** (Spearman cũ↔mới = **1,000000** trên 104.171 ô, tỉ số theo pixel là hằng số 0,979344
+> với std 2,4e-08) ⇒ MCLP/`demand_weight` **không** phải chạy lại.
+> ⚠️ **Nhưng cột `pop` vẫn còn MỘT vấn đề mở, chưa cổng nào bắt được**: `E-DQ7f` — **146 ô / 792.118 dân** bị BSGM dồn vào 1–5 pixel (đỉnh
 > **29.337 người/1 pixel 100 m**), trong đó **17 ô lọt top-500 `pop` toàn quốc** và **46 ô** là ứng viên T4 khi
 > chạy national. Ngưỡng mật độ ">48.000/km²" **không** bắt được ô nào trong 146 ô đó — nó bắt 67 ô lõi TP.HCM
 > **có thật**.
