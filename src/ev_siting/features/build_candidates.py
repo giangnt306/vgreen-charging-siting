@@ -7,6 +7,11 @@ Mô hình lai (xem docs/candidate-sites.md):
   - Nhưng **tối đa 1 candidate / ô H3 res 8**: với R=3 km, R/d=3,07 nên hai điểm
     trong cùng ô phủ gần như y hệt tập ô demand -> nếu giữ nhiều sẽ gây MCLP bị
     *tie degenerate* (biến thể ẩn của P4). Coverage tính theo `h3_r8` của candidate.
+    Ràng buộc này **không** làm mất phủ: đo 2026-07-29 trên bản quốc gia, union
+    coverage trước/sau dedup trùng bit (117.572 ô / 86.397.015 dân, chênh 0). Nó chỉ
+    xoá **số trạm trong ô** (6.068/18.902 dòng T0, ô đông nhất 12 trạm) — nên số đó
+    được giữ lại thành cột `n_existing_in_cell` thay vì mất im lặng. Muốn tiêu thụ
+    nó phải đổi mục tiêu sang MCLP *có sức chứa*; phủ nhị phân không diễn đạt được.
 
 Phân tầng anchor (ưu tiên khi gộp về 1/ô):
   T0 trạm hiện có (brownfield, is_existing=True)         <- canonical/stations
@@ -257,7 +262,12 @@ def build(aoi, R_km=R_BASELINE_KM, p_hint=20, strict=True, max_candidates=CAND_M
 
     t0 = _load_stations(aoi)
     poi = _load_poi(aoi)
-    print(f"[cand] anchor thô: T0={len(t0)} trạm · T1/T2={len(poi)} POI")
+    # Đếm TRƯỚC khi gộp <=1/ô — sau dedup thì không dựng lại được từ candidate_sites.
+    n_existing = t0.groupby("h3_r8").size()
+    print(
+        f"[cand] anchor thô: T0={len(t0)} trạm trên {len(n_existing)} ô "
+        f"(max {int(n_existing.max()) if len(n_existing) else 0}/ô) · T1/T2={len(poi)} POI"
+    )
 
     real = pd.concat([t0, poi], ignore_index=True)
     # giữ anchor trong ô buildable (T0 trạm hiện có luôn giữ — brownfield, đã có điện)
@@ -280,6 +290,9 @@ def build(aoi, R_km=R_BASELINE_KM, p_hint=20, strict=True, max_candidates=CAND_M
     # Trạm hiện có đã có điện/mặt bằng -> penalty land-use = 0 (không phạt thêm).
     existing_na = cand["is_existing"] & cand["penalty"].isna()
     cand.loc[existing_na, "penalty"] = 0.0
+    # Số trạm đang vận hành trong CHÍNH ô này (0 nếu ô chưa có trạm). Giữ ở đây vì
+    # `covered0` đếm theo bán kính thật, còn cái này là sức chứa tại-ô cho MCLP.
+    cand["n_existing_in_cell"] = cand["h3_r8"].map(n_existing).fillna(0).astype("int32")
     cand["capex_class"] = np.where(
         cand["is_existing"],
         "low",
@@ -302,6 +315,7 @@ def build(aoi, R_km=R_BASELINE_KM, p_hint=20, strict=True, max_candidates=CAND_M
         "anchor_type",
         "source_ref",
         "is_existing",
+        "n_existing_in_cell",
         "built_up_frac",
         "dist_substation_m",
         "penalty",
