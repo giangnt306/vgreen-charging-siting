@@ -65,6 +65,25 @@ POP_UNADJ_RATIO = 0.979344
 #: luận của E-DQ7d dựa trên nó phải đo lại.
 POP_UNADJ_RATIO_STD_MAX = 1e-6
 
+# --- E-DQ7f: dồn cục dasymetric + tái phân bổ theo built-up (2026-07-29) ---
+#: Bảng pop ĐÃ HIỆU CHỈNH VỊ TRÍ: giữ `pop` (UN-anchored, E-DQ7e) + thêm `pop_adj`
+#: (đặt lại chỗ theo built-up) + cờ chẩn đoán. Là đầu vào của `build_demand_h3`.
+POP_ADJ_H3 = INTERIM_DIR / "worldpop_pop_adj_h3.parquet"
+POP_ADJ_REPORT = INTERIM_DIR / "worldpop_pop_adj_report.json"
+#: Ngưỡng detector (đặt tay nhưng neo ngoại vi — xem reconcile_dasymetric.py).
+POP_MAX_PX_IMPLAUSIBLE = 1000.0        # p99 built-up lõi TP.HCM = 737 < 1000 < flagged p50 1201
+POP_TOP3_SHARE_IMPLAUSIBLE = 0.8       # cùng pop > 2000 -> dồn cục
+POP_PIXEL_IMPLAUSIBLE_MIN_POP = 2000.0
+#: Tỉ số quốc gia WorldPop(UNadj 2020)/VNSDI DANSO(đăng ký 2025) = 97,569/113,626.
+#: Dùng để TRUNG HOÀ lệch niên đại trước khi so mức cấp xã (RETOTAL chỉ kích hoạt khi
+#: vượt xa mức niên đại giải thích được).
+POP_WORLDPOP_OVER_DANSO = 0.859
+#: RETOTAL khi WorldPop cấp xã > 1,5× DANSO (= r>1,75 sau trung hoà niên đại). Đo được:
+#: 50/139 ô (63% khối lượng bị cờ) rơi vào đây; 16 ô có 1 ô > cả xã (bất khả thi).
+POP_RETOTAL_RATIO = 1.5
+#: Trần mật độ built-up (người/ha) từ p99 ô lõi TP.HCM đã kiểm chứng dày thật (=737).
+POP_BUILTUP_DENSITY_CEIL = 750.0
+
 
 def ensure_dirs():
     for d in (RAW_DIR, INTERIM_DIR, DEMAND_DIR):

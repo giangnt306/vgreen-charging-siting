@@ -69,9 +69,21 @@
 > (−2,07%). Thứ hạng ô **bất biến từng bit** (Spearman cũ↔mới = **1,000000** trên 104.171 ô; tỉ số theo pixel là
 > hằng số 0,979344, std 2,4e-08) ⇒ mọi consumer **xếp hạng** (MCLP, `demand_weight`) **không** bị ảnh hưởng; mọi
 > consumer **tuyệt đối** (`coverage_pop`, đối chiếu GSO) phải dùng con số mới.
-> ⚠️ **`E-DQ7f` còn mở**: sẽ thêm cờ `POP_PIXEL_IMPLAUSIBLE` + `n_px`/`max_px`/`top3_px_share`/`pop_lat`/`pop_lon`
-> cho **146 ô / 792.118 dân** bị dồn cục — cái này **có** xê dịch thứ hạng (17 ô trong top-500). Chi tiết:
-> [known-issues.md](../known-issues.md#e-dq7e--pop-chưa-hiệu-chuẩn-tuyệt-đối-bước-8).
+>
+> ✅ **`E-DQ7f` đã xử lý 29/07 — thêm `pop_adj` + cờ `pop_pixel_implausible`.** BSGM dồn cả xã vào 1–5 pixel
+> (đo lại trên artefact UNadj: **139 ô / 745.283 dân**, KHÔNG phải 146/792k của bản pre-7e). Đối chiếu **VNSDI
+> DANSO** (nguồn dân số cấp xã độc lập, `data/vnsdi/`): **63% khối lượng bị cờ là DỒN THỪA** (WorldPop > 1,5×
+> DANSO; 16 ô có 1 ô nhiều dân hơn cả xã — cụm đảo Hòn Nghệ/Sơn Hải 22×), **không** phải chỉ sai chỗ.
+
+| Cột (E-DQ7f) | Kiểu | Vai trò |
+| --- | --- | --- |
+| `pop` | double | **GIỮ NGUYÊN** — WorldPop UNadj, UN-anchored. Dùng cho phát biểu **tuyệt đối** (`coverage_pop`, đối chiếu GSO). Cổng `pop_total_matches_unadj` của E-DQ7e còn xanh. |
+| `pop_adj` | double | pop **đã đặt lại chỗ** theo built-up WorldCover trong ranh giới xã (RETOTAL hạ về 0,859·DANSO khi WorldPop>1,5×DANSO; REPLACE giữ tổng, chỉ đổi chỗ). Dùng cho consumer **XẾP HẠNG** (MCLP `demand_weight`, T4 gap-fill). Σ quốc gia thấp hơn `pop` **0,499%** (người ma gỡ khỏi đảo). |
+| `pop_pixel_implausible` | bool | cờ ô dồn cục (139 ô). T4 gap-fill LOẠI ô này nếu không có đường trục/POI xác nhận. |
+
+> Chi tiết + 7 cổng QA: [known-issues.md — E-DQ7f](../known-issues.md#e-dq7f--pop-phân-bổ-sai-chỗ-trong-ô-dasymetric-spike-bước-9).
+> Ô đảo Hòn Nghệ `8865a30cd5f…`: `pop` 28.731 → `pop_adj` 493 (xã chỉ 2.546 dân); ô bị cờ trong top-500 quốc
+> gia: **16 → 0** theo `pop_adj`.
 
 > Bảng này **chưa có một con số "trọng số demand" duy nhất** cho mỗi ô — đó chính là phần Giang bổ sung (mục 4): `demand_weight = f(pop, road, poi, …)`.
 

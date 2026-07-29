@@ -150,7 +150,10 @@
       "Bash(PYTHONPATH=src python -m ev_siting.data.provenance.freeze_snapshot)",
       "Bash(python -c \"import shapely; from shapely import STRtree, points; print\\('shapely', shapely.__version__, 'vectorized OK'\\)\")",
       "Bash(time python /tmp/claude-1000/-home-wanderer210-Documents-AI-vgreen-charging-siting/3129e2bf-4d0f-4e90-ae73-b3bac267327a/scratchpad/join_communes.py /tmp/claude-1000/-home-wanderer210-Documents-AI-vgreen-charging-siting/3129e2bf-4d0f-4e90-ae73-b3bac267327a/scratchpad)",
-      "Bash(python /tmp/claude-1000/-home-wanderer210-Documents-AI-vgreen-charging-siting/3129e2bf-4d0f-4e90-ae73-b3bac267327a/scratchpad/verdict.py /tmp/claude-1000/-home-wanderer210-Documents-AI-vgreen-charging-siting/3129e2bf-4d0f-4e90-ae73-b3bac267327a/scratchpad)"
+      "Bash(python /tmp/claude-1000/-home-wanderer210-Documents-AI-vgreen-charging-siting/3129e2bf-4d0f-4e90-ae73-b3bac267327a/scratchpad/verdict.py /tmp/claude-1000/-home-wanderer210-Documents-AI-vgreen-charging-siting/3129e2bf-4d0f-4e90-ae73-b3bac267327a/scratchpad)",
+      "Bash(time PYTHONPATH=src python -m ev_siting.data.worldpop.reconcile_dasymetric)",
+      "Bash(PYTHONPATH=src python -m ev_siting.data.worldpop.reconcile_dasymetric)",
+      "Bash(python -m py_compile src/ev_siting/data/worldpop/reconcile_dasymetric.py src/ev_siting/data/worldpop/build_demand_h3.py src/ev_siting/features/build_candidates.py src/ev_siting/data/vnsdi/fetch_communes.py)"
     ]
   }
 }

@@ -16,8 +16,9 @@
   (`vnm_ppp_2020_constrained.tif`, 99.627.388 người) **vẫn nằm trong snapshot** với vai trò
   `population_raster_unadjusted_legacy` — nó là **chứng cứ chạy lại được** của cổng
   `pop_scale_ratio_is_constant`, đừng xoá.
-- ⚠️ Cơ chế **constrained** còn một hệ quả **chưa xử lý**: nó dồn dân của cả xã vào vài pixel ở
-  **146 ô** (`E-DQ7f`, còn mở) — xem [§ Hạn chế đã đo](#hạn-chế-đã-đo-e-dq7e--e-dq7f).
+- ⚠️ Cơ chế **constrained** còn một hệ quả: nó dồn dân của cả xã vào vài pixel ở
+  **139 ô** (`E-DQ7f`, ✅ đã xử lý bằng `pop_adj` — đối chiếu VNSDI DANSO cho thấy 63% là dồn THỪA) —
+  xem [§ Hạn chế đã đo](#hạn-chế-đã-đo-e-dq7e--e-dq7f).
 - URL neo trong [`paths.py`](../src/ev_siting/data/worldpop/paths.py) (`WORLDPOP_URL`; bản cũ giữ ở
   `WORLDPOP_URL_UNADJUSTED`).
 
@@ -114,21 +115,24 @@ nguyên (nhất quán "flag dòng, không xoá"). Kết quả ghi ở `worldpop_
 
 ## Hạn chế đã đo (`E-DQ7e` / `E-DQ7f`)
 
-Hai khuyết tật **độc lập**, cùng nằm ở cột `pop`, phát hiện 29/07 — **`E-DQ7e` đã đóng cùng ngày**,
-`E-DQ7f` **còn mở**. Chi tiết + bằng chứng đầy đủ:
+Hai khuyết tật **độc lập**, cùng nằm ở cột `pop`, phát hiện 29/07 — **cả hai đã xử lý cùng ngày**.
+Chi tiết + bằng chứng đầy đủ:
 [known-issues.md — E-DQ7e](../known-issues.md#e-dq7e--pop-chưa-hiệu-chuẩn-tuyệt-đối-bước-8) ·
 [E-DQ7f](../known-issues.md#e-dq7f--pop-phân-bổ-sai-chỗ-trong-ô-dasymetric-spike-bước-9).
 
-| | **E-DQ7e** — mức tuyệt đối ✅ **đóng 29/07** | **E-DQ7f** — phân bổ trong ô ☐ **còn mở** |
-| --- | --- | --- |
-| Nguyên nhân | dùng raster **UN-unadjusted** thay vì **UNadj** | mặt nạ built-settlement của BSGM bỏ sót ⇒ dồn dân cả xã vào vài pixel |
-| Quy mô | 99,627 M vs **97,569 M** (**+2,11%**) | **146 ô / 792.118 dân** (0,795% dân số) |
-| Bằng chứng | tỉ số UNadj/unadj = **hằng số 0,979344**, std **2,4e-08** trên 2,64M pixel | đỉnh **29.337 người trên 1 pixel 100 m** (= 2,9M/km²); 3 ô nặng nhất chỉ có **1–2 pixel ≠ 0** |
-| Thứ hạng ô | **bất biến từng bit** (đơn điệu) | **có xê dịch** — 17/146 ô nằm trong top-500 `pop` toàn quốc |
-| Chặn gì | chỉ phát biểu tuyệt đối (`coverage_pop`, đối chiếu GSO) | T4 gap-fill khi chạy **national** (46/146 ô `buildable`); `POP_NO_ROAD` giả (6 ô) |
-| **KHÔNG** chặn | `E-DQ7d` (đơn điệu) | `E-DQ7d` — chỉ chạm **14/12.811** ô cung |
-| Hướng sửa | ✅ **đã làm**: đổi `WORLDPOP_URL` sang file **UNadj** + MANIFEST (**E-DQ10**) + 3 cổng QA — **không** hardcode hệ số | xuất `n_px`/`max_px`/`top3_px_share`/`pop_lat`/`pop_lon` ngay trong lượt gộp → cờ `POP_PIXEL_IMPLAUSIBLE`, **flag không xoá** |
+> ⚠️ Con số 7f dưới đây **đo lại trên artefact UNadj** (bản trước ghi 146/792k/đỉnh 29.337 là tính trên raster
+> **unadjusted** trước khi 7e đổi nguồn cùng ngày — sai đối tượng).
 
-⚠️ **Đừng winsorize theo mật độ.** Ngưỡng ">48.000 người/km²" bắt **67 ô lõi TP.HCM CÓ THẬT** (liền
-khối, ~100 pixel/ô, 500–800 người/pixel) và **0/146** ô hỏng — **giao hai tập = 0**. Cắt ngọn sẽ san
-phẳng đúng đỉnh cầu của cả nước mà không chạm được lỗi nào.
+| | **E-DQ7e** — mức tuyệt đối ✅ **đóng 29/07** | **E-DQ7f** — dồn cục + dồn thừa ✅ **xử lý 29/07** |
+| --- | --- | --- |
+| Nguyên nhân | dùng raster **UN-unadjusted** thay vì **UNadj** | mặt nạ built-settlement của BSGM bỏ sót ⇒ dồn dân cả xã vào vài pixel; **63% là dồn THỪA** (tổng cấp xã sai) |
+| Quy mô | 99,627 M vs **97,569 M** (**+2,11%**) | **139 ô / 745.283 dân** (0,764%); đối chiếu VNSDI: 50 ô WorldPop>1,5×DANSO, 16 ô > cả xã |
+| Bằng chứng | tỉ số UNadj/unadj = **hằng số 0,979344**, std **2,4e-08** trên 2,64M pixel | đỉnh **28.731/pixel**; đảo Hòn Nghệ WorldPop 117k vs DANSO 5,3k (**22×**) |
+| Thứ hạng ô | **bất biến từng bit** (đơn điệu) | **có xê dịch** — 16/139 ô trong top-500 `pop` (dùng `pop_adj` → **0**) |
+| Chặn gì | chỉ phát biểu tuyệt đối (`coverage_pop`, đối chiếu GSO) | T4 gap-fill national (42 ô `buildable`); `POP_NO_ROAD` giả (5 ô) |
+| **KHÔNG** chặn | `E-DQ7d` (đơn điệu) | `E-DQ7d` — chỉ chạm **14/12.811** ô cung |
+| Hướng sửa | ✅ đổi `WORLDPOP_URL` sang file **UNadj** + MANIFEST + 3 cổng QA | ✅ [`reconcile_dasymetric.py`](../src/ev_siting/data/worldpop/reconcile_dasymetric.py): giữ `pop` bất biến + thêm `pop_adj` (RETOTAL→0,859·DANSO / REPLACE, rải theo built-up) + cờ `pop_pixel_implausible` + 7 cổng QA; nguồn kiểm chứng **VNSDI DANSO** ([`data/vnsdi/`](../src/ev_siting/data/vnsdi/)) |
+
+⚠️ **Đừng winsorize theo mật độ.** Ngưỡng ">48.000 người/km²" bắt **61 ô lõi TP.HCM CÓ THẬT** (liền
+khối, ~100 pixel/ô, 500–800 người/pixel) và **0/139** ô hỏng — **giao hai tập = 0**. Cắt ngọn sẽ san
+phẳng đúng đỉnh cầu của cả nước mà không chạm được lỗi nào. Cách đã dùng: **rải lại theo built-up**, không cắt.

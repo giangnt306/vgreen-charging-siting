@@ -206,7 +206,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | 8c | **`E-DQ7c`** (Done 28/07) | POI thiếu & lẫn đơn vị                                       | `n_poi`+`n_parking` **khai tử** → 10 cột theo **lớp tag**; khu chung cư 5.157 toà→**1.370 khu**; 335 trùng node/way → `poi_physical_id`; recall ngoại vi **fuel 35,9% · parking 8,6%** |
 | 8d | `E-DQ7d` (chẩn đoán 29/07 → **Kỳ**) | Proxy cầu chưa kiểm chứng ngoại vi                           | `demand_weight` (gate ρ vs 18,6M occupancy) — trần target **0,865**, proxy **0,33**; trọng số **không** phải nút thắt (đảo trọng số vẫn 0,266); target thô 77% là **công suất**; **644** ô zero-input (**488** có xe sạc thật) |
 | 8e | **`E-DQ7e`** (Done 29/07) | `pop` chưa hiệu chuẩn **tuyệt đối**                        | `pop` → **đã đổi nguồn** sang raster **UNadj** (99,627M → **97,569M**, −2,07%); 3 cổng QA (`pop_total_matches_unadj`/`pop_rank_invariant`/`pop_scale_ratio_is_constant`). Thứ hạng ô **bất biến**: Spearman(cũ, mới) = **1,000000** |
-| 8f | `E-DQ7f` (chẩn đoán 29/07)    | `pop` **phân bổ sai chỗ trong ô** (dasymetric spike)         | `pop` → cờ `POP_PIXEL_IMPLAUSIBLE` (**146 ô / 792.118 dân**, đỉnh **29.337 người/1 pixel**) + `POP_DENSITY_OUTLIER` **đổi ngữ nghĩa** thành advisory (67 ô lõi TP.HCM **có thật**) + `n_px`/`max_px`/`top3_px_share`/`pop_lat`/`pop_lon` |
+| 8f | **`E-DQ7f`** (Done 29/07)    | `pop` dồn cục dasymetric + **dồn thừa cấp xã**         | đo lại UNadj: **139 ô / 745.283 dân** (đỉnh **28.731/pixel**); đối chiếu **VNSDI DANSO** (nguồn cấp xã độc lập): **63% là dồn THỪA** (WorldPop>1,5×DANSO). Thêm **`pop_adj`** (RETOTAL 17 xã→0,859·DANSO / REPLACE 53 xã, rải theo built-up) + cờ `pop_pixel_implausible`; `pop` giữ UN-anchored. Top-500 **16→0**, 7 cổng QA. `reconcile_dasymetric.py` |
 | 9  | `E-DQ8`                         | Dân cư không có đường                                      | `pop` vs `road_access_m` (**số đã chốt sau 7b: 6.350 ô / 1,268M dân**)                                          |
 | 10 | **`E-DQ9`** (Done 27/07)  | Grid toàn quốc / MVP 1 thành phố                              | `demand_h3` (toàn bảng) → AOI clip (`aoi.py`)                                                                              |
 | 11 | **`P5`** (Done 24/07)     | Chưa định nghĩa candidate site                                | — →[candidate-sites.md](candidate-sites.md)                                                                                      |
@@ -235,11 +235,15 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 > ⇒ **thứ hạng bất biến từng bit**, chênh lệch đúng là **+2,11%** so với **97,569 M** (con số cũ "+2,35% so 97,34M"
 > so với **UN WPP**, không phải sản phẩm WorldPop nào). Đã **đổi hẳn file nguồn** (không hardcode hệ số) + 3 cổng
 > QA; sau khi đổi, Spearman(`pop` cũ, mới) = **1,000000** trên 104.171 ô ⇒ MCLP/`demand_weight` **không** phải
-> chạy lại vì 7e. (b) **`E-DQ7f`** — `pop` bị **dồn cục trong ô**: **146 ô / 792.118 dân** nằm
-> trên 1–5 pixel, đỉnh **29.337 người trên MỘT pixel 100 m** (= 2,9M người/km²), tập trung ở núi Đông Bắc và Phú
-> Quốc. Quan trọng nhất: ngưỡng `POP_DENSITY_OUTLIER` cũ (>48.000/km²) **bắt trọn 67 ô lõi TP.HCM có thật** (liền
-> khối, ~100 pixel/ô) và **bỏ lọt 100%** ô hỏng — **giao của hai tập = 0**, cùng họ lỗi với cổng `poi_coords_in_vn`
-> ở E-DQ7a. Chi tiết: [known-issues.md — E-DQ7e](../known-issues.md#e-dq7e--pop-chưa-hiệu-chuẩn-tuyệt-đối-bước-8) ·
+> chạy lại vì 7e. (b) **`E-DQ7f`** *(đã xử lý 29/07)* — `pop` bị **dồn cục trong ô**: đo lại trên artefact UNadj
+> là **139 ô / 745.283 dân** (không phải 146/792k của bản pre-7e), đỉnh **28.731/pixel**, tập trung ở núi Đông
+> Bắc/Tây Bắc và đảo. Ngưỡng `POP_DENSITY_OUTLIER` cũ (>48.000/km²) bắt **61 ô lõi TP.HCM có thật** và **0/139**
+> ô hỏng — **giao = 0**. **Bước ngoặt:** đối chiếu **VNSDI DANSO** (nguồn dân số cấp xã độc lập, đã crawl) cho
+> thấy **63% khối lượng bị cờ là DỒN THỪA** (WorldPop > 1,5× DANSO; 16 ô có 1 ô nhiều dân hơn cả xã; đảo Hòn
+> Nghệ/Sơn Hải 22×) — tổng cấp xã **chính nó sai**, không chỉ sai vị trí. Đã thêm **`pop_adj`** (đặt lại chỗ theo
+> built-up: RETOTAL hạ về 0,859·DANSO / REPLACE giữ tổng) + cờ `pop_pixel_implausible`, giữ `pop` bất biến;
+> ô đảo 28.731→493, top-500 **16→0**, 7 cổng QA. Chi tiết:
+> [known-issues.md — E-DQ7e](../known-issues.md#e-dq7e--pop-chưa-hiệu-chuẩn-tuyệt-đối-bước-8) ·
 > [E-DQ7f](../known-issues.md#e-dq7f--pop-phân-bổ-sai-chỗ-trong-ô-dasymetric-spike-bước-9).
 >
 > **Vì sao lỗi bị bỏ sót:** `osm/validate.py` chỉ kiểm POI nằm trong `VN_BBOX` — **đúng cái hộp sinh ra lỗi** →

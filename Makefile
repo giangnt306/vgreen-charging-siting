@@ -35,6 +35,9 @@ vnsdi:  ## Crawl VNSDI commune polygons + population (2025) -> data/interim/vnsd
 	PYTHONPATH=src python -m ev_siting.data.vnsdi.fetch_communes crawl
 	PYTHONPATH=src python -m ev_siting.data.vnsdi.fetch_communes parse
 
+reconcile-pop:  ## Detect+repair dasymetric spike -> worldpop_pop_adj_h3 (needs `make vnsdi`)  [E-DQ7f]
+	PYTHONPATH=src python -m ev_siting.data.worldpop.reconcile_dasymetric
+
 boundary:  ## Extract VN territory + province polygons from the frozen .pbf  [E-DQ7a, unlocks E-DQ3]
 	PYTHONPATH=src python -m ev_siting.data.osm.vn_boundary
 
@@ -44,7 +47,8 @@ osm:  ## Rebuild OSM demand components (POI clipped + classified + deduped)  [E-
 poi-recall:  ## Measure OSM POI coverage against EV stations sited at fuel/parking  [E-DQ7c]
 	PYTHONPATH=src python -m ev_siting.data.osm.poi_recall
 
-demand:  ## Rebuild demand_h3 grid (cells classified/clipped to VN territory)  [E-DQ7a]
+demand:  ## Rebuild demand_h3 grid (cells classified/clipped to VN territory)  [E-DQ7a, E-DQ7f]
+	PYTHONPATH=src python -m ev_siting.data.worldpop.reconcile_dasymetric
 	PYTHONPATH=src python -m ev_siting.data.worldpop.build_demand_h3
 	PYTHONPATH=src python -m ev_siting.data.osm.validate
 

@@ -97,9 +97,12 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 
 | Artifact | Dòng (ô H3) | Cột | Ghi chú |
 | --- | ---: | ---: | --- |
-| `demand/demand_h3.parquet` | **254.035** | 19 | `pop` + 5 cột `road_*` (**E-DQ7b**) + **10 cột POI theo lớp tag** (**E-DQ7c**: `n_fuel` 4.830 · `n_parking_off` 2.147 · `n_parking_street` 149 · `n_mall` 252 · `n_dept_store` 1.133 · `n_supermarket` 1.386 · `n_market` 1.661 · `n_apartment` 5.157 · `n_apartment_complex` **1.370** · `apartment_levels_sum`) + `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` = **97.563.106** (**E-DQ7e**, raster UNadj — trước 29/07 là 99,62 M). ⚠️ `n_poi`/`n_parking` **khai tử** |
-| `worldpop/worldpop_pop_h3.parquet` | 104.171 | 2 | chỉ ô có dân; Σ = **97.569.444** (**E-DQ7e**) |
+| `demand/demand_h3.parquet` | **254.159** | 21 | `pop` + **`pop_adj`** + 5 cột `road_*` (**E-DQ7b**) + **10 cột POI theo lớp tag** (**E-DQ7c**: `n_fuel` 4.830 · `n_parking_off` 2.147 · `n_parking_street` 149 · `n_mall` 252 · `n_dept_store` 1.133 · `n_supermarket` 1.386 · `n_market` 1.661 · `n_apartment` 5.157 · `n_apartment_complex` **1.370** · `apartment_levels_sum`) + `pop_pixel_implausible` (**E-DQ7f**) + `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` = **97.563.106** (**E-DQ7e**, UNadj); Σ`pop_adj` = **97.076.708** (**E-DQ7f**, −0,499% người ma). ⚠️ `n_poi`/`n_parking` **khai tử** |
+| `worldpop/worldpop_pop_h3.parquet` | 104.171 | 2 | chỉ ô có dân; Σ = **97.569.444** (**E-DQ7e**) — nguồn `pop` UN-anchored, KHÔNG đụng bởi 7f |
 | `worldpop/worldpop_pop_report.json` | — | — | 3 cổng hiệu chuẩn (**E-DQ7e**): tổng khớp file UNadj đã băm · Spearman(cũ, mới) = **1,000000** · tỉ số theo pixel là hằng số (std **2,4e-08**) |
+| `worldpop/worldpop_pop_adj_h3.parquet` | 107.942 | 14 | **E-DQ7f**: `pop` (bất biến) + `pop_adj` (đặt lại chỗ theo built-up) + `pop_src`/`pop_pixel_implausible` (139 ô) + chẩn đoán `n_px`/`max_px`/`top3_px_share`/`n_eff`/`pop_per_eff_px`/`pop_lat`/`pop_lon` + `maxa`/`danso`. +3.771 ô nhận (built-up, `pop=0`) |
+| `worldpop/worldpop_pop_adj_report.json` | — | — | 7 cổng **E-DQ7f**: `pop_bit_invariant`=0 · `retotal_reduces_mass`=486.399 người ma · `global_mass_accounted`=0,000 · drift 0,499% · join 99,84% |
+| `vnsdi/communes.parquet` | **3.321** | 10 | **E-DQ7f**: ranh giới + dân số cấp xã (VNSDI 34DVHC, DANSO 2025) — nguồn cấp xã **độc lập** để kiểm chứng phân bổ. `maxa`/`tenxa`/`matinh`/`danso`/`dientich_km2`/`geom_wkb`. Σdanso 113,63 M (đăng ký 2025, +16,5% vs WorldPop) |
 | `osm/osm_demand_components_h3.parquet` | 255.054 | 16 | thành phần OSM — cột **suy ra** từ 2 bảng lớp (10 POI + 5 `road_*`) |
 | `osm/osm_roads_h3.parquet` | 255.052 | 29 | **bảng LỚP** (E-DQ7b): `m_`/`lane_m_`/`lane_obs_m_` × 9 lớp `highway` + `bridge_m` |
 | `osm/osm_poi_h3.parquet` | 6.932 | 20 | **bảng LỚP** (E-DQ7c): `poi_<lớp>` + `poi_<lớp>_restricted` × 8 lớp tag + `poi_apartment_complex`/`_levels`/`_levels_obs` |
@@ -115,10 +118,12 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 > ✅ **`E-DQ7e` đã đóng 29/07** — đổi hẳn sang raster **UNadj** (Σ 99,627M → **97,569M**), thêm **3 cổng QA**;
 > thứ hạng ô **bất biến** (Spearman cũ↔mới = **1,000000** trên 104.171 ô, tỉ số theo pixel là hằng số 0,979344
 > với std 2,4e-08) ⇒ MCLP/`demand_weight` **không** phải chạy lại.
-> ⚠️ **Nhưng cột `pop` vẫn còn MỘT vấn đề mở, chưa cổng nào bắt được**: `E-DQ7f` — **146 ô / 792.118 dân** bị BSGM dồn vào 1–5 pixel (đỉnh
-> **29.337 người/1 pixel 100 m**), trong đó **17 ô lọt top-500 `pop` toàn quốc** và **46 ô** là ứng viên T4 khi
-> chạy national. Ngưỡng mật độ ">48.000/km²" **không** bắt được ô nào trong 146 ô đó — nó bắt 67 ô lõi TP.HCM
-> **có thật**.
+> ✅ **`E-DQ7f` đã xử lý 29/07 — thêm `pop_adj` + cờ `pop_pixel_implausible`.** Đo lại trên artefact UNadj:
+> **139 ô / 745.283 dân** bị BSGM dồn vào 1–5 pixel (đỉnh **28.731/pixel**); ngưỡng ">48.000/km²" bắt **61 ô lõi
+> TP.HCM có thật** và **0/139** ô hỏng (giao=0). Đối chiếu **VNSDI DANSO** (nguồn cấp xã độc lập): **63% khối
+> lượng bị cờ là DỒN THỪA** (WorldPop>1,5×DANSO; đảo Hòn Nghệ 22×) → `pop_adj` rải lại theo built-up (RETOTAL 17
+> xã / REPLACE 53 xã); `pop` giữ UN-anchored. Ô bị cờ trong top-500: **16→0**. Consumer XẾP HẠNG (MCLP, T4) dùng
+> `pop_adj`; phát biểu tuyệt đối (`coverage_pop`) dùng `pop`.
 > ⚠️ **Đọc `n_fuel`/`n_parking_off` như "số cây xăng/bãi đỗ" là SAI**: recall OSM đo được chỉ **35,9%** và
 > **8,6%**; riêng parking còn **lệch đô thị** (tỉ số tầng cao/thấp = 2,67). Chúng là tín hiệu **tương đối**.
 > **Chưa có cột `demand_weight`.** Xem [known-issues.md](../known-issues.md).

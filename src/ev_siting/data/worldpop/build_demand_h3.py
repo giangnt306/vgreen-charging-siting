@@ -54,14 +54,33 @@ from ev_siting.data.osm.poi_semantics import DERIVED_COLUMNS as POI_DERIVED
 from ev_siting.data.osm.road_semantics import DERIVED_COLUMNS
 from ev_siting.data.osm.vn_boundary import classify_cells
 from ev_siting.data.provenance.manifest import load_manifest
-from .paths import (DEMAND_H3, DEMAND_H3_CLIPPED, DEMAND_REPORT, POP_H3,
-                    ensure_dirs)
+from .paths import (DEMAND_H3, DEMAND_H3_CLIPPED, DEMAND_REPORT, POP_ADJ_H3,
+                    POP_H3, ensure_dirs)
 
 # `apartment_levels_sum` là Σ số tầng (số ĐO, có thể lẻ khi thiếu tag) -> cột số thực;
-# mọi cột POI còn lại là số đếm nguyên.
-_NUM_COLS = ["pop"] + DERIVED_COLUMNS + ["apartment_levels_sum"]
+# mọi cột POI còn lại là số đếm nguyên. `pop_adj` (E-DQ7f) là pop ĐÃ đặt lại chỗ theo
+# built-up — dùng cho consumer XẾP HẠNG; `pop` giữ UN-anchored cho phát biểu tuyệt đối.
+_NUM_COLS = ["pop", "pop_adj"] + DERIVED_COLUMNS + ["apartment_levels_sum"]
 _INT_COLS = [c for c in POI_DERIVED if c != "apartment_levels_sum"]
-_ALL_COLS = ["h3_r8"] + _NUM_COLS + _INT_COLS + ["cell_state", "frac_in_vn"]
+_FLAG_COLS = ["pop_pixel_implausible"]          # E-DQ7f: cờ ô dồn cục (bool)
+_ALL_COLS = (["h3_r8"] + _NUM_COLS + _INT_COLS + _FLAG_COLS
+             + ["cell_state", "frac_in_vn"])
+
+
+def _load_pop():
+    """Nạp pop cho demand. Ưu tiên bảng E-DQ7f (`worldpop_pop_adj_h3`, có `pop_adj` +
+    cờ dồn cục); nếu chưa dựng thì lùi về `worldpop_pop_h3` với pop_adj=pop, cờ=False
+    (tương thích ngược, KHÔNG bịa giá trị)."""
+    if POP_ADJ_H3.exists():
+        p = pd.read_parquet(POP_ADJ_H3)[["h3_r8", "pop", "pop_adj",
+                                         "pop_pixel_implausible"]]
+        print(f"[demand_h3] pop từ {POP_ADJ_H3.name} (E-DQ7f: pop_adj + cờ dồn cục)")
+        return p
+    p = pd.read_parquet(POP_H3)[["h3_r8", "pop"]]
+    p["pop_adj"] = p["pop"]
+    p["pop_pixel_implausible"] = False
+    print(f"[demand_h3] ⚠️ chưa có {POP_ADJ_H3.name} (E-DQ7f) — pop_adj=pop, cờ=False")
+    return p
 
 
 def _check(report, name, ok, detail="", fatal=True):
@@ -124,7 +143,7 @@ def run():
     if not DEMAND_COMPONENTS.exists():
         raise SystemExit(f"thiếu {DEMAND_COMPONENTS} — chạy osm.build_osm_h3 trước")
 
-    pop = pd.read_parquet(POP_H3)
+    pop = _load_pop()
     osm = pd.read_parquet(DEMAND_COMPONENTS)
     # artefact dựng trước E-DQ7b không có cột lối vào -> chặn (stale), không fill 0 ngầm
     missing = [c for c in DERIVED_COLUMNS if c not in osm.columns]
@@ -142,6 +161,10 @@ def run():
         df[c] = df.get(c, 0.0).fillna(0.0)
     for c in _INT_COLS:
         df[c] = df.get(c, 0).fillna(0).astype(int)
+    # ô chỉ có ở phía OSM (không dân) -> không phải ô dồn cục
+    for c in _FLAG_COLS:
+        s = df[c] if c in df.columns else pd.Series(False, index=df.index)
+        df[c] = s.where(s.notna(), False).astype(bool)
 
     print(f"[demand_h3] phân loại {len(df)} ô theo lãnh thổ VN (E-DQ7a)...")
     df = df.merge(classify_cells(df["h3_r8"].tolist()), on="h3_r8", how="left")

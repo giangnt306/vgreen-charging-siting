@@ -128,11 +128,30 @@ def _gapfill(aoi, buildable, occupied_cells, gapfill_q=GAPFILL_TOP_Q):
     """T4: ô demand cao, buildable, chưa có anchor -> centroid (SYNTHETIC)."""
     empty = pd.DataFrame(columns=["lat", "lng", "h3_r8", "tier", "anchor_type",
                                   "source_ref", "is_existing"])
-    dem = pd.read_parquet(DEMAND_H3)[["h3_r8", "pop", "road_lane_mw_m",
-                                      "road_lane_ar_m"] + _TRIP_GEN_COLS]
+    dcols = pd.read_parquet(DEMAND_H3, columns=None).columns
+    # E-DQ7f: chấm điểm bằng `pop_adj` (đã đặt lại chỗ theo built-up) thay cho `pop` thô;
+    # lùi về `pop` nếu artefact cũ. `pop_pixel_implausible` để LOẠI ô dồn cục không có
+    # đường/POI xác nhận (ô đảo ma từng thành ứng viên T4 khi chạy national).
+    want = ["h3_r8", "pop", "road_lane_mw_m", "road_lane_ar_m"] + _TRIP_GEN_COLS
+    for extra in ("pop_adj", "pop_pixel_implausible"):
+        if extra in dcols:
+            want.append(extra)
+    dem = pd.read_parquet(DEMAND_H3)[want]
+    if "pop_adj" not in dem.columns:
+        dem["pop_adj"] = dem["pop"]
+    if "pop_pixel_implausible" not in dem.columns:
+        dem["pop_pixel_implausible"] = False
     b = buildable[buildable["buildable"]][["h3_r8"]]
-    cand = b.merge(dem, on="h3_r8", how="left").fillna(0.0)
+    cand = b.merge(dem, on="h3_r8", how="left")
+    flag = cand.pop("pop_pixel_implausible").fillna(False).astype(bool)
+    cand = cand.fillna(0.0)
+    cand["pop_pixel_implausible"] = flag.values
     cand = cand[~cand["h3_r8"].isin(occupied_cells)]
+    # E-DQ7f: ô POP_PIXEL_IMPLAUSIBLE chỉ được làm ứng viên NẾU có đường trục/POI xác
+    # nhận (dân đã bị đặt lại chỗ; không có tín hiệu khác thì đừng dựng trạm ở đó).
+    corroborated = ((cand["road_lane_mw_m"] + cand["road_lane_ar_m"]) > 0) | \
+        (trip_gen_interim(cand) > 0)
+    cand = cand[~(cand["pop_pixel_implausible"] & ~corroborated)]
     if cand.empty:
         return empty
     # CLIP VỀ AOI (như anchor T0/T1/T2): `buildable_h3` có thể là bảng QUỐC GIA
@@ -157,7 +176,7 @@ def _gapfill(aoi, buildable, occupied_cells, gapfill_q=GAPFILL_TOP_Q):
     # hạng theo mật độ toà nhà, không theo cầu sạc). `trip_gen_interim` giữ nguyên
     # thang (nhân 50) nhưng đếm chung cư theo KHU và bỏ đỗ ven đường — hai cải thiện
     # KHÔNG cần fit. Trọng số vẫn đặt tay: E-DQ7d/P1 hiệu chuẩn bằng occupancy.
-    score = (cand["pop"] + 50 * trip_gen_interim(cand)
+    score = (cand["pop_adj"] + 50 * trip_gen_interim(cand)
              + 0.025 * cand["road_lane_ar_m"] + 0.05 * cand["road_lane_mw_m"])
     thr = score.quantile(gapfill_q)
     pick = cand[score >= thr].copy()
