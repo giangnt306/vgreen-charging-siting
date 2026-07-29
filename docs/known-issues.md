@@ -48,7 +48,8 @@
 | **E-DQ7a** | E     | **POI ngoài lãnh thổ VN** — Overpass query bằng `VN_BBOX` thô, không clip biên giới → **54,2%** POI nằm ở Campuchia/Lào/Thái/TQ (và **8.934 km road** rò rỉ: Geofabrik cắt bằng polygon **có đệm**)                                                                                                                                                                                                                                                                       | 🔴   | **FIX (chặn)** | Giang           | **2026-07-28** | ☑           |
 | **E-DQ7b** | E     | **`road_len` sai ngữ nghĩa** — `track`+`service` tính là đường sinh cầu (19,9%); double-count 2 chiều (motorway 96,9% `oneway`); `_MAJOR` gộp cao tốc + quốc lộ + tỉnh lộ                                                                                                                                                                                                                                                                                                                 | 🟠   | FIX                   | Giang           | **2026-07-28** | ☑           |
 | **E-DQ7c** | E     | **POI thiếu & lẫn đơn vị** — `n_poi` cộng `apartments` (toà nhà) với `mall` (trung tâm) tỉ lệ 1:1 (**84,8%** số đếm ở top-100 ô là chung cư); lẫn đơn vị **bên trong** từng nhóm crawl; **335** trùng node/way + 13 đối tượng ở 2 nhóm; recall OSM **fuel 35,9% · parking 8,6%** (đo ngoại vi)                                                                                                                                                   | 🟠   | FIX + DOC             | Giang           | **2026-07-28** | ☑           |
-| **E-DQ7e** | E     | **`pop` chưa hiệu chuẩn** — raster UN-**unadjusted** (99,63M, +2,35% so 97,34M); 69 ô > 48.000 người/km² (đỉnh 83.565)                                                                                                                                                                                                                                                                                                                                                                            | 🟡   | FIX + DOC             | Giang           | —                   | ☐           |
+| **E-DQ7e** | E     | **`pop` chưa hiệu chuẩn TUYỆT ĐỐI** — raster UN-**unadjusted**: 99,627M so với bản UNadj **97,569M** (**+2,11%**). Đo 29/07: UNadj là **hằng số quốc gia 0,979344** (std **2,5e-08** trên 2,64M pixel) ⇒ **không xê dịch thứ hạng**, chỉ làm sai mọi phát biểu **tuyệt đối** (`coverage_pop`, đối chiếu GSO)                                                                                                                                     | 🟡   | FIX + DOC             | Giang           | —                   | ☐           |
+| **E-DQ7f** | E     | **`pop` phân bổ sai chỗ TRONG ô (dasymetric spike)** — **146 ô / 792.118 dân** bị dồn vào 1–5 pixel (đỉnh **29.337 người/1 pixel 100 m** = 2,9M/km²); ngưỡng mật độ cũ (>48.000/km²) bắt **67 ô lõi TP.HCM CÓ THẬT** và **0/146** ô hỏng — **giao của hai bộ phát hiện = 0**. 17 ô nằm trong **top-500** `pop` toàn quốc, 46 ô `buildable=True` (ứng viên T4 khi chạy national) | 🟠   | FIX                   | Giang           | —                   | ☐           |
 | **E-DQ8**  | E     | Dân cư không có đường (`pop>0 & road_access=0`) — **số liệu đã chốt: 6.350 ô / 1,268M dân** (E-DQ7b không làm xê dịch, xem ghi chú thứ tự)                                                                                                                                                                                                                                                                                                                                                  | 🟡   | FIX                   | Giang           | —                   | ☐           |
 | **E-DQ7d** | E     | **Proxy cầu chưa kiểm chứng ngoại vi** — audit 29/07: trần đo được của target ρ = **0,865**, proxy chỉ đạt **0,33** (38% tín hiệu khả dụng); **trọng số KHÔNG phải nút thắt** (fit tốt nhất 0,329 vs **đảo trọng số 0,266** vs `pop` đơn 0,261); target thô **77% là công suất** (ρ(occ, số súng) = **0,773**); **644** ô (không phải 983) có sạc thật mà mọi input = 0, **488** ô trong đó có xe sạc thật | 🔴   | **FIX (chặn)** | **Kỳ**  | —                   | ☐           |
 | **E-DQ4**  | E     | Cấu hình khuyết (`current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0`)                                                                                                                                                                                                                                                                                                                                                                                                                         | 🟡   | FIX                   | Giang           | —                   | ☐           |
@@ -253,7 +254,8 @@ năm coi hạ tầng bảo trì là brownfield hiện hữu); model có thể lo
 Các dòng **E-DQ** trong [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn-đề-đã-gộp) đã được **sắp theo thứ tự xử lý** (trên → dưới) — mỗi bước làm nhỏ tập lỗi cho bước sau:
 
 > `E-DQ10` freeze inputs ✅ → `E-DQ9` clip MVP city ✅ → `E-DQ2` dedup chéo nguồn ✅ → `E-DQ1` sửa toạ độ ✅ →
-> **`E-DQ7a` clip biên giới VN ✅** → **`E-DQ7b` retype road ✅** → **`E-DQ7c` retype POI ✅** → `E-DQ7e` → `E-DQ8` dân cư không đường →
+> **`E-DQ7a` clip biên giới VN ✅** → **`E-DQ7b` retype road ✅** → **`E-DQ7c` retype POI ✅** → `E-DQ7e` hiệu chuẩn tuyệt đối →
+> `E-DQ7f` sửa dồn cục dasymetric → `E-DQ8` dân cư không đường →
 > `E-DQ7d` kiểm chứng ngoại vi (**gate của `demand_weight`** — chẩn đoán xong 29/07, **bàn giao Kỳ**) → `E-DQ4` xử lý khuyết →
 > `E-DQ5`+`E-DQ6` chuẩn hoá categorical → `E-DQ3` enrich admin (cũng trọng tài `COORD_ADDR_MISMATCH` của E-DQ1).
 
@@ -276,11 +278,14 @@ Các dòng **E-DQ** trong [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn
   *(Cập nhật 29/07: ràng buộc đã **được thoả** — nhưng audit cho thấy 10 cột tách rời ấy, dù fit tối ưu, chỉ
   đạt ρ = 0,329/0,865. Ràng buộc "7c trước 7d" vẫn đúng, nó chỉ **không đủ**: 7c làm cho tập feature **fit
   được**, không làm cho nó **đủ thông tin**.)*
-- **`E-DQ7d` KHÔNG bị chặn bởi `E-DQ7e`/`E-DQ8`** dù nằm sau chúng trong hàng (đo 29/07). `E-DQ7e` là phép
-  **rescale gần đơn điệu** của `pop` (+2,35%) nên không xê dịch **thứ hạng** — thứ duy nhất mà cả `demand_weight`
-  lẫn MCLP quan tâm; `E-DQ8` không đụng tới target. Cái **thật sự** chặn chất lượng target là **`E-DQ1`/`E-DQ3`**:
-  một trạm sai toạ độ đổ occupancy vào **sai ô**, đầu độc trực tiếp biến phụ thuộc. Vì vậy 7d chạy được **ngay**;
-  chỉ cần chạy lại sau 7e (rẻ, nhờ D1 tách harness khỏi trọng số) và ưu tiên đóng phần dư của E-DQ1/E-DQ3.
+- **`E-DQ7d` KHÔNG bị chặn bởi `E-DQ7e`/`E-DQ7f`/`E-DQ8`** dù nằm sau chúng trong hàng (đo 29/07). `E-DQ7e` là
+  phép **rescale đơn điệu** của `pop` — trước đây chỉ là *phỏng đoán* ("gần đơn điệu"), nay **đã đo**: tỉ số
+  UNadj/unadjusted là hằng số **0,979344** với std **2,5e-08** trên mọi pixel ⇒ thứ hạng **bất biến từng bit**,
+  đúng thứ duy nhất mà `demand_weight` và MCLP quan tâm. `E-DQ7f` **có** xê dịch thứ hạng, nhưng chỉ chạm
+  **14/12.811 ô cung** (0,1%) nên không đầu độc phép hiệu chuẩn của 7d; `E-DQ8` không đụng tới target. Cái
+  **thật sự** chặn chất lượng target vẫn là **`E-DQ1`/`E-DQ3`**: một trạm sai toạ độ đổ occupancy vào **sai ô**,
+  đầu độc trực tiếp biến phụ thuộc. Vì vậy 7d chạy được **ngay**; chỉ cần chạy lại sau 7e/7f (rẻ, nhờ D1 tách
+  harness khỏi trọng số) và ưu tiên đóng phần dư của E-DQ1/E-DQ3.
 - **`E-DQ7a` mở khoá `E-DQ3`.** Để clip POI theo biên giới phải trích **polygon `admin_level=2`** từ chính `.pbf`
   đã freeze — đúng artefact mà `E-DQ3` cần để spatial-join admin, và do đó cũng giải phóng **758 `COORD_ADDR_MISMATCH`**
   mà E-DQ1 cố ý hoãn. Một artefact, ba issue → làm 7a **sớm nhất** dù E-DQ3 nằm cuối hàng. *(Đã xong 28/07:
@@ -893,6 +898,170 @@ siêu thị.
   riêng (được cả tái lập lẫn **diện tích polygon**, thứ mà `building:levels` ở 36% chỉ xấp xỉ được). Ghi vào
   roadmap; rủi ro đã biết: `with_areas()` của osmium trả **rỗng im lặng** (E-DQ7a) nên phải tự tính diện tích
   bằng shoelace trên toạ độ node.
+
+#### E-DQ7e — `pop` chưa hiệu chuẩn tuyệt đối (bước 8)
+
+`🟡 FIX + DOC · ☐ Open · Owner: Giang · Chẩn đoán: 29/07`
+
+> **Tách đôi (29/07).** Dòng register cũ "`pop` chưa hiệu chuẩn" gộp **hai khuyết tật độc lập về cả nguyên nhân,
+> hậu quả lẫn cách sửa**: một phép **rescale toàn quốc** (mức tuyệt đối sai, thứ hạng đúng) và một lỗi **phân bổ
+> trong ô** (mức tuyệt đối quốc gia đúng, thứ hạng sai). Gộp chúng buộc phải chọn một mức độ ưu tiên duy nhất cho
+> hai thứ khác hẳn nhau, và — nghiêm trọng hơn — làm cờ `POP_DENSITY_OUTLIER` được thiết kế cho vế thứ hai lại
+> **đo bằng đại lượng của vế thứ nhất**. Vế phân bổ nay là **[E-DQ7f](#e-dq7f--pop-phân-bổ-sai-chỗ-trong-ô-dasymetric-spike-bước-9)**.
+
+**Chẩn đoán.** [`paths.py`](../src/ev_siting/data/worldpop/paths.py) trỏ vào `vnm_ppp_2020_constrained.tif` —
+bản **UN-unadjusted**. WorldPop phát hành song song bản `vnm_ppp_2020_UNadj_constrained.tif` neo tổng dân số
+về UN WPP. Chênh lệch không phải chuyện làm tròn: mọi phát biểu **tuyệt đối** của dự án (`coverage_pop` "X% dân
+được phủ", đối chiếu GSO ở **P10**) đều thừa hưởng sai số này.
+
+**Đã tải bản UNadj về và differ từng pixel** (cùng lưới, `transform` trùng khít — kiểm tra được, không suy đoán):
+
+| Đại lượng                              | Giá trị                                        |
+| ---------------------------------------- | ------------------------------------------------ |
+| tổng bản unadjusted (đang dùng)   | **99,627 M**                               |
+| tổng bản UNadj                        | **97,569 M**                               |
+| chênh lệch                             | **+2,11%** (+2,058 M)                      |
+| tỉ số UNadj/unadj theo **từng pixel** | min = p1 = trung vị = p99 = max = **0,979344** |
+| độ lệch chuẩn của tỉ số           | **2,5e-08** (2,64M pixel có dân)            |
+
+⇒ **UN-adjustment là một vô hướng quốc gia, không phải một phép nắn không gian.** Hệ quả trực tiếp: thứ hạng ô
+**bất biến từng bit**, nên [§ thứ tự](#thứ-tự-xử-lý) nói đúng khi xếp `E-DQ7d` chạy trước — nhưng trước 29/07
+đó là *giả định* ("gần đơn điệu"), nay là **số đo**.
+
+> ⚠️ **Sửa con số của register cũ.** Dòng cũ ghi "+2,35% so 97,34M". **97,34 M là UN WPP**, không phải sản phẩm
+> WorldPop nào cả — so sai đối tượng. So với **file UNadj mà ta thực sự có thể tải và checksum**, chênh lệch là
+> **+2,11%** và mốc đúng là **97,569 M**. GSO 2020 (dân số trung bình) là **97,58 M**, tức bản UNadj **khớp GSO
+> tốt hơn** cả hai con số trong register cũ.
+
+**Cách xử lý — đổi FILE NGUỒN, tuyệt đối không hardcode hệ số.**
+
+1. **`WORLDPOP_URL` → `…/vnm_ppp_2020_UNadj_constrained.tif`** (đã kiểm: HTTP 200, 17,6 MB, cùng grid
+   8.789×17.796). Nhân `pop` với `0,979344` trong code cho ra **đúng cùng một mảng số**, nhưng biến một hằng số
+   ma thuật không truy vết được thành thứ mà **E-DQ10 checksum được**. Cùng doctrine "clip là bước dẫn xuất trên
+   raw bất biến" của E-DQ7a: hiệu chuẩn cũng phải là **thuộc tính của nguồn**, không phải của pipeline.
+2. **Cập nhật MANIFEST + `vintage`** ở [`manifest.py`](../src/ev_siting/data/provenance/manifest.py) (hiện ghi
+   `"2020 constrained (BSGM), UN-unadjusted"`) và [`worldpop.md`](sources/worldpop.md). Đây là **đổi nguồn thô**
+   ⇒ bắt buộc đi qua E-DQ10, không được sửa lặng.
+3. **Chạy lại `worldpop_pop` → `build_demand_h3`** và **báo cáo Spearman(`pop` cũ, `pop` mới) = 1,000** như một
+   **cổng**, không như một lời hứa.
+
+**QA gate đề xuất — 3 cổng, đều FAIL được:**
+
+| Cổng                             | Ngưỡng                                             | Bắt được lỗi gì                                                       |
+| ---------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| `pop_total_matches_unadj`        | \|Σ`pop` − 97,569 M\| / 97,569 M ≤ **0,01%** | tải nhầm lại bản unadjusted, hoặc raster bị đổi phiên bản     |
+| `pop_rank_invariant`             | Spearman(pop cũ, pop mới) = **1,000**           | ai đó "hiệu chuẩn" bằng một phép **phi tuyến** (winsorize/log/chuẩn hoá) |
+| `pop_scale_ratio_is_constant`    | std(tỉ số theo pixel) < **1e-6**                  | WorldPop đổi cách UNadj ở phiên bản sau ⇒ giả định đơn điệu tan     |
+
+**Limitation (`DOC`):**
+
+- **UNadj neo về UN WPP, không neo về GSO.** Hai hệ thống thống kê khác nhau; chọn UNadj là chọn tính **so sánh
+  quốc tế được**, không phải chọn "đúng hơn". Mọi con số công bố phải ghi rõ neo vào đâu.
+- **"UNadj" ≠ đúng bằng UN WPP.** Tổng đo được của raster UNadj là **97,569 M**, còn UN WPP (bản duyệt 2019) cho
+  Việt Nam 2020 là **97,34 M** — vẫn lệch **0,24%**. Nghĩa là hệ số 0,979344 là **thuộc tính của file WorldPop
+  phát hành**, không phải một phép chia về đúng một con số WPP nào. Vì vậy cổng `pop_total_matches_unadj` phải
+  neo vào **tổng của chính file đã checksum**, tuyệt đối không neo vào một con số WPP chép tay.
+- **Vẫn là dữ liệu 2020, target occupancy là 2026.** E-DQ7e sửa **mức**, không sửa **niên đại** — đó là **P10**
+  (⊘ won't-fix) và mốc lệch thời gian ở **P9**. Đây là phần dư lớn hơn +2,11% rất nhiều.
+- **KHÔNG hiệu chuẩn theo tỉnh trong phạm vi 7e.** Nắn theo GSO cấp tỉnh **có** xê dịch thứ hạng (đô thị hoá
+  lệch), nên hấp dẫn — nhưng vướng đúng hai thứ: (a) nó là hiệu chỉnh **niên đại** (P10/P11) chứ không phải hiệu
+  chuẩn; (b) [`vn_boundary.geojson`](../data/interim/osm/vn_boundary.geojson) đang có **40 polygon adm4** gồm cả
+  ba bản "cũ" (`An Giang cũ`, `Lào Cai cũ`, `Quảng Trị cũ`) so với **34 tỉnh** sau sáp nhập 2025 ⇒ phải qua quy
+  tắc phân định của **E-DQ3** trước. Làm sớm = nắn dân số bằng một bảng ranh giới **chồng lấn**.
+
+#### E-DQ7f — `pop` phân bổ sai chỗ trong ô (dasymetric spike) (bước 9)
+
+`🟠 FIX · ☐ Open · Owner: Giang · Chẩn đoán: 29/07`
+
+**Chẩn đoán.** WorldPop *constrained* (BSGM) phân bổ tổng dân số cấp hành chính xuống **chỉ những pixel có dấu
+hiệu định cư**. Ở nơi mặt nạ built-settlement **bỏ sót** (núi đá vôi Đông Bắc, đảo), toàn bộ dân của một xã bị
+**dồn vào vài pixel** — `pop` cấp xã vẫn đúng, nhưng vị trí trong ô thì sai hẳn. Bằng chứng đọc thẳng từ GeoTIFF:
+
+| Ô                     | `pop` | pixel ≠ 0 | max/pixel        | top-3 pixel | Kết luận      |
+| ----------------------- | ------: | ----------: | -----------------: | ------------: | --------------- |
+| `8865b5668df…` TP.HCM | 69.802 | **103** |              764 |        3,3% | **có thật** |
+| `88415b82b9f…` Tuyên Quang | 36.194 |          19 |            2.596 |         21% | hỏng           |
+| `8865a37467f…` An Giang (Phú Quốc) | 33.776 |     **2** |       **26.098** |     **100%** | hỏng           |
+| `8865a30cd5f…` An Giang | 29.337 |     **1** |       **29.337** |     **100%** | hỏng           |
+
+Một pixel 100 m chứa **29.337 người** = **2,9 triệu người/km²**. Đó không phải mật độ, đó là artefact.
+
+**Cờ `POP_DENSITY_OUTLIER` như đặc tả cũ bắt nhầm tập hoàn toàn — giao bằng 0.** Đây là phát hiện quyết định:
+
+| Bộ phát hiện                                                | Số ô | `pop`     | trung vị pixel≠0 | trung vị max/pixel | trung vị top-3 |
+| ------------------------------------------------------------- | ------: | ----------: | ------------------: | -------------------: | ---------------: |
+| **pixel bất khả thi** (lỗi thật)                     | **146** | 792.118 |          **2** |        **1.252** |     **1,00** |
+| mật độ > 48.000/km² (đặc tả cũ)                        |  **67** | 3,272 M |               100 |                585 |            0,035 |
+| **giao hai tập**                                        |   **0** |         — |                 — |                  — |              — |
+
+67 ô "mật độ cao" nằm **liền khối** trong lõi TP.HCM: trung vị mật độ của vành k=1 quanh chúng là **52.322/km²**
+(tỉ số ô/vành ≈ **1,1**), ~100 pixel/ô, 500–800 người/pixel. Đó là quận nội thành thật.
+
+Ngược lại, mật độ **cấp ô** của 146 ô hỏng chạy **1.226–45.284/km²**, **trung vị chỉ 3.095** — tức **phần lớn
+trông hoàn toàn bình thường ở cấp ô** và **không ô nào chạm 48.000**. Đây mới là điều đáng sợ: lỗi **không quan
+sát được** ở thang đo mà đặc tả cũ chọn. Nó chỉ lộ ra ở **cấp pixel** (một ô 2.500 dân dồn hết vào 1 pixel vẫn
+sai y như ô 30.000 dân, chỉ không gây hại bằng). Vì vậy đặc tả cũ bỏ lọt **100%** lỗi thật **và** đánh dấu oan
+**đúng những ô demand cao nhất nước** — cùng họ lỗi với `poi_coords_in_vn` của E-DQ7a: **một cổng đo bằng đại
+lượng không chứa thông tin về lỗi**.
+
+> ⚠️ **Sửa con số của register cũ.** "69 ô > 48.000/km², đỉnh 83.565" tính bằng diện tích ô **cố định**. Diện
+> tích ô res 8 tại VN chạy **0,785–0,869 km²**; dùng `h3.cell_area` từng ô cho **67 ô**, đỉnh **82.426/km²**.
+
+**Phân bố 146 ô** (0,795% dân số quốc gia): Tuyên Quang 35 · Nghệ An 18 · Cao Bằng 17 · Lào Cai 15 · Lai Châu 14
+· Thanh Hoá 14 · Sơn La 13 · Điện Biên 12 · **An Giang 5 (119.596 dân — cụm Phú Quốc)** · Phú Thọ 2. Đúng địa
+hình mà mặt nạ built-settlement yếu nhất: núi cao Đông Bắc/Tây Bắc và đảo.
+
+**Vì sao phải sửa — nó bơm rác vào đúng đỉnh của hàm mục tiêu:**
+
+| Hậu quả                                             | Đo được                                                                 |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| xếp hạng `pop` toàn quốc                        | **17/146** ô nằm trong **top-500**; 29 trong top-1.000; 80 trong top-10.000 |
+| T4 gap-fill                                            | **46/146** ô `buildable = True` ⇒ ứng viên tổng hợp khi chạy **national** |
+| **E-DQ8**                                        | **6** ô có `pop` lớn mà `road_access_m = 0` → `POP_NO_ROAD` giả       |
+| **E-DQ7d**                                       | chỉ **14/12.811** ô cung (0,1%) ⇒ **không** chặn hiệu chuẩn 7d          |
+
+`_gapfill` ở [`build_candidates.py`](../src/ev_siting/features/build_candidates.py) chấm điểm **tuyến tính theo
+`pop` thô** rồi cắt theo quantile — một ô 30.000 dân vượt mọi ngưỡng. Artefact `candidate_sites.parquet` hiện tại
+**không** dính (0 hit) **chỉ vì** nó là bản chạy MVP một thành phố (E-DQ9); rủi ro hiện hình nguyên vẹn ở lần
+chạy toàn quốc.
+
+**Cách xử lý (D1–D6) — sửa bằng ĐẶT LẠI CHỖ, không bằng cắt ngọn.**
+
+1. **D1 — xuất thống kê pixel ngay trong lượt gộp.** [`worldpop_pop.py`](../src/ev_siting/data/worldpop/worldpop_pop.py)
+   đã group pixel theo ô; thêm `n_px`, `max_px`, `top3_px_share` và **trọng tâm dân số** `pop_lat`/`pop_lon`. Gần
+   như miễn phí, và đây là **nơi duy nhất** quan sát được bằng chứng — vào tới `demand_h3` thì pixel đã mất.
+2. **D2 — hai bộ phát hiện, đúng khuôn hai-detector của E-DQ1.**
+   `POP_PIXEL_IMPLAUSIBLE` (**cứng**): `max_px > 1.000` **hoặc** (`pop > 2.000` và `top3_px_share > 0,8`) → 146 ô.
+   `POP_DENSITY_OUTLIER` (**advisory**, giữ tên nhưng đổi ngữ nghĩa): mật độ ≥ p99,99 **và** liền khối với vành
+   k=1 → 67 ô lõi TP.HCM được dán nhãn **"đã kiểm chứng là dày thật"**, chứ không phải "nghi vấn".
+3. **D3 — FLAG, không xoá, không winsorize** (nhất quán E-DQ1/E-DQ2/E-DQ7a). 792.118 người là **có thật**, chỉ
+   sai chỗ. Cắt ngọn phân vị sẽ **san phẳng lõi TP.HCM** — đúng đỉnh cầu của cả nước — mà không chạm được ô hỏng
+   nào (giao = 0).
+4. **D4 — đặt lại chỗ.** (a) T4 dùng `pop_lat`/`pop_lon` thay cho tâm ô: sửa tới ~500 m sai vị trí trên **mọi**
+   ô, không riêng ô bị cờ. (b) Thêm cột **catchment k-ring** `pop_k1`/`pop_k2` — **E-DQ7d đã cần sẵn** cho
+   `R = 3 km` (xem D5 của 7d) và nó hấp thụ luôn sai lệch dưới cấp xã. (c) Loại ô `POP_PIXEL_IMPLAUSIBLE` khỏi
+   T4 gap-fill **trừ khi** có road/POI xác nhận.
+5. **D5 — kiểm chứng NGOẠI VI, đúng khuôn `poi_recall.py` của E-DQ7c.** Đối chiếu ô với một raster độc lập —
+   **GHSL GHS-POP 2020 (100 m, R2023)** hoặc Meta HRSL — báo cáo tương quan hạng toàn quốc **và** mức đồng thuận
+   trên 146 ô bị cờ. Nếu nguồn thứ hai **cũng** đặt 29 nghìn người lên một pixel thì cờ sai; nếu nó trải ra thì
+   cờ được xác nhận. Không có bước này, 7f chỉ là một ý kiến nội bộ.
+6. **D6 — QA gate:** `no_unflagged_implausible_pixel` (không ô nào `max_px > 1.000` mà không có cờ) ·
+   `implausible_pop_share < 1%` (hiện **0,795%**) · `flagged_cell_count_drift` so với snapshot trước ·
+   đối soát `input = output + clipped` giữ nguyên.
+
+**Limitation (`DOC`):**
+
+- **Ngưỡng 1.000 người/pixel là tham số đặt tay**, chọn giữa p99,99 toàn quốc (**2.401**) và p99 hợp lệ của lõi
+  TP.HCM (**793**). Có dải an toàn rộng nhưng **không** có chân lý nền — cùng thân phận với ngưỡng 150 m của khu
+  chung cư ở E-DQ7c.
+- **Không sửa được nguyên nhân gốc trong scope.** Nguyên nhân nằm ở mặt nạ built-settlement của WorldPop; ta chỉ
+  **phát hiện và đánh dấu**. Phân bổ lại cho tử tế cần một lớp built-up **độc lập** (WorldCover đã có ở `landuse`,
+  hoặc Microsoft/Google building footprints) — ghi vào roadmap, **không** làm trong sprint này.
+- **Giả định tổng cấp xã là đúng.** 7f khẳng định *vị trí trong ô* sai, **không** khẳng định số người sai. Nếu
+  bản thân số liệu điều tra cấp xã sai thì cả hai bộ phát hiện đều mù — và không nguồn nào trong dự án kiểm được
+  điều đó.
+- **Thứ hạng bị xê dịch ⇒ khác E-DQ7e về bản chất.** Đây chính là lý do phải tách hai dòng: 7e an toàn với mọi
+  thứ downstream, 7f thì không.
 
 #### E-DQ7d — Proxy cầu chưa kiểm chứng ngoại vi (bước 7)
 

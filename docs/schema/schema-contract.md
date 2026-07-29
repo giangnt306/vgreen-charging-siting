@@ -65,6 +65,13 @@
 
 > Ô `OUTSIDE` tách sang `data/interim/demand/demand_h3_clipped_out.parquet` (cách ly, không xoá) để đối soát `input = output + clipped`. Các cột POI chỉ đếm điểm có `in_vn=True` (clip ở mức điểm, **E-DQ7a**) **và** `is_poi_primary=True` (khử trùng node/way, **E-DQ7c**). ⚠️ Recall OSM đo được: fuel **35,9%**, parking **8,6%** — đây là tín hiệu **tương đối**, không phải số đếm thực địa.
 
+> ⚠️ **Cột `pop` chưa chốt — hai vấn đề mở sẽ đổi giá trị của nó** (chẩn đoán 29/07). **`E-DQ7e`**: đổi sang raster
+> **UNadj** ⇒ Σ`pop` **99,62 M → 97,57 M** (−2,11%), **thứ hạng ô bất biến** (tỉ số là hằng số 0,979344, std 2,5e-08)
+> ⇒ mọi consumer xếp hạng (MCLP, `demand_weight`) **không** bị ảnh hưởng, nhưng mọi consumer **tuyệt đối**
+> (`coverage_pop`) thì có. **`E-DQ7f`**: thêm cờ `POP_PIXEL_IMPLAUSIBLE` + `n_px`/`max_px`/`top3_px_share`/`pop_lat`/`pop_lon`
+> cho **146 ô / 792.118 dân** bị dồn cục — cái này **có** xê dịch thứ hạng (17 ô trong top-500). Chi tiết:
+> [known-issues.md](../known-issues.md#e-dq7e--pop-chưa-hiệu-chuẩn-tuyệt-đối-bước-8).
+
 > Bảng này **chưa có một con số "trọng số demand" duy nhất** cho mỗi ô — đó chính là phần Giang bổ sung (mục 4): `demand_weight = f(pop, road, poi, …)`.
 
 ### 🟢 `candidate_sites` — tập điểm ứng viên cho MCLP (14 cột) · PK: `candidate_id`

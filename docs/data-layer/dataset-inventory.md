@@ -34,7 +34,7 @@
 | 1 | **evcs.vn** | Catalog trạm sạc + telemetry occupancy | crawl 21–22/07/2026; TS `2026-07-13 20:51` → `2026-07-21 00:32` | Proprietary (public map API) | **500 MB** |
 | 2 | **VinFast official** | Store locator first-party (ground truth xác minh) | generation 16, 58.577 locator | Proprietary (public locator) | **268 MB** |
 | 3 | **OpenStreetMap** | Đường (.pbf Geofabrik) + POI (Overpass) | replication seq **4852** @ `2026-07-20T20:21Z` | ODbL 1.0 | **318 MB** |
-| 4 | **WorldPop** | Dân số 2020 constrained (BSGM), UN-unadjusted | 2020 | CC-BY 4.0 | **26 MB** |
+| 4 | **WorldPop** | Dân số 2020 constrained (BSGM), UN-**unadjusted** ⚠️ **E-DQ7e** (đúng ra phải là bản **UNadj**: 99,627M → 97,569M, **+2,11%**) | 2020 | CC-BY 4.0 | **26 MB** |
 | 5 | **ESA WorldCover + OSM exclusion** | Land-cover 10 m (17 tile) + vùng cấm/trạm biến áp | WorldCover v200 / 2021 | CC-BY 4.0 / ODbL 1.0 | **1,03 GB** |
 | 6 | **EVN (biểu giá điện)** | Biểu giá điện trạm sạc → OpEx | 2026 | Văn bản pháp lý công khai | 12 KB |
 
@@ -111,6 +111,12 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 > + proxy cầu chỉ đạt ρ = **0,33** so với trần đo được **0,865** của occupancy thật, **644** ô có sạc thật mà
 > mọi input proxy = 0 (`E-DQ7d`, **chưa** — chẩn đoán 29/07, bàn giao **Kỳ**; con số cũ "ρ ≈ 0,30 · 983 ô" đã
 > được đính chính).
+> ⚠️ **Cột `pop` còn HAI vấn đề mở, đều chưa có cổng nào bắt được** (chẩn đoán 29/07): `E-DQ7e` — raster đang
+> dùng là bản **UN-unadjusted** nên mọi con số **tuyệt đối** lệch **+2,11%** (thứ hạng thì **bất biến**: tỉ số
+> UNadj là hằng số 0,979344, std 2,5e-08); `E-DQ7f` — **146 ô / 792.118 dân** bị BSGM dồn vào 1–5 pixel (đỉnh
+> **29.337 người/1 pixel 100 m**), trong đó **17 ô lọt top-500 `pop` toàn quốc** và **46 ô** là ứng viên T4 khi
+> chạy national. Ngưỡng mật độ ">48.000/km²" **không** bắt được ô nào trong 146 ô đó — nó bắt 67 ô lõi TP.HCM
+> **có thật**.
 > ⚠️ **Đọc `n_fuel`/`n_parking_off` như "số cây xăng/bãi đỗ" là SAI**: recall OSM đo được chỉ **35,9%** và
 > **8,6%**; riêng parking còn **lệch đô thị** (tỉ số tầng cao/thấp = 2,67). Chúng là tín hiệu **tương đối**.
 > **Chưa có cột `demand_weight`.** Xem [known-issues.md](../known-issues.md).

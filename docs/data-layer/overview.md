@@ -204,7 +204,8 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | 8b | **`E-DQ7b`** (Done 28/07) | `road_len` sai ngữ nghĩa                                      | `road_access_m` (lối vào, = `road_len_m` cũ) vs `road_len_m` (cầu, bỏ `track`/`service`); `road_len_mt_m` **khai tử** → `road_lane_mw_m` + `road_lane_ar_m` (lane-mét) + `road_bridge_m` |
 | 8c | **`E-DQ7c`** (Done 28/07) | POI thiếu & lẫn đơn vị                                       | `n_poi`+`n_parking` **khai tử** → 10 cột theo **lớp tag**; khu chung cư 5.157 toà→**1.370 khu**; 335 trùng node/way → `poi_physical_id`; recall ngoại vi **fuel 35,9% · parking 8,6%** |
 | 8d | `E-DQ7d` (chẩn đoán 29/07 → **Kỳ**) | Proxy cầu chưa kiểm chứng ngoại vi                           | `demand_weight` (gate ρ vs 18,6M occupancy) — trần target **0,865**, proxy **0,33**; trọng số **không** phải nút thắt (đảo trọng số vẫn 0,266); target thô 77% là **công suất**; **644** ô zero-input (**488** có xe sạc thật) |
-| 8e | `E-DQ7e`                        | `pop` chưa hiệu chuẩn                                        | `pop` (scale UN-adj) + cờ `POP_DENSITY_OUTLIER`                                                                              |
+| 8e | `E-DQ7e` (chẩn đoán 29/07)    | `pop` chưa hiệu chuẩn **tuyệt đối**                        | `pop` → đổi nguồn sang raster **UNadj** (99,627M → **97,569M**, **+2,11%**). Đo được: tỉ số là **hằng số 0,979344** (std 2,5e-08) ⇒ **thứ hạng bất biến** |
+| 8f | `E-DQ7f` (chẩn đoán 29/07)    | `pop` **phân bổ sai chỗ trong ô** (dasymetric spike)         | `pop` → cờ `POP_PIXEL_IMPLAUSIBLE` (**146 ô / 792.118 dân**, đỉnh **29.337 người/1 pixel**) + `POP_DENSITY_OUTLIER` **đổi ngữ nghĩa** thành advisory (67 ô lõi TP.HCM **có thật**) + `n_px`/`max_px`/`top3_px_share`/`pop_lat`/`pop_lon` |
 | 9  | `E-DQ8`                         | Dân cư không có đường                                      | `pop` vs `road_access_m` (**số đã chốt sau 7b: 6.350 ô / 1,268M dân**)                                          |
 | 10 | **`E-DQ9`** (Done 27/07)  | Grid toàn quốc / MVP 1 thành phố                              | `demand_h3` (toàn bảng) → AOI clip (`aoi.py`)                                                                              |
 | 11 | **`P5`** (Done 24/07)     | Chưa định nghĩa candidate site                                | — →[candidate-sites.md](candidate-sites.md)                                                                                      |
@@ -212,7 +213,8 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 
 > **Lưu ý:** #2, #10 và #8 là 3 điểm **thiếu trong kế hoạch gốc** — và #8 (audit cầu) là nơi khả năng lộ vấn đề thật cao nhất vì demand chính là hàm mục tiêu. (#2 **E-DQ2** đã đóng 27/07 — identity resolution `physical_id`, **không** dedup H3 thô; chi tiết [known-issues.md](../known-issues.md#e-dq2--trùng-chéo-nguồn-evcs--official-bước-2).)
 >
-> **Dự đoán đó đã đúng.** Audit sơ bộ 28/07 tách #8 thành **5 vấn đề độc lập (`E-DQ7a`–`E-DQ7e`)**, trong đó **2 lỗi
+> **Dự đoán đó đã đúng.** Audit sơ bộ 28/07 tách #8 thành **5 vấn đề độc lập (`E-DQ7a`–`E-DQ7e`)** — nay là **6**
+> (`E-DQ7a`–`E-DQ7f`, tách tiếp 29/07, xem đính chính bên dưới), trong đó **2 lỗi
 > nghiêm trọng**: **53,3% POI không nằm trong lãnh thổ VN** (`VN_BBOX` thô, không clip biên giới → 6.889 ô "ma" trong
 > lưới) và **proxy cầu gần như không dự báo được nhu cầu sạc thật** (ρ ≈ 0,30 trên 18,6M bản ghi occupancy; 983 ô có
 > sạc thật nhưng proxy = 0). Chi tiết + bằng chứng: [known-issues.md §2](../known-issues.md#2-bảng-tổng-hợp-vấn-đề-đã-gộp).
@@ -225,6 +227,17 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 > — ρ(occ, số súng) = **0,773**, AC/DC chênh **13×**; (c) **trọng số không phải nút thắt** — fit tối ưu 0,329 vs
 > **đảo trọng số 0,266** vs `pop` đơn 0,261, tức nút thắt là **tập feature** (thiếu dòng chảy), làm **P1** bị bác
 > tiền đề. Chi tiết: [known-issues.md — E-DQ7d](../known-issues.md#e-dq7d--proxy-cầu-chưa-kiểm-chứng-ngoại-vi-bước-7).
+>
+> ⚠️ **Đính chính (29/07) — `E-DQ7e` tách đôi, và cả hai con số của nó đều sai.** Dòng cũ gộp hai khuyết tật
+> **độc lập về cả nguyên nhân lẫn hậu quả**: (a) **`E-DQ7e`** — mức tuyệt đối sai vì dùng raster UN-**unadjusted**;
+> đã tải bản UNadj về differ từng pixel: tỉ số là **hằng số quốc gia 0,979344** (std **2,5e-08**) ⇒ **thứ hạng bất
+> biến từng bit**, chênh lệch đúng là **+2,11%** so với **97,569 M** (con số cũ "+2,35% so 97,34M" so với **UN WPP**,
+> không phải sản phẩm WorldPop nào). (b) **`E-DQ7f`** — `pop` bị **dồn cục trong ô**: **146 ô / 792.118 dân** nằm
+> trên 1–5 pixel, đỉnh **29.337 người trên MỘT pixel 100 m** (= 2,9M người/km²), tập trung ở núi Đông Bắc và Phú
+> Quốc. Quan trọng nhất: ngưỡng `POP_DENSITY_OUTLIER` cũ (>48.000/km²) **bắt trọn 67 ô lõi TP.HCM có thật** (liền
+> khối, ~100 pixel/ô) và **bỏ lọt 100%** ô hỏng — **giao của hai tập = 0**, cùng họ lỗi với cổng `poi_coords_in_vn`
+> ở E-DQ7a. Chi tiết: [known-issues.md — E-DQ7e](../known-issues.md#e-dq7e--pop-chưa-hiệu-chuẩn-tuyệt-đối-bước-8) ·
+> [E-DQ7f](../known-issues.md#e-dq7f--pop-phân-bổ-sai-chỗ-trong-ô-dasymetric-spike-bước-9).
 >
 > **Vì sao lỗi bị bỏ sót:** `osm/validate.py` chỉ kiểm POI nằm trong `VN_BBOX` — **đúng cái hộp sinh ra lỗi** →
 > cổng PASS suốt. `demand_h3` khi đó là bảng **duy nhất** chưa có cổng QA (cung có 3 validator + 2 khối 5 cổng),

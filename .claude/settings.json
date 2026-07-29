@@ -94,7 +94,10 @@
       "Bash(sed -i 's/j\\\\.pop\\\\.isna\\(\\)/j[\"pop\"].isna\\(\\)/' edq7d_cell.py)",
       "Bash(PYTHONPATH=/home/wanderer210/Documents/AI/vgreen-charging-siting/src timeout 1200 python edq7d_cell.py)",
       "Bash(PYTHONPATH=/home/wanderer210/Documents/AI/vgreen-charging-siting/src timeout 1800 python edq7d_fixes.py)",
-      "Bash(awk -F'|' 'NR>=31 && NR<=60 {print NR\": \"NF\" cols\"}' docs/known-issues.md)"
+      "Bash(awk -F'|' 'NR>=31 && NR<=60 {print NR\": \"NF\" cols\"}' docs/known-issues.md)",
+      "Bash(python -c \"import shapely, pyogrio\")",
+      "Bash(curl -sI --max-time 25 \"https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_UNadj_constrained.tif\")",
+      "Bash(curl -s --max-time 300 -o unadj.tif \"https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_UNadj_constrained.tif\")"
     ]
   }
 }
