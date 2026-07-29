@@ -109,6 +109,19 @@ def source_specs() -> list[dict]:
     from ..osm import paths as osm
     from ..worldpop import paths as wp
     from ..landuse import paths as lu
+    from ..vnsdi import paths as vnsdi
+
+    # Provenance của VNSDI: endpoint.json ghi thời điểm crawl + count/tỉnh (token
+    # referer-bound nên KHÔNG lưu; cái checksum được là các trang geojson thô).
+    vnsdi_version = {}
+    if vnsdi.ENDPOINT_JSON.exists():
+        try:
+            e = json.loads(vnsdi.ENDPOINT_JSON.read_text(encoding="utf-8"))
+            vnsdi_version = {"retrieved_at": e.get("retrieved_at"),
+                             "service": e.get("service"),
+                             "server_count": e.get("server_count")}
+        except Exception:
+            pass
 
     # Provenance thời gian của evcs lấy từ quality_report (cửa sổ telemetry occupancy).
     evcs_window = {}
@@ -194,6 +207,17 @@ def source_specs() -> list[dict]:
             "members": [
                 {"role": "worldcover_tiles", "path": lu.WC_TILE_DIR, "kind": "dir"},
                 {"role": "osm_exclusion", "path": lu.OSM_EXCL_DIR, "kind": "dir"},
+            ],
+        },
+        {
+            "id": "vnsdi",
+            "name": "VNSDI 34DVHC cấp xã (ranh giới + dân số 2025, MAE) [E-DQ7f]",
+            "retrieval_url": "https://vnsdi.mae.gov.vn/basemap/rest/services/34DVHC/MapServer/2",
+            "license": "Bản đồ nền công khai VNSDI (Bộ Nông nghiệp & Môi trường)",
+            "vintage": vnsdi_version,
+            "members": [
+                {"role": "commune_pages", "path": vnsdi.PAGES_DIR, "kind": "dir"},
+                {"role": "endpoint_meta", "path": vnsdi.ENDPOINT_JSON, "kind": "file"},
             ],
         },
     ]

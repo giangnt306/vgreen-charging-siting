@@ -1,4 +1,4 @@
-.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand poi-recall
+.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand poi-recall vnsdi
 
 CITY ?= hanoi
 
@@ -30,6 +30,10 @@ canonical:  ## Transform master CSV -> canonical parquet (stations/connectors, c
 
 official:  ## Fetch official VinFast source registry (verified cross-ref) -> data/interim/vinfast_official/
 	PYTHONPATH=src python -m ev_siting.data.vinfast_official.fetch_locators bulk
+
+vnsdi:  ## Crawl VNSDI commune polygons + population (2025) -> data/interim/vnsdi/  [E-DQ7f]
+	PYTHONPATH=src python -m ev_siting.data.vnsdi.fetch_communes crawl
+	PYTHONPATH=src python -m ev_siting.data.vnsdi.fetch_communes parse
 
 boundary:  ## Extract VN territory + province polygons from the frozen .pbf  [E-DQ7a, unlocks E-DQ3]
 	PYTHONPATH=src python -m ev_siting.data.osm.vn_boundary

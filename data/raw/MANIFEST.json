@@ -1,7 +1,7 @@
 {
   "schema": "vgreen.snapshot-manifest/1",
   "snapshot_id": "2026-07-20",
-  "frozen_at": "2026-07-29T10:52:33.373448+07:00",
+  "frozen_at": "2026-07-29T15:21:30.579216+07:00",
   "hash_algo": "sha256",
   "content_hashed": true,
   "project_root": "/home/wanderer210/Documents/AI/vgreen-charging-siting",
@@ -352,6 +352,209 @@
               "sha256": "375909d4f9917863a9d00c90e0ca6f3ded0ad8c0cb142775ee74dbc2316815f1"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "vnsdi",
+      "name": "VNSDI 34DVHC cấp xã (ranh giới + dân số 2025, MAE) [E-DQ7f]",
+      "retrieval_url": "https://vnsdi.mae.gov.vn/basemap/rest/services/34DVHC/MapServer/2",
+      "license": "Bản đồ nền công khai VNSDI (Bộ Nông nghiệp & Môi trường)",
+      "vintage": {
+        "retrieved_at": "2026-07-29T08:18:16.207837+00:00",
+        "service": "34DVHC/MapServer/2",
+        "server_count": 3321
+      },
+      "members": [
+        {
+          "role": "commune_pages",
+          "path": "data/raw/vnsdi/pages",
+          "kind": "dir",
+          "present": true,
+          "n_files": 34,
+          "total_bytes": 33932381,
+          "tree_sha256": "c7573fbd1ad95ff81ca190d4d66e913441662bf4fc16dc8b5e2bb8b92217eaa6",
+          "files": [
+            {
+              "path": "01.geojson",
+              "bytes": 508370,
+              "sha256": "5dcefd91155a2594f17e84c7e2ccedb420f5353bc392ee6d0a4713960abc74ce"
+            },
+            {
+              "path": "04.geojson",
+              "bytes": 623504,
+              "sha256": "c6666fc33a978a45f9a1bc5794351d6074b60a53cf3891e5e6a6cc4defa8dc6b"
+            },
+            {
+              "path": "08.geojson",
+              "bytes": 1336289,
+              "sha256": "8e450cc969484587d675154fbb1398d4cbb27201f24c8f0d880217c64f26cb1e"
+            },
+            {
+              "path": "11.geojson",
+              "bytes": 610979,
+              "sha256": "758c8760632115be8a396eaba04bfc15b6427c960b5929812391ee902b2fcfef"
+            },
+            {
+              "path": "12.geojson",
+              "bytes": 506348,
+              "sha256": "124cc7fbe8e11e505e13cbd64938fc9888fdfedf8be77feaa94d4cc7deb72774"
+            },
+            {
+              "path": "14.geojson",
+              "bytes": 844988,
+              "sha256": "4b665a3953e5b7f4bdaf6dc462a00a37150ba46b25d4685cc44c72a0a6159c20"
+            },
+            {
+              "path": "15.geojson",
+              "bytes": 1084819,
+              "sha256": "a6a1b567975e922cccc9733a8235bb970c94e31485d19ea067373b667c2b91f7"
+            },
+            {
+              "path": "19.geojson",
+              "bytes": 800568,
+              "sha256": "93c7964e11fadaf50677ae1cd974b0438651f750d5cf39eafb754aec395fec59"
+            },
+            {
+              "path": "20.geojson",
+              "bytes": 747399,
+              "sha256": "47f5f06a5f651e739b1c4253ea571d6a3f62df0c71e3c0bcd45bc2792ab70e1a"
+            },
+            {
+              "path": "22.geojson",
+              "bytes": 1928604,
+              "sha256": "e88ef60ad0f53388e563915ab3b3238e19f5033b2ef5bcb4b36462c78986c078"
+            },
+            {
+              "path": "24.geojson",
+              "bytes": 619078,
+              "sha256": "2833c3e63f2030a2c9283431dcc5700162dbd886da22c69b6ee06faab843eb01"
+            },
+            {
+              "path": "25.geojson",
+              "bytes": 1038916,
+              "sha256": "c4e061596e6c0990e92b9243e79adf98c0b46c1ed71b2c210d1944524feaf579"
+            },
+            {
+              "path": "31.geojson",
+              "bytes": 777058,
+              "sha256": "ebb2add6edd2b06580589ae9807a0fe9cb46571e712b5903edc5f68aa71956f7"
+            },
+            {
+              "path": "33.geojson",
+              "bytes": 531491,
+              "sha256": "6b0fd379f28aa4fe50cd490f071479623489ab95ed19e685d2872e28b631b107"
+            },
+            {
+              "path": "37.geojson",
+              "bytes": 633754,
+              "sha256": "1228ed5b56131ce0c544f72280e42afff8a5ae2cca82acdff5e025d7b4a0b064"
+            },
+            {
+              "path": "38.geojson",
+              "bytes": 1224584,
+              "sha256": "5fa4d06be60ae1aeec3a0a15ce3e19bb811df2d2546c98c56abb38008584c463"
+            },
+            {
+              "path": "40.geojson",
+              "bytes": 1419514,
+              "sha256": "e35d40c0d11996841a07bcad2b877c04b924f881fda6ce65420393558c6edf41"
+            },
+            {
+              "path": "42.geojson",
+              "bytes": 594643,
+              "sha256": "cc08fd561ccf2867d515bb38082343713927c38f0218bd480154738b8fb590dc"
+            },
+            {
+              "path": "44.geojson",
+              "bytes": 1137395,
+              "sha256": "764cc30c61fdce54f63886df9f78b4922e9d4b770bd2c1ca41ef3bd44d7598b0"
+            },
+            {
+              "path": "46.geojson",
+              "bytes": 456072,
+              "sha256": "52989539666e2ada2433f0cb9b6dd3f6deed9765b16cad629d7efce1b1c9845d"
+            },
+            {
+              "path": "48.geojson",
+              "bytes": 1531051,
+              "sha256": "4266e187a3d14bfed42b22c3fbe8769c7fba72d4962cba6980080386eddef078"
+            },
+            {
+              "path": "51.geojson",
+              "bytes": 1218707,
+              "sha256": "81b2669b2e7aa0ff2db868425ffe90bcdad762d4c9cad1d3ac1b54e4794a7d45"
+            },
+            {
+              "path": "52.geojson",
+              "bytes": 1620857,
+              "sha256": "628cc466bd5e69010701d10cc0561c637bf33178d0f02f591de0a1ee0b977b5d"
+            },
+            {
+              "path": "56.geojson",
+              "bytes": 3071927,
+              "sha256": "f7ab48891300d86ce6d03cb5bb0a50b6335fca89f5a0a6f0b855007701b60a92"
+            },
+            {
+              "path": "66.geojson",
+              "bytes": 1694161,
+              "sha256": "801e82d7ad49b224415250814e98ed8cacbdb4fbeb74dac0737303bf622f606f"
+            },
+            {
+              "path": "68.geojson",
+              "bytes": 1438952,
+              "sha256": "33ce46d421772dbd0559cf786be7ddbb409b432ac285be9f47727f7995cd3a14"
+            },
+            {
+              "path": "75.geojson",
+              "bytes": 998013,
+              "sha256": "985b57f483bd00b8b13826cfa79d4cd817ecae0da26b674b1ae755c9703810fd"
+            },
+            {
+              "path": "79.geojson",
+              "bytes": 916309,
+              "sha256": "0005b8628a80d0e674925f07b5e3c61ca0b9d633a9e548e7ca26a11d7c8aea27"
+            },
+            {
+              "path": "80.geojson",
+              "bytes": 641986,
+              "sha256": "bf0c7c282a0270eb08d8396736e7446b8ddd2b855303ad3fbba4c9bdd1725829"
+            },
+            {
+              "path": "82.geojson",
+              "bytes": 581237,
+              "sha256": "c7c2fb21c27a8a593fafd24240ca81ce3fa399dfd9583b0069965de55017b326"
+            },
+            {
+              "path": "86.geojson",
+              "bytes": 703749,
+              "sha256": "89d8d55fa41e420abb59902b732430ae453a92562ebd9e25678fa248dcadd610"
+            },
+            {
+              "path": "91.geojson",
+              "bytes": 855300,
+              "sha256": "adf153a4414db8ca1503c56f6d6bef9704c8fe30cf789c34f735d177b146a69f"
+            },
+            {
+              "path": "92.geojson",
+              "bytes": 651680,
+              "sha256": "ab7370c45d9676cebdee52cdede5891db5f0d93352ee592ce08095a193a6cd09"
+            },
+            {
+              "path": "96.geojson",
+              "bytes": 584079,
+              "sha256": "0c3ca55497976328bfaeb0204bcab9957ad9c6568964be6c0d3bd05cebc31d02"
+            }
+          ]
+        },
+        {
+          "role": "endpoint_meta",
+          "path": "data/raw/vnsdi/endpoint.json",
+          "kind": "file",
+          "present": true,
+          "bytes": 953,
+          "modified": "2026-07-29T15:18:16.208061+07:00",
+          "sha256": "83e32c6299e0b77a30092070978619be689627bd6864d886eacbdffb5a5cc2aa"
         }
       ]
     }
