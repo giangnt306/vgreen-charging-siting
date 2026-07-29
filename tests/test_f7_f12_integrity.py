@@ -9,6 +9,7 @@ from ev_siting.data.evcs.evcs_enumerate import (
     _load_resume_checkpoint,
     _resume_force_seeds,
     _save_checkpoint_atomic,
+    coverage_radius,
 )
 from ev_siting.data.evcs import transform_canonical
 from ev_siting.data.vinfast_official.match_official import enrich, match
@@ -74,6 +75,18 @@ def test_f8_resume_reseeds_only_found_station_outside_coverage():
     }
     out = _resume_force_seeds(found, (8.0, 23.6, 102.0, 110.0), [21.0], [105.8], [5.0])
     assert out == [(21.2, 106.0, True)]
+
+
+def test_f8_sparse_response_proves_the_same_coverage_disc_as_a_capped_one():
+    """Cap KHÔNG ràng buộc (<50) = server đã trả hết -> đĩa max(dist) vẫn phủ đầy đủ.
+
+    Hạ bán kính về 0 ở nhánh thưa chỉ bắt mọi seed sau query lại (resume ~9,5h) mà
+    không mua thêm trạm nào; rủi ro cụm >50 do force-seed F8 xử lý.
+    """
+    assert coverage_radius([{"dist": 1.0}, {"dist": 4.2}, {"dist": 2.0}]) == 4.2
+    assert coverage_radius([{"dist": i / 10} for i in range(50)]) == 4.9
+    assert coverage_radius([{"dist": None}, {"dist": 3.0}]) == 3.0
+    assert coverage_radius([]) == 0.0
 
 
 def test_f7_rejects_xref_from_different_master(tmp_path, monkeypatch):

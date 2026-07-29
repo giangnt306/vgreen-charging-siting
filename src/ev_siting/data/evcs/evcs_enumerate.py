@@ -13,6 +13,8 @@ Vì sao cần: sitemap chỉ có 702 trang khu vực (không có mã trạm); m�
   Bất biến phủ: 1 truy vấn tại q trả 50 trạm gần nhất, trạm thứ 50 cách q = R_q.
   => MỌI trạm trong bán kính R_q quanh q đều đã được trả về. Nên bỏ qua seed nào
   nằm trong đĩa (q, R_q) đã truy vấn -> vùng thưa R_q lớn nên rất ít lệnh.
+  Response < 50 phủ được đĩa của chính nó theo lập luận mạnh hơn — xem
+  `coverage_radius()`.
 
 Kết quả:
   - evcs_stations.csv : 1 dòng / trạm (mã + toạ độ + tên + totalCharging...)
@@ -115,6 +117,27 @@ def rec_from_search(s):
         "n_battery": s.get("nBattery"),
         "n_battery_avail": s.get("nBatteryAvail"),
     }
+
+
+def coverage_radius(data) -> float:
+    """Bán kính (km) quanh điểm truy vấn mà response này đã liệt kê ĐẦY ĐỦ.
+
+    Trả `max(dist)` cho **cả hai** nhánh, vì cả hai đều chứng minh được đĩa phủ:
+
+    * `len(data) == 50` — cap ràng buộc, nhưng server trả 50 trạm *gần nhất*, nên
+      không trạm nào gần hơn `max(dist)` có thể bị bỏ sót.
+    * `len(data) < 50` — cap **không** ràng buộc: server đã trả hết những gì nó có
+      quanh điểm đó. Kết luận phủ ở đây không cần cả giả định sắp xếp theo khoảng
+      cách, tức là *chắc hơn* nhánh cap chứ không yếu hơn.
+
+    Bản trước đặt `0.0` cho nhánh thưa cho "an toàn". Đó là bảo thủ sai chỗ: nó vứt
+    đúng bằng chứng phủ mà lần truy vấn vừa trả tiền để có, nên mọi seed kế tiếp
+    trong vùng thưa đều phải query lại — resume toàn quốc ≈ 9,5h mà không phát hiện
+    thêm trạm nào. Rủi ro thật ở nhánh cap (cụm >50 trạm bị cắt) do force-seed F8
+    xử lý, không phải do hạ bán kính phủ về 0.
+    """
+    dists = [s["dist"] for s in data if s.get("dist") is not None]
+    return max(dists) if dists else 0.0
 
 
 def _load_resume_checkpoint(path: str) -> tuple[list[float], list[float], list[float]]:
@@ -511,17 +534,13 @@ def main():
 
         def record(data, lat, lng):
             nonlocal qa_lat, qa_lng, qa_r
-            dists = [s["dist"] for s in data if s.get("dist") is not None]
-            R = max(dists) if dists else 0.0
-            # Chỉ cap=50 chứng minh được đĩa phủ; không nới 5% không có bằng
-            # chứng. Response <50 không được phép làm seed khác bị skip.
-            R_cov = R if len(data) >= 50 else 0.0
+            R = coverage_radius(data)
             q_lat.append(lat)
             q_lng.append(lng)
-            q_r.append(R_cov)
+            q_r.append(R)
             qa_lat = np.append(qa_lat, lat)
             qa_lng = np.append(qa_lng, lng)
-            qa_r = np.append(qa_r, R_cov)
+            qa_r = np.append(qa_r, R)
             new = 0
             for s in data:
                 code = s.get("code")

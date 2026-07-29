@@ -115,13 +115,30 @@ def export(out_dir: Path) -> Path:
 
         station_hash, station_files, station_bytes = _tree_sha256(tmp / "canonical" / "stations")
         connector_hash, connector_files, connector_bytes = _tree_sha256(tmp / "canonical" / "connectors")
+        # F18 chuyển output của `merge_catalog` từ `data/raw/` sang `data/interim/`, nên
+        # catalog KHÔNG còn nằm trong MANIFEST frozen (manifest chỉ phủ `data/raw/`).
+        # HANDOFF.json vì thế là neo toàn vẹn DUY NHẤT còn lại cho artefact dẫn xuất
+        # này: ghi hash + đường dẫn nguồn interim + role thô đã freeze mà nó dẫn ra.
+        # Đối chiếu nguồn SAU khi copy: `merge_catalog` ghi không atomic (open("w")),
+        # nên một lần merge chạy song song sẽ cho bản copy rách mà không gì báo.
+        catalog_sha = _sha256(tmp / "catalog.csv")
+        catalog_source_sha = _sha256(CATALOG_CSV)
+        if catalog_sha != catalog_source_sha:
+            raise SystemExit(
+                f"F10 FAIL: {CATALOG_CSV} đổi trong lúc export (nguồn {catalog_source_sha[:12]} "
+                f"≠ bản copy {catalog_sha[:12]}); dừng merge_catalog rồi chạy lại"
+            )
         handoff = {
             "schema": "vgreen.evcs-handoff/1",
             "created_at": datetime.now(timezone.utc).astimezone().isoformat(),
             "snapshot_id": manifest["snapshot_id"],
             "source_manifest_sha256": _sha256(snapshot_manifest.MANIFEST_PATH),
             "catalog": {"rows": catalog_rows,
-                        "sha256": _sha256(tmp / "catalog.csv")},
+                        "sha256": catalog_sha,
+                        "source": {"path": CATALOG_CSV.relative_to(PROJECT_ROOT).as_posix(),
+                                   "sha256": catalog_source_sha,
+                                   "bytes": CATALOG_CSV.stat().st_size,
+                                   "derived_from_manifest_role": "evcs/catalog"}},
             "telemetry": {"sha256": _sha256(tmp / "load_ts.csv"),
                           "bytes": (tmp / "load_ts.csv").stat().st_size},
             "stations": {"rows": len(stations), "tree_sha256": station_hash,
@@ -135,7 +152,10 @@ def export(out_dir: Path) -> Path:
         }
         (tmp / "HANDOFF.json").write_text(json.dumps(handoff, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         os.replace(tmp, out_dir)
-    except Exception:
+    except BaseException:
+        # BaseException, không phải Exception: cổng `SystemExit` ở trên nằm TRONG khối
+        # này, và một lần Ctrl-C giữa copytree canonical cũng phải dọn, không để lại
+        # `.<name>.tmp-*` nửa vời cạnh bundle thật.
         shutil.rmtree(tmp, ignore_errors=True)
         raise
     print(f"[F10] bundle -> {out_dir}")
