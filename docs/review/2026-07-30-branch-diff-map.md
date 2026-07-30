@@ -446,3 +446,15 @@ Hai quyết định B2 tự chốt (đã ghi ở trên): raster 2025 = unadjuste
 6. Dấu ☑ nhóm F trong register đo trên nhánh Kỳ — tái kiểm khi rebuild.
 7. `crawl-validate` giờ FAIL (không chỉ WARN) khi manifest không đối chiếu được — hành vi cố ý (F-fix của Kỳ), lưu ý môi trường chưa freeze.
 8. `make export-handoff` fail-fast nếu TS_DIR ≠ tầng 168h và không truyền `TELEMETRY=` — cố ý (FX-05).
+
+---
+
+## Rebuild dữ liệu đầy đủ — 2026-07-30 → 31
+
+Toàn chuỗi dẫn xuất rebuild từ raw trên `integrate/final` (log gate trong `data/interim/**/*_report.json`):
+
+- Raw bổ sung: raster 2020 UNadj (sha256 khớp manifest từng byte), VNSDI crawl tươi (3.321 xã — `commune_pages` trùng hash bản 29/07, số E-DQ7f tái lập chính xác). Registry official fetch mới gen 210.
+- Chuỗi: boundary → roads_pbf → osm → worldpop(2 vintage) → reconcile-pop → demand → settlement → landuse-national → **official → match-official → canonical → resolve-config → export-supply** → candidates-national → covered0-national → export-handoff(720h). Hai lệch so thứ tự đề ra, đều do phụ thuộc thật: (1) covered0 fail-fast trên canonical stale (thiếu cột E-DQ4) → canonical dựng trước, candidates/covered0 chạy lại sau; (2) `make official` bị khóa read-only của freeze chặn → mở khóa đúng phạm vi, re-freeze khóa lại.
+- Kết quả: mọi QA gate PASS (1 WARN không chặn: `poi_recall_bias_parking_off` 2,44); **pytest 161/161, 0 skip**; `verify-snapshot HASHES=1` PASS trên snapshot mới `2026-07-30` (entry vn_admin tự rớt đúng thiết kế); bundle handoff `evcs_vn_2026-07-30` (19.805 trạm/24.787 connector, telemetry 720h, 1,06 GB).
+- Con số chốt (đo từ artefact): master 28.923 · canonical 19.805/24.787 · cung 19.086 + 719 loại = 19.805 · lưới demand 314.934 (INSIDE 311.447/BORDER 3.487) · Σpop_adj 97.083.046 (−0,499%) · Σpop_2025 101,30M · buildable 59.926/314.934 (19,0%) · candidates 16.659 · covered0 18.928/15.552.
+- Nợ đã đóng so danh sách B5: raw thiếu ✓ · verify-snapshot ✓ · 3 test VNSDI hết skip ✓ · số docs "(cần đo lại)" ✓ · dấu ☑ nhóm F tái kiểm ✓. Còn lại: test riêng cho export_handoff.py; token VNSDI trong lịch sử data/giang vẫn phải rotate (không phụ thuộc repo này); mirror HF chưa đồng bộ thế hệ mới.
