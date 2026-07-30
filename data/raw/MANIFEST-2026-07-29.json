@@ -1,10 +1,11 @@
 {
   "schema": "vgreen.snapshot-manifest/1",
-  "snapshot_id": "2026-07-30",
-  "frozen_at": "2026-07-30T23:46:01.733958+07:00",
+  "snapshot_id": "2026-07-29",
+  "frozen_at": "2026-07-29T22:01:52.038498+07:00",
   "hash_algo": "sha256",
   "content_hashed": true,
   "project_root": "/home/n91ym1nhky/Work/internVSF/aGiang-evcs",
+  "merge_note": "Hợp nhất thủ công 2026-07-30 (integrate/final): nền = snapshot 2026-07-29 (devky/review-dataset); bổ sung từ bản re-freeze 2026-07-20 của data/giang (frozen_at 2026-07-29T15:21:30+07:00): nguồn vnsdi, worldpop/population_raster đổi sang 2020 UN-adjusted (E-DQ7e) + population_raster_unadjusted_legacy. Member gốc Giang được băm trên máy Giang — vnsdi/pages và raster UNadj chưa có trên đĩa này, cần copy raw trước khi `make verify-snapshot` PASS. Sau tích hợp chạy lại `make freeze` (snapshot 2026-07-30) làm bản chân lý duy nhất; bản gốc 2026-07-20 giữ ở MANIFEST-2026-07-20.json.",
   "sources": [
     {
       "id": "evcs",
@@ -146,8 +147,8 @@
       "retrieval_url": "https://vinfastauto.com (store locator API)",
       "license": "Proprietary (public locator, ground-truth đối soát)",
       "vintage": {
-        "generation": 210,
-        "count": 61333
+        "generation": 16,
+        "count": 58577
       },
       "members": [
         {
@@ -155,18 +156,18 @@
           "path": "data/raw/vinfast_official/locators_meta.json",
           "kind": "file",
           "present": true,
-          "bytes": 100,
-          "modified": "2026-07-30T23:39:54.829715+07:00",
-          "sha256": "8d37a4bf01431f55f70c0b86d1ecf968d7508a572582cf06b9395e4ff8135643"
+          "bytes": 97,
+          "modified": "2026-07-28T11:08:04.838929+07:00",
+          "sha256": "8e4cac606d3253a2b3b30d619990ff12cece908942c0fed71ca48ac319e3af71"
         },
         {
           "role": "locators_full",
           "path": "data/raw/vinfast_official/locators_full.json",
           "kind": "file",
           "present": true,
-          "bytes": 63513498,
-          "modified": "2026-07-30T23:40:04.052682+07:00",
-          "sha256": "da8430022902be1135480933bf92c438870b4f460ea4e15a4d8a3f2a2b128dae"
+          "bytes": 60940742,
+          "modified": "2026-07-28T11:08:06.469955+07:00",
+          "sha256": "85e00caf12b42d0d2a594ff4d1d9fb2a479f0b914f50b8c6534a169889ba90d3"
         },
         {
           "role": "station_details",
@@ -279,7 +280,7 @@
           "kind": "file",
           "present": true,
           "bytes": 17612362,
-          "modified": "2026-07-30T23:18:59.052976+07:00",
+          "modified": "2026-07-29T10:36:39.415444+07:00",
           "sha256": "02f0265983f206f5095a9099cb5f212ae62deb1dd54664109550313b82252ef0"
         },
         {
@@ -288,7 +289,7 @@
           "kind": "file",
           "present": true,
           "bytes": 26519892,
-          "modified": "2026-07-28T11:08:23.885240+07:00",
+          "modified": "2026-07-22T08:46:39.277995+07:00",
           "sha256": "ce1e774cdbfd03a63548afb7228b5d2b03d8b976ea9ac5fdd62617be5d6dcf6f"
         },
         {
@@ -299,6 +300,41 @@
           "bytes": 73771675,
           "modified": "2026-07-29T17:40:15.055082+07:00",
           "sha256": "4c96bd6bf615870db131f8d465c58efb2d70072b5024d023be2cea8e87cb245a"
+        }
+      ]
+    },
+    {
+      "id": "vn_admin",
+      "name": "Ranh gioi hanh chinh VN 2025-07-01 (34 tinh, 2 cap) — OSM adm6",
+      "retrieval_url": "OpenStreetMap adm6 (dan xuat, luu trong repo)",
+      "license": "ODbL 1.0 (OpenStreetMap contributors) — VAULT-only, xem admin_join.py",
+      "vintage": "valid_from=2025-07-01 (sau sap nhap 2025)",
+      "members": [
+        {
+          "role": "boundary_layer",
+          "path": "data/ref/vn_admin/valid_from=2025-07-01",
+          "kind": "dir",
+          "present": true,
+          "n_files": 3,
+          "total_bytes": 51162690,
+          "tree_sha256": "9979474859c9601981edc0bd82c07485837696d973b8a919eb768a33baac800d",
+          "files": [
+            {
+              "path": "_admin_report.json",
+              "bytes": 926,
+              "sha256": "673bd20704f824729ff32e269e0b02d89c0bc1ad38feaaebb2a4dc0ce2c2764d"
+            },
+            {
+              "path": "communes.parquet",
+              "bytes": 45355761,
+              "sha256": "b05c25eea7ebc626fc2255ca5db3daf296b1269cad0c3821969a1f8665fe1708"
+            },
+            {
+              "path": "provinces.parquet",
+              "bytes": 5806003,
+              "sha256": "f17ef6f349a8d21ce42bd7539574b0aab518332d8b7718496796780fc6aba6a2"
+            }
+          ]
         }
       ]
     },
@@ -437,7 +473,7 @@
       "retrieval_url": "https://vnsdi.mae.gov.vn/basemap/rest/services/34DVHC/MapServer/2",
       "license": "Bản đồ nền công khai VNSDI (Bộ Nông nghiệp & Môi trường)",
       "vintage": {
-        "retrieved_at": "2026-07-30T16:28:38.761995+00:00",
+        "retrieved_at": "2026-07-29T08:18:16.207837+00:00",
         "service": "34DVHC/MapServer/2",
         "server_count": 3321
       },
@@ -629,8 +665,8 @@
           "kind": "file",
           "present": true,
           "bytes": 953,
-          "modified": "2026-07-30T23:28:38.762198+07:00",
-          "sha256": "240610f76a761a93146d25109173d3ea7d7f8d78ac2ac37f4ce94b54f67c4de1"
+          "modified": "2026-07-29T15:18:16.208061+07:00",
+          "sha256": "83e32c6299e0b77a30092070978619be689627bd6864d886eacbdffb5a5cc2aa"
         }
       ]
     }
