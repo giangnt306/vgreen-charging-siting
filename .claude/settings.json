@@ -182,7 +182,13 @@
       "Bash(PYTHONPATH=src python /tmp/claude-1000/-home-wanderer210-Documents-AI-vgreen-charging-siting/a04a45e2-de99-4038-8e86-dce3e225891f/scratchpad/shift.py)",
       "Bash(grep -n 'pop_adj\\)\\\\`' docs/known-issues.md)",
       "Bash(grep -n '6.350 \\(`pop`\\) → 6.467' docs/known-issues.md)",
-      "Bash(grep -n \"buildable_h3, E-DQ8\\\\|POP_NO_ROAD\\\\` giả\\\\|pop · \\\\`road_access_m\\\\` · E-DQ8\" docs/known-issues.md)"
+      "Bash(grep -n \"buildable_h3, E-DQ8\\\\|POP_NO_ROAD\\\\` giả\\\\|pop · \\\\`road_access_m\\\\` · E-DQ8\" docs/known-issues.md)",
+      "Bash(grep -n \"^#\\\\{2,4\\\\} \" docs/known-issues.md)",
+      "Bash(PYTHONPATH=src python -m ev_siting.data.evcs.resolve_config --dump)",
+      "Bash(PYTHONPATH=src python -m pytest tests/test_config_semantics.py -q)",
+      "Bash(make canonical *)",
+      "Bash(sed -n '/E-DQ4/,/QA gates \\(8/p')",
+      "Bash(make resolve-config *)"
     ]
   }
 }

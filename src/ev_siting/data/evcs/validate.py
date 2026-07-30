@@ -28,6 +28,9 @@ from .paths import MASTER_CSV as MASTER, TS_DIR, QUALITY_REPORT as REPORT, PROJE
 REQUIRED_COLS = [
     "station_code", "station_type", "has_timeseries", "ts_n_rows",
     "ts_time_start_ms", "ts_time_end_ms", "quality_flag",
+    # E-DQ4: trước đây các cột cấu hình KHÔNG có trong danh sách này -> chúng biến mất
+    # cũng không ai biết. `ts_val_max` là NHÂN CHỨNG ngoại vi cho `num_connectors`.
+    "num_connectors", "current_type", "max_power_kw", "total_power_kw", "ts_val_max",
 ]
 
 def main():
@@ -103,6 +106,42 @@ def main():
         if flag_counter.get(fl):
             warn.append(f"{fl}: {flag_counter[fl]:,} trạm")
 
+    # ---- E-DQ4: cổng NGOẠI VI cho cấu hình — không cần registry ----------------
+    # `evse_powers` là mảng trạng thái SỐNG, nên `num_connectors` đọc THIẾU khi EVSE tắt.
+    # Nhân chứng duy nhất có sẵn ở tầng master là telemetry: KHÔNG THỂ sạc nhiều xe cùng
+    # lúc hơn số súng lắp đặt. Đây là cổng duy nhất bắt được truncation mà không cần
+    # nguồn thứ hai — cùng khuôn "neo ngoại vi" của E-DQ7c (poi_recall) / E-DQ7d.
+    # Hợp giải + tầng ASSET nằm ở resolve_config.py (8 cổng, chặn ở transform_canonical).
+    # Ở TẦNG MASTER đây là WARN, không phải CRITICAL: 159 mâu thuẫn là THUỘC TÍNH CỦA
+    # NGUỒN (feed trạng thái sống), master không sửa được nó. Cổng CRITICAL đặt đúng chỗ
+    # sửa được — `guns_ge_observed_max` của resolve_config, chặn ở transform_canonical.
+    # BSS (đổi pin) không có `evse_powers` theo thiết kế -> loại khỏi cả hai phép đếm.
+    n_contra, n_zero_live, n_car = 0, 0, 0
+    for row in rows:
+        if row.get("station_type") == "BATTERY_SWAP":
+            continue
+        n_car += 1
+        try:
+            live = int(float(row.get("num_connectors") or 0))
+        except ValueError:
+            live = 0
+        try:
+            vmax = int(float(row.get("ts_val_max") or 0))
+        except ValueError:
+            vmax = 0
+        if live == 0:
+            n_zero_live += 1
+        if vmax > live:
+            n_contra += 1
+    if n_contra:
+        warn.append(f"E-DQ4 cấu hình MÂU THUẪN VẬT LÝ: {n_contra:,}/{n_car:,} trạm ô tô có "
+                    f"ts_val_max > num_connectors (sạc nhiều xe cùng lúc hơn số súng ĐANG "
+                    f"BÁO CÁO) => mảng evse_powers đọc THIẾU. Hợp giải ở resolve_config "
+                    f"(cổng CRITICAL guns_ge_observed_max chặn ở transform_canonical)")
+    if n_zero_live:
+        warn.append(f"E-DQ4 num_connectors=0 (0 súng ĐANG BÁO CÁO): {n_zero_live:,} trạm ô tô "
+                    f"— giá trị LIVE đúng; cấu hình LẮP ĐẶT xem resolve_config.py")
+
     # ---- E-DQ10: cổng provenance — đối chiếu snapshot input đã đóng băng ----
     # Chưa freeze -> WARN (không chặn pipeline cũ). Đã freeze mà input lệch -> CRITICAL
     # (bước làm sạch phía sau giả định input bất biến — drift làm audit vô nghĩa).
@@ -145,6 +184,9 @@ def main():
         "time_window_end": ms_iso(win_end),
         "by_station_type": dict(by_type),
         "quality_flags": dict(flag_counter),
+        # E-DQ4: chẩn đoán cấu hình ở tầng master (nguồn-độc-lập)
+        "config_contradiction_ts_gt_guns": n_contra,
+        "config_zero_reporting_guns": n_zero_live,
         "critical": crit,
         "warnings": warn,
         "status": "FAIL" if crit else ("WARN" if warn else "PASS"),

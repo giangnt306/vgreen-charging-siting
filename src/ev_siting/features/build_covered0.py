@@ -24,6 +24,18 @@ ghi log** theo lý do (nguyên tắc "flag, không xoá ngầm").
 Toạ độ bẩn (`DUP_COORD` / `COORD_ADDR_MISMATCH`, §7 #1) bị loại: placeholder coords
 tạo **coverage ảo** — cùng cách xử lý với anchor T0 ở build_candidates.
 
+**E-DQ4 (30/07)** — export kèm tầng **TÀI SẢN** (`n_guns_installed`/`site_power_kw`/
+`current_type_asset`, xem `resolve_config.py`) BÊN CẠNH tầng trạng thái sống
+(`num_connectors`/`total_power_kw`), và áp CHÍNH SÁCH DƯ: mọi con số CÓ TRỌNG SỐ
+CÔNG SUẤT chỉ cộng trên `config_resolved`, phần dư (`CONFIG_UNKNOWN`) **được công bố
+tường minh** trong report chứ không đọng thành mẫu số im lặng (khuôn E-DQ8c).
+
+⚠️ **Nợ đã biết, KHÔNG sửa ở đây** (cần dòng register riêng): bộ lọc dưới vẫn đọc
+`status`/`is_public` THÔ thay vì `op_status`/`access`/`is_operational` của **P8**, và
+`_DIRTY_COORD_FLAGS` vẫn tìm cờ `DUP_COORD` mà **E-DQ1** đã thay bằng
+`COORD_PLACEHOLDER`/`coord_resolved`. Vì vậy `n_covered0` ở đây KHÔNG bằng 19.015 của
+tập cung canonical, và các tổng công suất bên dưới mang đúng cái sai lệch đó.
+
 Output: data/processed/covered0.{parquet,geojson}
 Chạy:
     PYTHONPATH=src python -m ev_siting.features.build_covered0 --city hanoi
@@ -47,13 +59,50 @@ ACTIVE_STATUSES = frozenset({"Available", "AllBusy"})
 _DIRTY_COORD_FLAGS = frozenset({"DUP_COORD", "COORD_ADDR_MISMATCH"})
 
 #: cột export (điểm trạm + thuộc tính không gian + provenance vận hành).
+#: Hai tầng cấu hình đi CẠNH nhau (E-DQ4): LIVE = đang báo cáo, ASSET = lắp đặt.
 _OUT_COLS = ["station_id", "lat", "lng", "h3_r8", "province_code", "status",
              "is_public", "operator", "current_type", "max_power_kw",
-             "total_power_kw", "num_connectors", "verified"]
+             "total_power_kw", "num_connectors", "verified",
+             # E-DQ4 — tầng TÀI SẢN + provenance cấu hình
+             "n_guns_installed", "site_power_kw", "nameplate_power_kw",
+             "current_type_asset", "config_src", "config_resolved"]
+
+#: cờ E-DQ4 đánh dấu dòng KHÔNG có cấu hình lắp đặt từ bất kỳ nguồn nào.
+_CONFIG_UNKNOWN_FLAG = "CONFIG_UNKNOWN"
 
 
 def _has_dirty_coord(flags):
     return bool(_DIRTY_COORD_FLAGS & set(flags)) if flags is not None else False
+
+
+def _capacity_accounting(out: pd.DataFrame) -> dict:
+    """E-DQ4 — kế toán công suất trên tầng TÀI SẢN, công bố phần DƯ tường minh.
+
+    Mọi tổng CÓ TRỌNG SỐ CÔNG SUẤT chỉ cộng trên `config_resolved`; số trạm/ô bị loại
+    vì `CONFIG_UNKNOWN` được ghi ra để không đọng thành mẫu số im lặng (khuôn E-DQ8c).
+    `guns_reporting` giữ lại để đo đúng khoảng cách LIVE↔ASSET, không phải để dùng."""
+    if "config_resolved" not in out:
+        return {}
+    ok = out["config_resolved"].fillna(False).astype(bool)
+    guns = pd.to_numeric(out["n_guns_installed"], errors="coerce")
+    site = pd.to_numeric(out["site_power_kw"], errors="coerce")
+    live = pd.to_numeric(out["num_connectors"], errors="coerce").fillna(0)
+    unresolved = out.loc[~ok]
+    return {
+        "n_config_resolved": int(ok.sum()),
+        "n_config_unknown_excluded": int((~ok).sum()),
+        "config_src": out["config_src"].value_counts().to_dict(),
+        # chỉ cộng trên phần đã resolve
+        "guns_installed": int(guns[ok].fillna(0).sum()),
+        "site_power_kw": round(float(site[ok].fillna(0).sum()), 1),
+        # tầng LIVE, để đo khoảng cách — KHÔNG dùng làm công suất
+        "guns_reporting": int(live.sum()),
+        # phần dư: bao nhiêu ô mất TOÀN BỘ công suất vì không resolve được
+        "cells_all_unknown": int(
+            out.groupby("h3_r8")["config_resolved"].apply(
+                lambda s: not s.fillna(False).any()).sum()) if "h3_r8" in out else None,
+        "unresolved_station_ids": sorted(unresolved["station_id"].astype(str))[:50],
+    }
 
 
 def build(aoi, strict=True):
@@ -95,6 +144,7 @@ def build(aoi, strict=True):
         "dropped_by_reason": reasons,
         "status_breakdown": {str(k): int(v) for k, v in
                              covered0["status"].value_counts().items()},
+        "config_capacity": _capacity_accounting(out),
     }
 
     out.to_parquet(COVERED0_SITES, index=False)
@@ -106,6 +156,14 @@ def build(aoi, strict=True):
     print(f"[covered0] loại: {reasons}")
     print(f"[covered0] -> {COVERED0_SITES}  ({len(out)} trạm active+public)")
     print("  theo status:", report["status_breakdown"])
+    cap = report["config_capacity"]
+    if cap:
+        print(f"  [E-DQ4] súng: ĐANG BÁO CÁO {cap['guns_reporting']:,} -> "
+              f"LẮP ĐẶT {cap['guns_installed']:,}  |  công suất ĐIỂM "
+              f"{cap['site_power_kw']:,.0f} kW")
+        print(f"  [E-DQ4] loại khỏi kế toán công suất (CONFIG_UNKNOWN): "
+              f"{cap['n_config_unknown_excluded']:,} trạm; ô mất toàn bộ công suất: "
+              f"{cap['cells_all_unknown']:,}")
 
     # sanity: đối soát dòng (§8 bước 10) — không có dòng nào bị "bốc hơi"
     dropped = n_aoi - len(out)
@@ -125,7 +183,12 @@ def _write_geojson(covered0, report):
                 "station_id": r.station_id, "h3_r8": r.h3_r8, "status": r.status,
                 "is_public": bool(r.is_public), "operator": r.operator,
                 "max_power_kw": None if pd.isna(r.max_power_kw) else float(r.max_power_kw),
+                # E-DQ4: tầng LIVE (đang báo cáo) vs tầng ASSET (lắp đặt) đi cạnh nhau
                 "num_connectors": None if pd.isna(r.num_connectors) else int(r.num_connectors),
+                "n_guns_installed": None if pd.isna(r.n_guns_installed) else int(r.n_guns_installed),
+                "site_power_kw": None if pd.isna(r.site_power_kw) else float(r.site_power_kw),
+                "current_type_asset": r.current_type_asset,
+                "config_src": r.config_src,
             },
         })
     fc = {"type": "FeatureCollection",

@@ -99,14 +99,24 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 Hợp đồng đầy đủ: [SCHEMA_CONTRACT.md](../schema/schema-contract.md) · từ điển trường: [data-dictionary.md](../schema/data-dictionary.md).
 Dưới đây là **trạng thái thực tế của file hiện tại** (đã inspect 2026-07-23):
 
-### 🟢 `stations` — 44 cột, 19.507 dòng
+### 🟢 `stations` — 57 cột, 19.507 dòng
 
 - **Khóa:** `station_id` (`vn-…`, unique) · `station_code` (evcs.vn, unique).
 - **Trùng chéo nguồn (E-DQ2):** `physical_id` (station_id của survivor) · `is_primary` (bool — **19.178** primary /
   329 duplicate) · `dup_group_id` · `dup_method` (`official_store`/`coord_name`) · `dup_dist_m` · `n_dup_members`.
   Cung/coverage/T0 chỉ dùng `is_primary`. Cờ `CROSS_SOURCE_DUP` (329) · `DUP_COORD_SUSPECT` (214, → E-DQ1).
 - **Vị trí:** `lat`/`lng` (0 null, 100% trong bbox VN), `h3_r8`.
-- **Cấu hình:** `current_type` (AC/DC/**MIXED**, suy từ chuẩn cắm chính thức — **P7**), `max_power_kw`, `total_power_kw`, `num_connectors`, `connector_types` (list).
+- **Cấu hình — HAI TẦNG, đi cạnh nhau (E-DQ4 30/07).** `evsePowers` là mảng trạng thái **SỐNG** (EVSE tắt thì rời
+  khỏi mảng), nên tầng LIVE **không phải** công suất lắp đặt:
+  - **LIVE (đang báo cáo):** `current_type` (AC/DC/**MIXED**, suy từ chuẩn cắm chính thức — **P7**), `max_power_kw`,
+    `total_power_kw`, `num_connectors`, `connector_types` (list). `num_connectors=0` (**282**) là giá trị LIVE **đúng**.
+  - **ASSET (lắp đặt):** `n_guns_installed` (hợp `max()` của registry / evcs / `ts_val_max`) · `max_power_kw_asset` ·
+    **`site_power_kw`** (Σ theo **tủ** `physical_reference` — dùng cho công suất điểm) · `nameplate_power_kw`
+    (Σ theo **súng**, = ngữ nghĩa của `total_power_kw`; **phóng đại 1,82×** so với site) · **`current_type_asset`**
+    (cột phân tầng ĐÚNG cho E-DQ7d) · `config_src` ∈ {`OFFICIAL` 19.243, `UNKNOWN` 256, `EVCS_LIVE` 7,
+    `TELEMETRY_BOUND` 1} · `config_resolved` (0,9929 trên tập cung) · `n_guns_imputed` (**chỉ** phân tích độ nhạy).
+  - Súng **BÁO CÁO → LẮP ĐẶT**: 62.924 → **69.174** (tập cung 61.372 → **67.427, +9,9%**). Cờ: `CONFIG_TRUNCATED`
+    1.568 · `CURRENT_TYPE_CORRECTED` 531 · `POWER_CABINET_SHARED` 4.317 · `CONFIG_UNKNOWN` 256 · `CONFIG_LOWER_BOUND` 1.
 - **Phương tiện (P7):** `vehicle_class` ∈ {`CAR` 19.218 · `UNVERIFIED` 7 (evcs-only, cờ `STD_UNVERIFIED`) · `UNKNOWN` 282 (không connector)}.
 - **Trạng thái/access (P8):** `op_status` ∈ {`OPERATIONAL` 16.014 · `MAINTENANCE` 3.392 · `UNKNOWN` 59 · `OUT_OF_SERVICE` 42},
   `access` ∈ {`PUBLIC` 19.418 · `UNKNOWN` 67 · `RESTRICTED` 22}, `is_operational` (loại cứng 42 OUT_OF_SERVICE).
@@ -115,8 +125,11 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
   `official_store_id`, `match_dist_m`, `match_name_sim`, `official_charging_status`, `official_access_type`.
 - **Chất lượng:** `confidence` (TB 0,995), `freshness`, `quality_flags` (list: `ALL_ZERO` 3.343, `NO_TS` 289,
   P8: `UNDER_MAINTENANCE` 3.392 · `NON_PUBLIC` 22 · `STATUS_UNKNOWN`/`ACCESS_UNKNOWN`/`NOT_OPERATIONAL`…).
-- ⚠️ **Null cần xử lý:** `admin_l1_code`/`province_name`/`commune_name`/`commune_kind` **= null 100%**;
-  `current_type`/`max_power_kw`/`total_power_kw` null 282. *(`status` 72 / `is_public` 80 null → đã resolve qua `op_status`/`access`, **P8** done.)*
+- ⚠️ **Null cần xử lý:** `admin_l1_code`/`province_name`/`commune_name`/`commune_kind` **= null 100%** (**E-DQ3**).
+  *(`status` 72 / `is_public` 80 null → resolve qua `op_status`/`access`, **P8** done. `current_type`/`max_power_kw`/
+  `total_power_kw` null 282 → **E-DQ4 done 30/07**: đó là giá trị **LIVE đúng**, không phải null cần điền; tầng ASSET
+  resolve **26/282**, còn **256** không nguồn nào điền được → `CONFIG_UNKNOWN` + loại khỏi mẫu số công suất, xem
+  chính sách dư ở [known-issues.md — E-DQ4](../known-issues.md#e-dq4--cấu-hình-đọc-ở-tầng-sai-mảng-sống-vs-sổ-tài-sản-bước-11).)*
 
 ### 🟢 `connectors` — 10 cột, 24.415 dòng
 
@@ -180,6 +193,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | **Trùng PK & lệch số trạm** *(P6)*                    | enumerate lưới chồng lấn → trùng`station_code`; doc ghi 28.417, file 28.625                                                                                                    | Dedup first-wins có đếm (không cộng công suất) ở`merge_catalog.py` + cổng CRITICAL PK-unique ở `validate.py` (0 trùng); chốt snapshot **28.625** (+208 do crawl lại `cs`), đối soát 28.625 − 9.118 BSS = 19.507 canonical.                                                                                                                                                                                              |
 | **Toạ độ placeholder** *(E-DQ1)*                       | 35 trạm chồng 1 điểm HCM nhưng địa chỉ ở HN (official cũng mang cùng placeholder); 478 trạm ở 204 điểm trùng                                                           | Detector A`COORD_PLACEHOLDER` (stack≥5 **VÀ** xa centroid-tỉnh `province_code`) → **38** loại cứng (`coord_resolved=False`, `h3_r8=NULL`); detector B `COORD_ADDR_MISMATCH` (**758**, advisory) giữ toạ độ → **E-DQ3** trọng tài. 214 `DUP_COORD_SUSPECT` E-DQ2 phân xử: 38 xác nhận + 176 minh oan. `fix_coords.py`, 5 cổng QA chặn ở `transform_canonical`.                            |
 | **Thiếu lọc trạng thái/access** *(P8)*                | `status`/`is_public` chưa lọc → trạm ngừng/tư nhân tính là cung; 72/80 null giữ ngầm                                                                                    | Resolve**official-first** `op_status`/`access` + boolean `is_operational` (loại cứng 42 OUT_OF_SERVICE); cờ tường minh, giữ dòng; T0 loại 63 trạm OUT_OF_SERVICE∪RESTRICTED.                                                                                                                                                                                                                                                   |
+| **Cấu hình đọc ở tầng SAI** *(E-DQ4)* | `evsePowers` là mảng trạng thái **SỐNG** nhưng `totalEvse` bị ghi là "số súng THẬT" → tắt hết = null (**282**), tắt một phần = **đọc thiếu ÂM THẦM 1.568 trạm / 6.249 súng (9,0%), 0 trạm đọc thừa**, tắt cả một loại dòng = **531** trạm `DC`-thật-là-`MIXED`; `total_power_kw` = Σ theo súng nên **phóng đại 1,82×** (21.806 tủ mang 2 hồng); **KHÔNG có cổng QA nào** cho cấu hình (`INCOMPLETE_CONFIG` chỉ là comment) | Tách tầng **ASSET/LIVE** ở `resolve_config.py` (khuôn 2 cột E-DQ7b R1, không ghi đè): hợp giải **official-first CÓ `max()`** vì cả 3 nguồn đều là chặn DƯỚI (`registry`/`evcs`/`ts_val_max`); `site_power_kw` = Σ theo **tủ** (`physical_reference`); `current_type_asset` sửa 531 trạm; **256** trạm dư → `CONFIG_UNKNOWN` + loại khỏi mẫu số công suất **và công bố số bị loại** (khuôn E-DQ8c). Neo **ngoại vi không cần registry**: **159** trạm có `ts_val_max > num_connectors` (registry giải 132/132 trong cung). **8 cổng CÓ THỂ FAIL** + WARN ngoại vi ở `validate.py` + **19 test** (7 test chứng minh cổng fail được). |
 | **Chưa freeze snapshot** *(E-DQ10)*                      | `.pbf` tên `latest`, không checksum → input có thể trôi giữa sprint, phá đối soát                                                                                       | `data/raw/MANIFEST.json` (sha256 mọi nguồn, `snapshot_id=2026-07-20` neo P9); pin OSM về replication seq 4852; khoá read-only 23.280 file; cổng drift ở `validate.py`; `make freeze`/`verify-snapshot`.                                                                                                                                                                                                                              |
 | **Trùng chéo nguồn** *(E-DQ2)*                         | 1 trạm vật lý = nhiều dòng (nhiều app cùng 1 store official; cùng trạm ở 2 feed) → inflate cung, T0 double-count                                                            | Identity resolution`physical_id` ở `dedup_crosssource.py`: T1 cùng `official_store_id`, T2 coord<50m + tên≥82, guard blob đậm đặc → `DUP_COORD_SUSPECT` (E-DQ1). FLAG không xoá (`is_primary`); 19.178 primary / 329 dup; 5 cổng QA chặn ở `transform_canonical`.                                                                                                                                                          |
 | **POI lẫn đơn vị & thiếu** *(E-DQ7c)* | `n_poi` cộng toà chung cư với TTTM 1:1 (**84,8%** số đếm ở top-100 ô là chung cư); `retail` gộp 1.698 chợ với 1.409 siêu thị; `parking` gộp 149 chỗ đỗ ven đường + `access=private`; cổng `poi_no_dup` kiểm đúng cái `drop_duplicates` vừa chạy nên **không bao giờ FAIL** | Phân lớp theo **tag** ở `poi_semantics.py` (tách TRÍCH XUẤT khỏi CHÍNH SÁCH — R1 của E-DQ7b); `n_poi`/`n_parking` **khai tử** → 10 cột tách rời để **E-DQ7d fit** trọng số; khử trùng node↔area 30 m → `poi_physical_id`/`is_poi_primary` (giữ dòng); gộp khu chung cư 150 m (**3,76×**); 8 cổng mới **có thể FAIL** gồm 2 cổng **ngoại vi** đo recall + **thiên lệch** recall. |
@@ -203,7 +217,7 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | 1  | **`E-DQ1`** (Done 28/07)  | Toạ độ placeholder / trùng                                    | `lat`, `lng` → `coord_resolved`/`coord_src`/`lat_raw`/`lng_raw` (+cờ `COORD_PLACEHOLDER`/`COORD_ADDR_MISMATCH`) |
 | 2  | **`E-DQ2`** (Done 27/07)  | Trùng chéo nguồn (evcs vs official)                            | `physical_id`, `is_primary`, `dup_*` (identity resolution)                                                                  |
 | 3  | `E-DQ3`                         | Cột admin trống                                                 | `admin_l1_code`, `province_name`, `commune_*`                                                                               |
-| 4  | `E-DQ4`                         | Cấu hình khuyết                                                | `current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0`                                                      |
+| 4  | **`E-DQ4`** (Done 30/07)  | **Cấu hình đọc ở tầng SAI** (mảng SỐNG vs sổ TÀI SẢN)  | tầng LIVE `current_type`/`max_power_kw`/`total_power_kw`/`num_connectors` **giữ nguyên** → thêm 8 cột **ASSET** `n_guns_installed`/`max_power_kw_asset`/**`site_power_kw`**/`nameplate_power_kw`/**`current_type_asset`**/`config_src`/`config_resolved`/`n_guns_imputed`; **1.568** trạm đọc thiếu (**0** đọc thừa, −6.249 súng = 9,0%) · **531** `DC`-thật-là-`MIXED` · `total_power_kw` phóng đại **1,82×** (tủ 2 hồng); **159** trạm sạc nhiều xe hơn số súng; 5 cờ + **8 cổng QA** (trước đó **0 cổng**) |
 | 5  | **`P8`** (Done 27/07)     | Null trạng thái / truy cập                                     | `status`→`op_status`, `is_public`→`access`, `is_operational`                                                          |
 | 6  | `E-DQ5`                         | Trường`operator` bẩn                                         | `operator`                                                                                                                      |
 | 7  | `E-DQ6`                         | Text tự do bẩn                                                  | `name`, `address`                                                                                                             |

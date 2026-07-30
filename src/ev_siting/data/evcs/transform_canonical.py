@@ -36,6 +36,7 @@ import pandas as pd
 from .paths import MASTER_CSV, STATIONS_DIR, CONNECTORS_DIR, CANONICAL_DIR, PROJECT_ROOT
 from .dedup_crosssource import assign_physical_id, dedup_report, DUP_COLS
 from .fix_coords import resolve_coords, fix_report, FIX_COLS
+from .resolve_config import resolve_config, config_report, load_occ_max, CONFIG_COLS
 from ..vinfast_official.paths import XREF_PARQUET, CONNECTORS_PARQUET as OFFICIAL_CONNECTORS
 
 H3_RES = 8
@@ -318,6 +319,8 @@ def run(keep_bss: bool = False):
         *DUP_COLS,
         # E-DQ1: toa do placeholder (lat_raw/lng_raw/coord_src/coord_fix_dist_m/coord_resolved)
         *FIX_COLS,
+        # E-DQ4: tang TAI SAN (n_guns_installed/site_power_kw/... + config_src/config_resolved)
+        *CONFIG_COLS,
     ]
 
     # --- tang 2: no connectors (kem chuan cam + vehicle_class tu registry chinh thuc) ---
@@ -349,7 +352,8 @@ def run(keep_bss: bool = False):
     df["current_type"] = df["station_id"].map(cur_by_st).fillna(df["current_type"])
     df["vehicle_class"] = df["station_id"].map(veh_by_st).fillna("UNKNOWN")
     # flag tuong minh cho tram CO connector nhung chua xac minh duoc chuan cam
-    # (khong default ngam). Tram khong co connector da co INCOMPLETE_CONFIG rieng.
+    # (khong default ngam). Tram khong co connector -> E-DQ4 gan CONFIG_UNKNOWN /
+    # CONFIG_LOWER_BOUND + tang ASSET (xem resolve_config.py).
     unv = df["vehicle_class"] == "UNVERIFIED"
     df.loc[unv, "quality_flags"] = df.loc[unv, "quality_flags"].apply(
         lambda l: l if "STD_UNVERIFIED" in l else l + ["STD_UNVERIFIED"])
@@ -374,6 +378,19 @@ def run(keep_bss: bool = False):
     if not dq1["all_gates_pass"]:
         raise SystemExit(f"E-DQ1 QA gate FAIL: {dq1['gates']}")
 
+    # --- E-DQ4: tang TAI SAN vs tang TRANG THAI SONG (chay SAU P8/E-DQ2/E-DQ1) ---
+    # `evse_powers` la mang trang thai SONG, khong phai so dang ky tai san: EVSE tat
+    # thi roi khoi mang -> `num_connectors` doc THIEU am tham (1.568 tram, 0 tram doc
+    # THUA). Hop giai official-first CO `max()` (ca 3 nguon deu la chan DUOI), them 8
+    # cot ASSET; KHONG ghi de cot LIVE. Phai chay sau P8/E-DQ2/E-DQ1 vi bao cao/cong
+    # do tren tap CUNG (is_operational & PUBLIC & is_primary & coord_resolved).
+    occ_max = pd.Series(pd.to_numeric(df["ts_val_max"], errors="coerce").to_numpy(),
+                        index=df["station_code"].to_numpy())
+    df = resolve_config(df, occ_max)
+    dq4 = config_report(df, occ_max)
+    if not dq4["all_gates_pass"]:
+        raise SystemExit(f"E-DQ4 QA gate FAIL: {dq4['gates']}")
+
     stations = df[stations_cols].reset_index(drop=True)
 
     # --- ghi Parquet Hive-partitioned theo province_code (ghi de sach) ---
@@ -397,7 +414,8 @@ def run(keep_bss: bool = False):
     print(f"stations  -> {rel(STATIONS_DIR)}  ({len(stations):,} dong)")
     print(f"connectors-> {rel(CONNECTORS_DIR)}  ({len(connectors):,} dong)")
     print(f"  h3_r8 null (toa do xau) : {stations['h3_r8'].isna().sum():,}")
-    print(f"  tram khong co connector : {(stations['num_connectors'] == 0).sum():,}")
+    print(f"  tram 0 sung DANG BAO CAO: {(stations['num_connectors'] == 0).sum():,} "
+          f"(gia tri LIVE dung — cau hinh LAP DAT xem E-DQ4)")
     print(f"  connector orphan (FK)   : {n_orphan}")
     print("--- P7 (chuan cam thay power tier) ------------------------")
     print(f"  connector_standard      : {connectors['connector_standard'].value_counts().to_dict()}")
@@ -424,6 +442,21 @@ def run(keep_bss: bool = False):
     print(f"  so nhom trung           : {dq2['n_dup_groups']:,} (max {dq2['largest_group']}/nhom)")
     print(f"  cum toa do ngo -> E-DQ1 : {dq2['n_suspect_coord_deferred_edq1']:,} (DUP_COORD_SUSPECT)")
     print(f"  QA gates (5 cong)       : {'PASS' if dq2['all_gates_pass'] else 'FAIL'}  {dq2['gates']}")
+    print("--- E-DQ4 (cau hinh LAP DAT vs mang trang thai SONG) ------")
+    print(f"  config_src              : {dq4['config_src']}")
+    print(f"  CONFIG_TRUNCATED        : {dq4['n_truncated']:,} (+{dq4['n_guns_recovered']:,} sung lay lai)")
+    print(f"  CURRENT_TYPE_CORRECTED  : {dq4['n_current_type_corrected']:,} (DC-that-la-MIXED)")
+    print(f"  CONFIG_UNKNOWN (du)     : {dq4['n_unknown']:,} {dq4['n_unknown_by_type']} "
+          f"-> loai khoi mau so CO TRONG SO CONG SUAT")
+    print(f"  sung: SONG -> LAP DAT   : {dq4['guns_reporting_total']:,} -> {dq4['guns_installed_total']:,} "
+          f"(cung: {dq4['supply']['guns_reporting']:,} -> {dq4['supply']['guns_installed']:,})")
+    print(f"  kW: live/nameplate/site : {dq4['power_kw']['live_total_power_kw']:,.0f} / "
+          f"{dq4['power_kw']['asset_nameplate_kw']:,.0f} / {dq4['power_kw']['asset_site_kw']:,.0f} "
+          f"(to chia cong suat: {dq4['power_kw']['cabinet_inflation']}x)")
+    print(f"  resolved tren cung      : {dq4['supply']['resolved_rate']:.4f} "
+          f"(chua resolve {dq4['supply']['n_unresolved']:,}; o cung cong suat 0: "
+          f"{dq4['supply']['cells_zero_capacity']:,})")
+    print(f"  QA gates (8 cong)       : {'PASS' if dq4['all_gates_pass'] else 'FAIL'}  {dq4['gates']}")
     print(f"  confidence trung binh   : {stations['confidence'].mean():.3f}")
     print(f"  verified (first-party)  : {int(stations['verified'].sum()):,} / {len(stations):,}")
     print(f"  match_method            : {stations['match_method'].value_counts().to_dict()}")

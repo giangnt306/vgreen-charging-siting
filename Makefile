@@ -1,4 +1,4 @@
-.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand poi-recall vnsdi reconcile-pop reallocate-roadless
+.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical resolve-config official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand poi-recall vnsdi reconcile-pop reallocate-roadless
 
 CITY ?= hanoi
 
@@ -27,6 +27,9 @@ crawl-validate:  ## Re-run only the EVCS QA gate over existing data/interim
 
 canonical:  ## Transform master CSV -> canonical parquet (stations/connectors, car-only)
 	PYTHONPATH=src python -m ev_siting.data.evcs.transform_canonical
+
+resolve-config:  ## Inspect installed-config resolution (ASSET vs LIVE layer, 8 gates)  [E-DQ4]
+	PYTHONPATH=src python -m ev_siting.data.evcs.resolve_config --dump
 
 official:  ## Fetch official VinFast source registry (verified cross-ref) -> data/interim/vinfast_official/
 	PYTHONPATH=src python -m ev_siting.data.vinfast_official.fetch_locators bulk

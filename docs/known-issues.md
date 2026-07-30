@@ -28,36 +28,35 @@
 
 ## 2. Bảng tổng hợp vấn đề (đã gộp)
 
-| ID               | Nhóm | Vấn đề                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Mức | Phạm vi              | Owner           | ngày giải quyết   | Trạng thái |
-| ---------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------- | --------------- | -------------------- | ------------ |
-| **P1**     | A     | Heuristic weights thay vì fit model có giám sát trên 18,6M occupancy — ⚠️**tiền đề đã bị bác bỏ 29/07**: fit trọng số trên 10 cột hiện có chỉ hơn `pop` đơn **+0,07** và hơn **trọng số bị đảo** +0,06 ⇒ gộp vào **E-DQ7d**, đổi mục tiêu sang **bổ sung feature dòng chảy**                                                                                                                                                                                                                                                                       | 🟠   | SIMPLIFY              | Kỳ             | —                   | ☐           |
-| **P2**     | A     | Selection bias: chỉ quan sát demand nơi**đã có** trạm                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | ⚪   | DOC → FUTURE         | Giang/Kỳ       | —                   | ⊘           |
-| **P3**     | A     | Cửa sổ 7,15 ngày → bỏ qua mùa vụ/lễ/thời tiết                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | ⚪   | DOC → FUTURE         | Giang           | —                   | ⊘           |
-| **P4**     | B     | **Bán kính suy biến:** R = 500 m < khoảng cách tâm 2 ô kề (0,98 km) → MCLP = sort top-p; 500 m không phải catchment lái xe                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 🔴   | **FIX (chặn)** | Kỳ + Giang     | **2026-07-24** | ☑           |
-| **P5**     | B     | Candidate set chưa định nghĩa; thiếu lọc land-use (hồ/núi/đất cấm)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 🟡   | SIMPLIFY              | Giang           | **2026-07-24** | ☑           |
-| **P6**     | C     | Trùng PK (236 dòng); số trạm lệch giữa doc/report (28.417 vs 28.625)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | 🟡   | FIX                   | Giang           | **2026-07-24** | ☑           |
-| **P7**     | C     | Nhiễm xe máy điện: dùng power tier chung thay vì chuẩn cắm (CCS2)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 🟠   | FIX                   | Giang           | **2026-07-24** | ☑           |
-| **P8**     | C     | Thiếu lọc trạng thái vận hành & access (private vs public)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | 🟡   | FIX                   | Giang           | **2026-07-27** | ☑           |
-| **P9**     | C     | Lệch thời điểm giữa các đợt crawl (occupancy 2026 · WorldPop 2020 · OSM)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 🟡   | FIX + DOC             | Giang           | —                   | ☐           |
-| **P10**    | D     | WorldPop 2020 lỗi thời (6 năm)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 🟡   | DOC                   | Giang           | —                   | ⊘           |
-| **P11**    | D     | Model tổng dân số thay vì mật độ**sở hữu ô tô** (~5–9% hộ)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 🟠   | SIMPLIFY              | Giang           | —                   | ☐           |
-| **E-DQ10** | E     | Chưa freeze snapshot / provenance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 🟡   | FIX                   | Giang           | **2026-07-27** | ☑           |
-| **E-DQ9**  | E     | Grid toàn quốc vs MVP 1 thành phố (`demand_h3` toàn bảng)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 🟡   | SIMPLIFY              | Giang           | **2026-07-27** | ☑           |
-| **E-DQ2**  | E     | Trùng chéo nguồn (evcs vs official)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 🟠   | FIX                   | Giang           | **2026-07-27** | ☑           |
-| **E-DQ1**  | E     | Toạ độ placeholder / trùng khít                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 🟠   | FIX                   | Giang           | **2026-07-28** | ☑           |
-| **E-DQ7a** | E     | **POI ngoài lãnh thổ VN** — Overpass query bằng `VN_BBOX` thô, không clip biên giới → **54,2%** POI nằm ở Campuchia/Lào/Thái/TQ (và **8.934 km road** rò rỉ: Geofabrik cắt bằng polygon **có đệm**)                                                                                                                                                                                                                                                                                                                                                                           | 🔴   | **FIX (chặn)** | Giang           | **2026-07-28** | ☑           |
-| **E-DQ7b** | E     | **`road_len` sai ngữ nghĩa** — `track`+`service` tính là đường sinh cầu (19,9%); double-count 2 chiều (motorway 96,9% `oneway`); `_MAJOR` gộp cao tốc + quốc lộ + tỉnh lộ                                                                                                                                                                                                                                                                                                                                                                                                                     | 🟠   | FIX                   | Giang           | **2026-07-28** | ☑           |
-| **E-DQ7c** | E     | **POI thiếu & lẫn đơn vị** — `n_poi` cộng `apartments` (toà nhà) với `mall` (trung tâm) tỉ lệ 1:1 (**84,8%** số đếm ở top-100 ô là chung cư); lẫn đơn vị **bên trong** từng nhóm crawl; **335** trùng node/way + 13 đối tượng ở 2 nhóm; recall OSM **fuel 35,9% · parking 8,6%** (đo ngoại vi)                                                                                                                                                                                                                                                       | 🟠   | FIX + DOC             | Giang           | **2026-07-28** | ☑           |
-| **E-DQ7e** | E     | **`pop` chưa hiệu chuẩn TUYỆT ĐỐI** — raster UN-**unadjusted**: 99,627M so với bản UNadj **97,569M** (**+2,11%**). Đo 29/07: UNadj là **hằng số quốc gia 0,979344** (std **2,4e-08** trên 2,64M pixel) ⇒ **không xê dịch thứ hạng**, chỉ làm sai mọi phát biểu **tuyệt đối** (`coverage_pop`, đối chiếu GSO). **Đã đổi nguồn sang file UNadj** (không hardcode hệ số) + **3 cổng QA**; Spearman(cũ, mới) = **1,000000** trên 104.171 ô                                                                     | 🟡   | FIX + DOC             | Giang           | **2026-07-29** | ☑           |
-| **E-DQ7f** | E     | **`pop` dồn cục dasymetric + DỒN THỪA cấp xã** — đo lại trên artefact UNadj: **139 ô / 745.283 dân** dồn vào 1–5 pixel (đỉnh **28.731/pixel**); ngưỡng mật độ cũ bắt **61 ô lõi TP.HCM THẬT** và **0/139** ô hỏng (**giao = 0**). Đối chiếu **VNSDI DANSO** (nguồn cấp xã độc lập): **63% khối lượng là dồn THỪA** (WorldPop>1,5×DANSO; 16 ô có 1 ô > cả xã; đảo 22×) → thêm `pop_adj` (RETOTAL 17 xã / REPLACE 53 xã, rải theo built-up) + cờ `pop_pixel_implausible`; top-500 **16→0**, 7 cổng QA | 🟠   | **DONE**        | Giang           | **2026-07-29** | ☑           |
-| **E-DQ8a** | E     | **Lối vào đo ở thang SAI** — `buildable_h3`/E-DQ8 hỏi "ô này có đường không?" bằng cách xét **đúng ô đó**, nhưng tâm 2 ô res 8 chỉ cách 0,98 km: **4.862/6.350 ô** (72,1% khối lượng · 894.956 người) có đường ngay ở **vành 1**. Lỗi **THANG ĐO**, không phải lỗi dữ liệu — cùng bẫy `poi_coords_in_vn` (7a) / `POP_DENSITY_OUTLIER` (7f). Thêm bậc `access_tier` (DIRECT/ADJACENT/NEAR/ISOLATED) + 2 cột vành; loại cứng **chỉ** ISOLATED (**6.350 → 723 ô**). Neo ngoại vi: 99,43% trạm đang vận hành ở DIRECT, **15 trạm ở ADJACENT** ⇒ ADJACENT tới được THẬT, nhưng **không** tương đương DIRECT | 🟡   | **DONE**              | Giang           | **2026-07-30** | ☑           |
-| **E-DQ8b** | E     | **Dân ở ô không có lối vào chưa được dời** — dùng lại đúng bộ máy 7f (trọng tài DANSO → rải theo built-up → kế toán theo TỔNG) nhưng **ngược kết luận về khối lượng**: chỉ **18,5%** khối lượng nằm trong xã RETOTAL (7f: 63%) ⇒ mặc định là **REPLACE bảo toàn khối lượng**, không phải gỡ người ma. Dời **6.244 ô** sang ô DIRECT có built-up cùng xã; khối lượng roadless **1.241.833 → 42.249 (−96,6%)**; gỡ 110.855 người ma; `pop` **bất biến từng bit**. Trọng số ô nhận có xét lối vào ⇒ **sửa luôn hồi quy D4 của 7f** (7f tự sinh 6.350→6.467 ô roadless). 8 cổng QA | 🟠   | **DONE**              | Giang           | **2026-07-30** | ☑           |
-| **E-DQ8c** | E     | **Dân KHÔNG phục vụ được — bài toán MẪU SỐ, không phải làm sạch.** Dư sau 8b: **225 ô / 42.576 người** không dời được (222 ô ngoài mọi polygon xã VNSDI · 3 ô ở xã không có đất vừa built-up vừa DIRECT). Cụm lõi là xóm kênh rạch ĐBSCL (9,8–10,0 N / 104,9 E, `frac_water` 0,43–0,66) — người **thật**, đi lại bằng thuyền, xe không vào được. Phải gắn `demand_servable=False` và **trừ khỏi `coverage_pop`** kèm số công bố, không để đọng thành mẫu số không thể phủ | ⚪   | DOC → policy          | Giang/Kỳ       | —                   | ☐           |
-| **E-DQ7d** | E     | **Proxy cầu chưa kiểm chứng ngoại vi** — audit 29/07: trần đo được của target ρ = **0,865**, proxy chỉ đạt **0,33** (38% tín hiệu khả dụng); **trọng số KHÔNG phải nút thắt** (fit tốt nhất 0,329 vs **đảo trọng số 0,266** vs `pop` đơn 0,261); target thô **77% là công suất** (ρ(occ, số súng) = **0,773**); **644** ô (không phải 983) có sạc thật mà mọi input = 0, **488** ô trong đó có xe sạc thật                                                                                                     | 🔴   | **FIX (chặn)** | **Kỳ**  | —                   | ☐           |
-| **E-DQ4**  | E     | Cấu hình khuyết (`current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 🟡   | FIX                   | Giang           | —                   | ☐           |
-| **E-DQ5**  | E     | Trường`operator` bẩn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 🟡   | FIX                   | Giang           | —                   | ☐           |
-| **E-DQ6**  | E     | Text tự do bẩn (`name`, `address`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | ⚪   | SIMPLIFY              | Giang           | —                   | ☐           |
-| **E-DQ3**  | E     | Cột admin trống (`admin_l1_code`, `province_name`, `commune_name`, `commune_kind`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 🟡   | FIX                   | Giang           | —                   | ☐           |
+| ID               | Nhóm | Vấn đề                                                                                                                                                                                                                                                                                                                                                                                    | Mức | Phạm vi              | Owner           | ngày giải quyết   | Trạng thái |
+| ---------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------- | --------------- | -------------------- | ------------ |
+| **P1**     | A     | Heuristic weights thay vì fit model có giám sát trên 18,6M occupancy                                                                                                                                                                                                                                                                                                                    | 🟠   | SIMPLIFY              | Kỳ             | —                   | ☐           |
+| **P2**     | A     | Selection bias: chỉ quan sát demand nơi**đã có** trạm                                                                                                                                                                                                                                                                                                                           | ⚪   | DOC → FUTURE         | Giang/Kỳ       | —                   | ⊘           |
+| **P3**     | A     | Cửa sổ 7,15 ngày → bỏ qua mùa vụ/lễ/thời tiết                                                                                                                                                                                                                                                                                                                                      | ⚪   | DOC → FUTURE         | Giang           | —                   | ⊘           |
+| **P4**     | B     | **1. Bán kính suy biến:** R = 500 m < khoảng cách tâm 2 ô H3 kề nhau (0,98 km) → MCLP = sort top-p; <br /><br />2. 500 m không phải khoảng cách lái xe                                                                                                                                                                                                                 | 🔴   | **FIX (chặn)** | Kỳ + Giang     | **2026-07-24** | ☑           |
+| **P5**     | B     | Candidate set chưa định nghĩa; thiếu lọc land-use (hồ/núi/đất cấm)                                                                                                                                                                                                                                                                                                                | 🟡   | SIMPLIFY              | Giang           | **2026-07-24** | ☑           |
+| **P6**     | C     | Trùng PK (236 dòng); số trạm lệch giữa doc/report (28.417 vs 28.625)                                                                                                                                                                                                                                                                                                                   | 🟡   | FIX                   | Giang           | **2026-07-24** | ☑           |
+| **P7**     | C     | Trộn lẫn trạm sạc xe máy điện: dùng power tier chung thay vì chuẩn cắm (CCS2)                                                                                                                                                                                                                                                                                                    | 🟠   | FIX                   | Giang           | **2026-07-24** | ☑           |
+| **P8**     | C     | Thiếu lọc trạng thái vận hành (inactivate / activate) & access (private vs public)                                                                                                                                                                                                                                                                                                     | 🟡   | FIX                   | Giang           | **2026-07-27** | ☑           |
+| **P9**     | C     | Lệch thời điểm giữa các đợt crawl (occupancy 2026 · WorldPop 2020 · OSM)                                                                                                                                                                                                                                                                                                           | 🟡   | FIX + DOC             | Giang           | —                   | ☐           |
+| **P10**    | D     | WorldPop 2020 lỗi thời (6 năm)                                                                                                                                                                                                                                                                                                                                                            | 🟡   | DOC                   | Giang           | —                   | ⊘           |
+| **P11**    | D     | Model tổng dân số thay vì mật độ**sở hữu ô tô** (~5–9% hộ)                                                                                                                                                                                                                                                                                                                | 🟠   | SIMPLIFY              | Giang           | —                   | ☐           |
+| **E-DQ10** | E     | Chưa freeze snapshot / provenance                                                                                                                                                                                                                                                                                                                                                           | 🟡   | FIX                   | Giang           | **2026-07-27** | ☑           |
+| **E-DQ9**  | E     | Grid toàn quốc vs MVP 1 thành phố (`demand_h3` toàn bảng)                                                                                                                                                                                                                                                                                                                            | 🟡   | SIMPLIFY              | Giang           | **2026-07-27** | ☑           |
+| **E-DQ2**  | E     | Trùng chéo nguồn (evcs vs official)                                                                                                                                                                                                                                                                                                                                                       | 🟠   | FIX                   | Giang           | **2026-07-27** | ☑           |
+| **E-DQ1**  | E     | Toạ độ placeholder trùng khít                                                                                                                                                                                                                                                                                                                                                          | 🟠   | FIX                   | Giang           | **2026-07-28** | ☑           |
+| **E-DQ7a** | E     | **POI ngoài lãnh thổ VN** — Overpass query bằng `VN_BBOX` thô, không clip biên giới → **54,2%** POI nằm ở Campuchia/Lào/Thái/TQ                                                                                                                                                                                                                                  | 🔴   | **FIX (chặn)** | Giang           | **2026-07-28** | ☑           |
+| **E-DQ7b** | E     | **`road_len` sai ngữ nghĩa** <br />1.`track`+`service` tính là đường sinh cầu (19,9%)<br /><br />2. double-count 2 chiều (motorway 96,9% `oneway`)<br />3. `_MAJOR` gộp cao tốc + quốc lộ + tỉnh lộ                                                                                                                                                           | 🟠   | FIX                   | Giang           | **2026-07-28** | ☑           |
+| **E-DQ7c** | E     | **POI thiếu & lẫn đơn vị**1. Tỉ lệ`apartments` với `mall`bị gắn mặc đinh là 1:1 (**84,8%** số đếm ở top-100 ô là chung cư);<br /><br />2. Lẫn đơn vị **bên trong** từng nhóm crawl<br /><br />3. **335** trùng node/way + 13 đối tượng ở 2 nhóm<br /><br />4. recall OSM **fuel 35,9% · parking 8,6%** (đo ngoại vi) | 🟠   | FIX + DOC             | Giang           | **2026-07-28** | ☑           |
+| **E-DQ7e** | E     | **`pop` chưa hiệu chuẩn TUYỆT ĐỐI**:  raster UN-**unadjusted**: 99,627M so với bản UNadj **97,569M** (**+2,11%**).                                                                                                                                                                                                                                       | 🟡   | FIX + DOC             | Giang           | **2026-07-29** | ☑           |
+| **E-DQ7f** | E     | `pop` bị dồn lại trong 1 vài ô dân cư  + DỒN THỪA xét trên cấp xã                                                                                                                                                                                                                                                                                                           | 🟠   | FIX                   | Giang           | **2026-07-29** | ☑           |
+| **E-DQ8a** | E     | Chỉ xét đường đi trong 1 ô thay vì trong 1 nhóm các ô                                                                                                                                                                                                                                                                                                                             | 🟡   | FIX                   | Giang           | **2026-07-30** | ☑           |
+| **E-DQ8b** | E     | Dân cư bị phân bố lại ở những ô không phải dân cư (E-DQ7f) -> ko có lối vào                                                                                                                                                                                                                                                                                               | 🟠   | FIX                   | Giang           | **2026-07-30** | ☑           |
+| **E-DQ7d** | E     | **Proxy cầu chưa kiểm chứng ngoại vi**                                                                                                                                                                                                                                                                                                                                            | 🔴   | **FIX (chặn)** | **Kỳ**  | —                   | ☐           |
+| **E-DQ4**  | E     | Cấu hình súng thu thập được bị diễn giải sai - Xét số súng livePower (đang hoạt động) thay cho vì Asset (tổng số súng).                                                                                                                                                                                                                                               | 🟠   | FIX                   | Giang           | **2026-07-30** | ☑           |
+| **E-DQ5**  | E     | Trường`operator` bẩn                                                                                                                                                                                                                                                                                                                                                                    | 🟡   | FIX                   | Giang           | —                   | ☐           |
+| **E-DQ6**  | E     | Text tự do bẩn (`name`, `address`)                                                                                                                                                                                                                                                                                                                                                     | ⚪   | SIMPLIFY              | Giang           | —                   | ☐           |
+| **E-DQ3**  | E     | Cột admin trống (`admin_l1_code`, `province_name`, `commune_name`, `commune_kind`)                                                                                                                                                                                                                                                                                                 | 🟡   | FIX                   | Giang           | —                   | ☐           |
 
 ---
 
@@ -259,8 +258,21 @@ Các dòng **E-DQ** trong [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn
 > **`E-DQ7a` clip biên giới VN ✅** → **`E-DQ7b` retype road ✅** → **`E-DQ7c` retype POI ✅** →
 > **`E-DQ7e` hiệu chuẩn tuyệt đối ✅** → **`E-DQ7f` sửa dồn cục dasymetric ✅** →
 > **`E-DQ8a` bậc lối vào ✅** → **`E-DQ8b` dời dân ô roadless ✅** → `E-DQ8c` mẫu số không phục vụ được →
-> `E-DQ7d` kiểm chứng ngoại vi (**gate của `demand_weight`** — chẩn đoán xong 29/07, **bàn giao Kỳ**) → `E-DQ4` xử lý khuyết →
+> **`E-DQ4` tầng cấu hình TÀI SẢN ✅** → `E-DQ7d` kiểm chứng ngoại vi (**gate của `demand_weight`** — chẩn đoán xong 29/07, **bàn giao Kỳ**) →
 > `E-DQ5`+`E-DQ6` chuẩn hoá categorical → `E-DQ3` enrich admin (cũng trọng tài `COORD_ADDR_MISMATCH` của E-DQ1).
+
+> ⚠️ **Đổi thứ tự 30/07 — `E-DQ4` chuyển lên TRƯỚC `E-DQ7d`** (bản cũ đặt nó sau). Lý do là **chính lập luận
+> mà register đã dùng cho "E-DQ7c phải xong trước E-DQ7d"**, áp nguyên văn: audit của 7d chỉ ra hai cột nặng
+> nhất mà nó chạm là **số súng/ô** (ρ = **0,773**, cao nhất trong mọi đại lượng đo được) và **`current_type`**
+> (`occ_mean` AC 0,122 vs MIXED 1,831 — chênh **13×**). Fit trên artefact trước E-DQ4 là fit một cột công suất
+> **đọc thiếu 9,9% trên tập cung** và một biến phân tầng **sai ở 531 trạm**. Chi phí đổi thứ tự **gần bằng 0**
+> (một phép join vào artefact đã freeze), nên không có lý do trả sau.
+
+> ⚠️ **`E-DQ4` KHÔNG đổi thứ hạng ô, nên nó không phải rào chặn của MCLP** — cùng khuôn kết luận với 7e/7f/8b:
+> ρ(số súng, occ) ở cấp ô đi **0,7711 → 0,7745** (ô poll dày ≥500: **0,7937 → 0,8021**). Nói rõ để không ai
+> đọc quá lời: E-DQ4 **không cứu** proxy cầu (verdict 0,33/0,865 của 7d **đứng nguyên**). Nó sửa đúng hai thứ
+> 7d cần mà trước đây không có: **biến phân tầng** đúng, và **mẫu số exposure** để nói được "cầu trên mỗi súng"
+> — thứ mà chẩn đoán B của 7d ("target thô 77% là công suất") biến thành điều kiện tiên quyết.
 
 **Ba ràng buộc thứ tự trong nhóm `E-DQ7`** (lý do tách 6 dòng `E-DQ7a`–`E-DQ7f` thay vì 1):
 
@@ -303,6 +315,7 @@ Các dòng **E-DQ** trong [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn
   > toàn quốc trùng **500/500**. Trên toàn lưới thì thấp hơn hẳn (**0,932865** trên 262.849 ô) vì 8b cố ý
   > dời khối lượng giữa các ô nông thôn. Kết luận: 7d **fit được ngay**, nhưng **phải fit trên artefact sau
   > 8b** — fit trên bản trước 8b rồi so với bản sau là so hai tập feature khác nhau.
+  >
 - **`E-DQ7a` mở khoá `E-DQ3`.** Để clip POI theo biên giới phải trích **polygon `admin_level=2`** từ chính `.pbf`
   đã freeze — đúng artefact mà `E-DQ3` cần để spatial-join admin, và do đó cũng giải phóng **758 `COORD_ADDR_MISMATCH`**
   mà E-DQ1 cố ý hoãn. Một artefact, ba issue → làm 7a **sớm nhất** dù E-DQ3 nằm cuối hàng. *(Đã xong 28/07:
@@ -689,14 +702,14 @@ chứa 145 trạm sạc đang vận hành** — tức bộ lọc khả thi sẽ 
 
 **Schema sau E-DQ7b** (`osm_roads_h3.parquet` giữ 28 cột lớp; `demand_h3` giữ 5 cột suy ra):
 
-| Cột                   | Định nghĩa                                             | Consumer                                |
-| ---------------------- | --------------------------------------------------------- | --------------------------------------- |
+| Cột                   | Định nghĩa                                             | Consumer                                     |
+| ---------------------- | --------------------------------------------------------- | -------------------------------------------- |
 | `road_access_m`      | mọi đường lái xe được (gồm`service`+`track`) | `access_tier` (E-DQ8a) → `buildable_h3` |
-| `road_len_m`         | mạng lái xe**trừ** `service`+`track`         | proxy cầu                              |
-| `road_lane_mw_m`     | lane-mét cao tốc                                        | hành lang liên tỉnh                  |
-| `road_lane_ar_m`     | lane-mét`trunk`+`primary`                            | trục đô thị                         |
-| `road_bridge_m`      | km cầu/hầm (**tập con** của `road_access_m`)  | P5 — không đặt trụ trên mặt cầu |
-| ~~`road_len_mt_m`~~ | **khai tử**                                        | —                                      |
+| `road_len_m`         | mạng lái xe**trừ** `service`+`track`         | proxy cầu                                   |
+| `road_lane_mw_m`     | lane-mét cao tốc                                        | hành lang liên tỉnh                       |
+| `road_lane_ar_m`     | lane-mét`trunk`+`primary`                            | trục đô thị                              |
+| `road_bridge_m`      | km cầu/hầm (**tập con** của `road_access_m`)  | P5 — không đặt trụ trên mặt cầu      |
+| ~~`road_len_mt_m`~~ | **khai tử**                                        | —                                           |
 
 **Kết quả** (chạy 28/07 — `roads_pbf && make osm && make demand && landuse-national && candidates`):
 
@@ -866,15 +879,15 @@ theo toà là FAIL ngay) · ⑦ `components_has_poi_columns` (chặn artefact c�
 
 **Kết quả** (chạy 28/07 — `make osm && make demand && make candidates CITY=hanoi`):
 
-| Đại lượng                         | Trước          | Sau                        | Ghi chú                                                                                                         |
-| ------------------------------------- | ---------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `n_poi`                             | 9.679            | **khai tử**         | →`n_mall` 252 + `n_dept_store` 1.133 + `n_supermarket` 1.386 + `n_market` 1.661 + `n_apartment` 5.157 |
-| `n_parking`                         | 2.463            | **khai tử**         | →`n_parking_off` 2.147 + `n_parking_street` 149 (−34 trùng, −133 RESTRICTED)                             |
-| `n_fuel`                            | 4.964            | **4.830**            | −134 bản trùng node/way                                                                                       |
-| Toà chung cư →**khu**        | 5.157            | **1.370**            | hệ số**3,76×** — đơn vị mới sánh được với `n_mall`                                          |
-| Ô lưới`demand_h3`                | 254.035          | **254.035**          | không đổi (E-DQ7a/7b giữ nguyên bit-level)                                                                  |
-| `pop` · `road_access_m` · E-DQ8 | —               | **không xê dịch** | 99,621 M · 721.785 km · 6.350 ô *(số dân của dòng này là tiền-7e; xem [E-DQ8a](#e-dq8a--lối-vào-đo-ở-thang-sai-bước-10) cho 1.241.833)* |
-| Candidate Hà Nội                    | 1.711 (5/5 gate) | **1.707 (5/5 gate)** | T0 1.409 · T4 130 · T1**108** · T2 60                                                                   |
+| Đại lượng                         | Trước          | Sau                        | Ghi chú                                                                                                                                             |
+| ------------------------------------- | ---------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `n_poi`                             | 9.679            | **khai tử**         | →`n_mall` 252 + `n_dept_store` 1.133 + `n_supermarket` 1.386 + `n_market` 1.661 + `n_apartment` 5.157                                     |
+| `n_parking`                         | 2.463            | **khai tử**         | →`n_parking_off` 2.147 + `n_parking_street` 149 (−34 trùng, −133 RESTRICTED)                                                                 |
+| `n_fuel`                            | 4.964            | **4.830**            | −134 bản trùng node/way                                                                                                                           |
+| Toà chung cư →**khu**        | 5.157            | **1.370**            | hệ số**3,76×** — đơn vị mới sánh được với `n_mall`                                                                              |
+| Ô lưới`demand_h3`                | 254.035          | **254.035**          | không đổi (E-DQ7a/7b giữ nguyên bit-level)                                                                                                      |
+| `pop` · `road_access_m` · E-DQ8 | —               | **không xê dịch** | 99,621 M · 721.785 km · 6.350 ô*(số dân của dòng này là tiền-7e; xem[E-DQ8a](#e-dq8a--lối-vào-đo-ở-thang-sai-bước-10) cho 1.241.833)* |
+| Candidate Hà Nội                    | 1.711 (5/5 gate) | **1.707 (5/5 gate)** | T0 1.409 · T4 130 · T1**108** · T2 60                                                                                                       |
 
 **Mọi cổng PASS**, đúng **một WARN có chủ đích**: `poi_recall_bias_parking_off = 2,665` — cổng đang làm đúng
 việc của nó (báo rằng `n_parking_off` lệch đô thị, không phải báo pipeline hỏng).
@@ -1171,11 +1184,11 @@ cờ `pop_pixel_implausible`.
 (`road_access_m <= 0`). Ô res 8 rộng 0,75 km² và tâm hai ô kề cách **0,98 km**: một xóm mà đường vào nằm ở
 **ô bên cạnh** bị kết luận "không có đường". Tách 6.350 ô của E-DQ8 theo vành:
 
-| Bậc         | Điều kiện                          |     Ô |     `pop` | % khối lượng |
-| ----------- | ---------------------------------- | -----: | ---------: | -----------: |
-| `ADJACENT`  | có đường ở **vành 1** (~1,0 km)    | **4.862** | 894.956 | **72,1%** |
-| `NEAR`      | chỉ có ở vành 2 (~2,0 km)          |    923 | 159.831 |      12,9% |
-| `ISOLATED`  | không có đường trong cả hai vành   |    565 | 187.047 |      15,1% |
+| Bậc         | Điều kiện                               |              Ô | `pop` | % khối lượng |
+| ------------ | ------------------------------------------ | --------------: | ------: | --------------: |
+| `ADJACENT` | có đường ở**vành 1** (~1,0 km) | **4.862** | 894.956 | **72,1%** |
+| `NEAR`     | chỉ có ở vành 2 (~2,0 km)              |             923 | 159.831 |           12,9% |
+| `ISOLATED` | không có đường trong cả hai vành    |             565 | 187.047 |           15,1% |
 
 ⇒ **72,1% khối lượng E-DQ8 không phải lỗi dữ liệu, mà lỗi THANG ĐO.** Đây đúng là cái bẫy mà **E-DQ7a đã gỡ ở
 tầng biên giới** ("test là **giao lục giác** ∩ polygon, KHÔNG phải tâm-ô-trong-polygon" — vì ô vắt biên rơi tâm
@@ -1184,13 +1197,13 @@ về bên nào cũng được); tầng đường chưa từng được xử lý 
 
 **Neo ngoại vi — 19.015 trạm đang vận hành.** Bậc mới phải được kiểm bằng thực địa, không tự tuyên bố:
 
-| Bậc của ô chứa trạm | Trạm | % trạm | % dân số ở bậc đó |
-| ------------------- | ----: | -----: | ----------------: |
-| `DIRECT`            | 18.907 | **99,432%** | 98,727% |
-| `ADJACENT`          |    **15** |  0,079% |  **0,917%** |
-| `NEAR`              |     5 |  0,026% |  0,164% |
-| `ISOLATED`          |     1 |  0,005% |  0,192% |
-| *không có dòng trong lưới* | **87** | 0,458% | — (xem [E-DQ8c](#e-dq8c--dân-không-phục-vụ-được-mẫu-số-bước-10c)) |
+| Bậc của ô chứa trạm          |        Trạm |           % trạm |                                                     % dân số ở bậc đó |
+| --------------------------------- | -----------: | ----------------: | --------------------------------------------------------------------------: |
+| `DIRECT`                        |       18.907 | **99,432%** |                                                                     98,727% |
+| `ADJACENT`                      | **15** |            0,079% |                                                            **0,917%** |
+| `NEAR`                          |            5 |            0,026% |                                                                      0,164% |
+| `ISOLATED`                      |            1 |            0,005% |                                                                      0,192% |
+| *không có dòng trong lưới* | **87** |            0,458% | — (xem[E-DQ8c](#e-dq8c--dân-không-phục-vụ-được-mẫu-số-bước-10c)) |
 
 Đọc đúng bằng chứng này quan trọng hơn cả con số: **15 trạm thật ở ô `ADJACENT` ⇒ ô như thế xây được**, nên loại
 cứng chúng là sai. Nhưng `ADJACENT` giữ 0,917% dân mà chỉ nhận 0,079% trạm — **dưới mức dân số ~11×** — nên bằng
@@ -1238,13 +1251,13 @@ phải là `DIRECT`, và mọi ô `ISOLATED` phải thật sự trống đườn
 
 **Kết quả** (`make demand` → `landuse-national` → `candidates`):
 
-| Đại lượng                                | Trước       | Sau                    |
-| ---------------------------------------- | ------------ | ---------------------- |
-| ô loại cứng vì "không đường"           | 6.350        | **723** (`ISOLATED`) |
-| `buildable` national                     | 59.768       | **59.927**       |
-| cờ `NEEDS_ACCESS_ROAD`                 | —           | **7.072 ô**      |
-| `candidate_sites` (Hà Nội MVP)         | 1.707        | **1.707** (không đổi) |
-| `demand_h3`                              | 254.159 ô   | **255.480 ô** (thêm ô nhận của 8b) |
+| Đại lượng                        | Trước    | Sau                                           |
+| ------------------------------------ | ---------- | --------------------------------------------- |
+| ô loại cứng vì "không đường" | 6.350      | **723** (`ISOLATED`)                  |
+| `buildable` national               | 59.768     | **59.927**                              |
+| cờ`NEEDS_ACCESS_ROAD`             | —         | **7.072 ô**                            |
+| `candidate_sites` (Hà Nội MVP)   | 1.707      | **1.707** (không đổi)                |
+| `demand_h3`                        | 254.159 ô | **255.480 ô** (thêm ô nhận của 8b) |
 
 **Limitation (`DOC`):**
 
@@ -1271,10 +1284,10 @@ không vào được".
 **② Khối lượng phần lớn là THẬT — ngược hẳn 7f.** Chạy **cùng phép trọng tài DANSO** trên tập E-DQ8 (join ô→xã
 96,7%):
 
-| Phân lớp xã                                 |    Ô |     Người | % khối lượng | 7f để so |
-| ------------------------------------------- | ----: | ---------: | -----------: | -------: |
+| Phân lớp xã                                         |    Ô | Người | % khối lượng |    7f để so |
+| ------------------------------------------------------ | ----: | ------: | --------------: | ------------: |
 | `RETOTAL` (WorldPop\_xã > 1,5×DANSO ⇒ người ma) |   765 | 229.224 | **18,5%** | **63%** |
-| `REPLACE` (DANSO xác nhận tổng ⇒ chỉ sai chỗ)   | 5.373 | 944.229 | **81,5%** |     37% |
+| `REPLACE` (DANSO xác nhận tổng ⇒ chỉ sai chỗ)  | 5.373 | 944.229 | **81,5%** |           37% |
 
 ⇒ Với 8b, mặc định là **REPLACE (bảo toàn khối lượng, chỉ đổi chỗ)**. Nếu bê nguyên chính sách của 7f sang đây
 thì sẽ **gỡ mất ~800k người thật**.
@@ -1319,26 +1332,26 @@ vào**, nên nó **đổ người vào ô roadless**: số ô `pop>0 & road_acce
 
 **Sổ cái `pop_src`** (kiểm được, không phải tự khai):
 
-| `pop_src`                          |      Ô | Ý nghĩa |
-| ---------------------------------- | ------: | ------- |
-| `WORLDPOP`                         | 252.529 | không đụng |
-| `MOVED_TO_ACCESSIBLE`              | **6.244** | dời sang ô `DIRECT` cùng xã (8b) |
-| `REDISTRIBUTED` / `RETOTALED_DANSO` | 2.915 / 936 | ô do 7f xử lý |
-| `UNREPAIRED_NO_COMMUNE`            |     222 | ngoài mọi polygon xã → 8c |
-| `UNREPAIRED_NO_ACCESSIBLE_BUILTUP` |       3 | xã không có đất vừa built-up vừa `DIRECT` → 8c |
+| `pop_src`                             |              Ô | Ý nghĩa                                               |
+| --------------------------------------- | --------------: | ------------------------------------------------------- |
+| `WORLDPOP`                            |         252.529 | không đụng                                           |
+| `MOVED_TO_ACCESSIBLE`                 | **6.244** | dời sang ô`DIRECT` cùng xã (8b)                   |
+| `REDISTRIBUTED` / `RETOTALED_DANSO` |     2.915 / 936 | ô do 7f xử lý                                        |
+| `UNREPAIRED_NO_COMMUNE`               |             222 | ngoài mọi polygon xã → 8c                           |
+| `UNREPAIRED_NO_ACCESSIBLE_BUILTUP`    |               3 | xã không có đất vừa built-up vừa`DIRECT` → 8c |
 
 **Cổng QA — 8 cổng, giá trị đo khi chạy 30/07 (mỗi cổng FAIL được):**
 
-| Cổng | Đo được 30/07 |
-| ---- | ------------- |
-| `pop_bit_invariant` | max\|Δpop\| = **0,0** |
-| `no_unlabelled_roadless_pop` | 225 ô còn dân, **0 ô KHÔNG nhãn** |
-| `retotal_only_reduces` | gỡ **110.855** người ma (removed 196.865 − target 86.009) |
-| `global_mass_accounted` | \|Σpop_adj − kỳ vọng\| = **0,000 người** |
-| `national_drift_lt_1pct` | **0,114%** so `pop_adj` sau 7f |
-| `roadless_mass_strictly_decreases` | 1.183.197 → **42.576** (**−96,4%**) |
-| `all_received_mass_landed_direct` | **0** ô không-`DIRECT` nhận thêm dân |
-| `supply_ranking_shift` (advisory) | **2.541/12.811** ô cung đổi `pop_adj` (19,83%) |
+| Cổng                                | Đo được 30/07                                                  |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| `pop_bit_invariant`                | max\|Δpop\| = **0,0**                                       |
+| `no_unlabelled_roadless_pop`       | 225 ô còn dân,**0 ô KHÔNG nhãn**                       |
+| `retotal_only_reduces`             | gỡ**110.855** người ma (removed 196.865 − target 86.009) |
+| `global_mass_accounted`            | \|Σpop_adj − kỳ vọng\| = **0,000 người**               |
+| `national_drift_lt_1pct`           | **0,114%** so `pop_adj` sau 7f                             |
+| `roadless_mass_strictly_decreases` | 1.183.197 →**42.576** (**−96,4%**)                   |
+| `all_received_mass_landed_direct`  | **0** ô không-`DIRECT` nhận thêm dân                  |
+| `supply_ranking_shift` (advisory)  | **2.541/12.811** ô cung đổi `pop_adj` (19,83%)          |
 
 > **Hai cổng đã bắt lỗi thật trong lúc dựng** — và đó là lý do chúng được viết để FAIL được. Lần chạy 1: cổng ②
 > đỏ với **224 ô** bị bỏ qua im lặng (không gán được xã ⇒ không vào vòng lặp). Lần chạy 2: vẫn đỏ với **2 ô** —
@@ -1349,11 +1362,11 @@ vào**, nên nó **đổ người vào ô roadless**: số ô `pop>0 & road_acce
 
 **Kết quả:**
 
-| Đại lượng | `pop` (UN-anchored) | `pop_adj` (sau 7f+8b) |
-| --------- | ------------------: | --------------------: |
-| khối lượng ở ô roadless | 1.241.833 | **42.249** (**−96,6%**) |
-| Σ toàn quốc | **97.563.106** (bất biến) | 96.965.852 (−0,612% cộng dồn) |
-| ô `pop>0 & road_access=0` do phép sửa TỰ SINH | 7f: **+117** | 8b: **0** (cổng ⑦) |
+| Đại lượng                                      |             `pop` (UN-anchored) |              `pop_adj` (sau 7f+8b) |
+| -------------------------------------------------- | --------------------------------: | -----------------------------------: |
+| khối lượng ở ô roadless                       |                         1.241.833 | **42.249** (**−96,6%**) |
+| Σ toàn quốc                                     | **97.563.106** (bất biến) |     96.965.852 (−0,612% cộng dồn) |
+| ô`pop>0 & road_access=0` do phép sửa TỰ SINH |                 7f:**+117** |            8b:**0** (cổng ⑦) |
 
 `make demand` PASS · `osm/validate` PASS · `landuse/validate` PASS · `candidates` Hà Nội **1.707** (không đổi) ·
 40 test PASS.
@@ -1396,9 +1409,150 @@ xóm kênh rạch **ĐBSCL** (9,8–10,0 N / 104,9 E, `frac_water` 0,43–0,66, 
    > ⚠️ **Thứ tự bắt buộc: A4 phải xong TRƯỚC bước này** — và nó đã xong. Làm tessellation trước A4 sẽ đưa 76 ô
    > đó vào lưới với bậc mặc định `ISOLATED` ⇒ loại cứng **76/76** ô đang chứa trạm thật, và bản sửa lưới sẽ trông
    > như một hồi quy. Cần cổng mới `grid_contains_all_supply_cells` (**FAIL**, không WARN).
+   >
 
 **Chưa làm vì đây là thay đổi ĐỊNH NGHĨA LƯỚI**, kéo theo số dòng của `demand_h3`/`buildable_h3`/AOI national và
 mẫu số của cổng ⑥ ⇒ cần chốt phạm vi trước (gộp vào **E-DQ3**, vốn cần cùng artefact polygon, là lựa chọn rẻ nhất).
+
+#### E-DQ4 — Cấu hình đọc ở tầng SAI: mảng SỐNG vs sổ TÀI SẢN (bước 11)
+
+`🟠 DONE · ☑ chốt 2026-07-30 · Owner: Giang`
+
+**Register cũ ghi triệu chứng, không ghi khuyết tật.** Dòng cũ: *"cấu hình khuyết
+(`current_type`/`max_power_kw`/`total_power_kw` null, `num_connectors=0`)"* = **282 dòng (1,45%)**. Đo lại 30/07:
+282 dòng ấy **có thật**, nhưng chúng chỉ là phần mà lỗi **tình cờ nhìn thấy được**. Khuyết tật thật chạm **8,1%
+trạm** và **9,0% tổng số súng toàn quốc**, và **không một phép đếm null nào thấy được nó vì không có gì bị null**.
+
+**Chẩn đoán — một cơ chế duy nhất giải thích cả bốn bậc.** [`build_master_evcs.py:33`](../src/ev_siting/data/evcs/build_master_evcs.py#L33)
+ghi `totalEvse` là *"số súng THẬT"*. **Sai.** `evsePowers` là **mảng trạng thái SỐNG**: một EVSE chỉ xuất hiện khi nó
+đang được đăng ký **và** đang báo cáo. Bằng chứng, crosstab `depot` (trạng thái sống) × `evse_powers` rỗng trên tab
+VinFast:
+
+| `depot`        |      n | `evse_powers` rỗng |
+| ---------------- | -----: | --------------------: |
+| `Available`    | 14.819 |           **0** |
+| `AllBusy`      |  1.237 |           **0** |
+| `Maintaining`  |  3.331 |                   177 |
+| `OutOfService` |     40 |                    25 |
+
+Registry chính thức **hành xử y hệt**: trong 282 dòng null, official có dòng EVSE cho đúng **25** trạm
+`charging_status=OUTOFSERVICE` và **không có dòng nào** cho **177** trạm `INACTIVE`. ⇒ **CẢ HAI nguồn đều là feed
+trạng thái sống, không phải sổ đăng ký tài sản.**
+
+Vậy E-DQ4 là lỗi **NGỮ NGHĨA**, cùng họ với **E-DQ7b** (`road_len`) và **E-DQ8a** (đo ở thang sai) — **không** phải
+lỗi thiếu dữ liệu. Tắt hết mảng → null; tắt **một phần** → đọc thiếu âm thầm; tắt **cả một loại dòng điện** →
+`current_type` sai.
+
+**Bốn bậc đo được** (artefact đã freeze, `snapshot_id=2026-07-20`; join `store_id == station_code`, phủ
+**19.243/19.507 = 98,6%**):
+
+| Bậc | Khuyết tật                            | Đo được                                                                                                                                                                                                                                                             |
+| ---- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A    | null cả 4 trường (triệu chứng cũ) | **282**; **134** trong tập cung (19.015), **toàn bộ** `MAINTENANCE`; **60/12.811** ô cung đọc tổng công suất **= 0**; cả 130 ô có panel đều `occ_mean = 0,000`                                                          |
+| B    | **đọc thiếu ÂM THẦM**        | **1.568 trạm (8,1%)** ít súng hơn registry, **0 trạm nhiều hơn** — bất đối xứng **một chiều** = dấu hiệu TRUNCATION, không phải nhiễu. Thiếu **6.249 súng (9,0%)**; tập cung **1.498 trạm / +6.055 súng (+9,9%)** |
+| C    | `current_type` sai                    | **531** trạm; hầu hết là `DC` mà thật là **`MIXED`** (chính các súng AC bị thiếu)                                                                                                                                                           |
+| D    | `total_power_kw` sai ngữ nghĩa      | **21.806** tủ (`physical_reference`) mang **≥2 hồng, 100% cùng rated kW + cùng standard** ⇒ hai hồng trên MỘT tủ. Σ theo súng **3.159.206 kW** vs Σ theo tủ **1.731.991 kW** = **1,82×**                                 |
+
+**Lệch theo loại dòng điện — chính là lý do bậc C tồn tại.** Truncation **không đều**: AC (≤25 kW) thiếu **14,2%**
+(30.026 vs 34.981) so với DC **3,8%** (32.868 vs 34.162); tier tệ nhất **7,0 kW thiếu 56,1%** (2.743 vs 6.255), rồi
+250 kW **22,4%**. Vì AC bị tắt nhiều hơn, trạm MIXED mất hết phần AC và **trông như DC thuần**.
+
+**Kiểm chứng NGOẠI VI — không cần registry** (đúng khuôn `poi_recall.py` của E-DQ7c và neo occupancy của E-DQ7d, nay
+áp cho cấu hình): **159 trạm ô tô** (132 trong tập cung) ghi nhận **số xe sạc đồng thời > số súng lắp đặt**
+(`ts_val_max > num_connectors`), vượt tới **11 súng** — **bất khả thi về vật lý**. Registry giải **132/132** trong tập
+cung (official guns ≥ `ts_val_max` ở **mọi** trường hợp). Telemetry là **NHÂN CHỨNG** cho công suất lắp đặt, và
+`ts_val_max` **đã có sẵn trong master** nên phép kiểm này miễn phí.
+
+**Cách xử lý — tách tầng TÀI SẢN khỏi tầng TRẠNG THÁI SỐNG** (khuôn 2 cột của **E-DQ7b R1**; tuyệt đối **không ghi
+đè**, **không xoá dòng**), ở [`resolve_config.py`](../src/ev_siting/data/evcs/resolve_config.py), chặn ở
+`transform_canonical`:
+
+- **LIVE (giữ nguyên):** `num_connectors` · `max_power_kw` · `total_power_kw` · `current_type` = *"đang báo cáo"*.
+  `num_connectors = 0` được **giữ nguyên là giá trị LIVE ĐÚNG** (không có gì báo cáo) — sai lầm cũ là **đọc** nó
+  thành "không có súng", không phải bản thân con số.
+- **ASSET (8 cột mới):** `n_guns_installed` · `max_power_kw_asset` · `site_power_kw` · `nameplate_power_kw` ·
+  `current_type_asset` · `config_src` · `config_resolved` · `n_guns_imputed`.
+- **Quy tắc hợp giải: official-first CÓ HỢP `max()`.** Official-first theo **P8** + [[vinfast-official-join-key]];
+  phần **mới** là `max()`: **cả ba nguồn đều là chặn DƯỚI**, nên phải **hợp** thay vì ghi đè —
+  `n_guns_installed = max(registry, evcs Σ totalEvse, ts_val_max)`. `max()` phủ luôn 264 trạm không join được và
+  đóng cả 159 mâu thuẫn vật lý. (Nếu evcs > registry thì registry mới là bản cũ ⇒ official-first **thô** sẽ sai;
+  cổng ③ canh đúng tiền đề này.)
+- **`site_power_kw` là đọc BẢO TOÀN:** Σ theo **tủ** = `max(rated)` trên từng `physical_reference`. 831 dòng registry
+  có `physical_reference` NULL → không nhóm được → giữ per-gun ở đó (**không đoán**).
+- **`current_type_asset`** suy từ tầng tài sản ⇒ sửa 531 trạm; **đây là cột E-DQ7d phải dùng để phân tầng**, không
+  phải `current_type`.
+
+**Cờ tường minh** (vào `quality_flags`): `CONFIG_TRUNCATED` **1.568** · `CURRENT_TYPE_CORRECTED` **531** ·
+`POWER_CABINET_SHARED` **4.317** · `CONFIG_UNKNOWN` **256** · `CONFIG_LOWER_BOUND` **1**.
+
+**Kết quả** (19.507 trạm; mọi số cũ **bất động**: 19.178 primary · 19.015 cung · 38 placeholder · 758 mismatch):
+
+- `config_src`: `OFFICIAL` **19.243** · `UNKNOWN` **256** · `EVCS_LIVE` **7** · `TELEMETRY_BOUND` **1**.
+- Súng **ĐANG BÁO CÁO → LẮP ĐẶT**: toàn bộ **62.924 → 69.174**; tập cung **61.372 → 67.427 (+9,9%)**.
+- kW: LIVE `total_power_kw` **3.010.966** · ASSET nameplate **3.159.206** · ASSET **`site_power_kw` 1.731.991**
+  ⇒ con số công bố được cho công suất lắp đặt là **~1,73 GW**, không phải ~3,0 GW.
+- `config_resolved` trên tập cung **0,9929**; **8/8 cổng PASS**.
+
+**CHÍNH SÁCH DƯ — 256 trạm không nguồn nào điền được** (176 VinFast `INACTIVE` + **80 mạng thứ ba**). Áp đúng khuôn
+**E-DQ8c** ("công bố mẫu số", không để đọng):
+
+1. `config_resolved=False`, `config_src=UNKNOWN`, cờ `CONFIG_UNKNOWN`, **mọi cột ASSET = NULL** (cổng ⑥ chặn việc
+   điền ngầm).
+2. **GIỮ** làm điểm phủ / anchor **T0** brownfield — chúng có hạ tầng vật lý, nhất quán quyết định **giữ
+   `MAINTENANCE`** của **P8**.
+3. **LOẠI khỏi mọi mẫu số CÓ TRỌNG SỐ CÔNG SUẤT**, và **công bố số bị loại** — đã cài ở
+   `build_covered0._capacity_accounting` (khối `config_capacity` trong report).
+4. `n_guns_imputed` (median theo tỉnh × loại trạm) **chỉ để phân tích độ nhạy**, **không bao giờ** là giá trị mặc
+   định. Test `test_imputation_never_leaks_into_installed` khoá điều này.
+
+**8 cổng QA CÓ THỂ FAIL.** Trước E-DQ4 **không có cổng nào cho cấu hình**: `INCOMPLETE_CONFIG` chỉ tồn tại dưới dạng
+**comment** ở `transform_canonical.py`, và `validate.py` không kiểm một trường cấu hình nào (`REQUIRED_COLS` còn
+không liệt kê chúng). Đây là khuôn *"cổng kiểm đúng cái sinh ra lỗi nên không bao giờ FAIL"* của **E-DQ7c**
+(`poi_no_dup`) / **E-DQ7e** (dải "97–98 triệu") — ở E-DQ4 **còn tệ hơn: không có cổng nào cả**.
+
+| #  | Cổng                             | Bắt được gì                                                                                 |
+| -- | --------------------------------- | ------------------------------------------------------------------------------------------------ |
+| ① | `guns_ge_observed_max`          | **NEO NGOẠI VI** — cổng duy nhất bắt truncation **không cần nguồn thứ hai** |
+| ② | `no_silent_zero`                | đang vận hành + đã resolve mà 0 súng                                                      |
+| ③ | `reporting_le_installed`        | tiền đề hợp`max()` bị vỡ (mảng sống vượt tầng tài sản)                            |
+| ④ | `asset_layer_complete`          | dòng`config_resolved` mà thiếu cột ASSET                                                   |
+| ⑤ | `site_power_le_nameplate`       | bậc D quay lại (site > Σ nameplate); report luôn tỉ số**1,82×**                     |
+| ⑥ | `unknown_is_explicit`           | **điền ngầm** cho dòng UNKNOWN (đúng thứ chính sách dư cấm)                     |
+| ⑦ | `row_reconciliation`            | `input == resolved + chặn dưới + unknown` (không dòng nào bốc hơi)                     |
+| ⑧ | `config_resolved_rate ≥ 0,985` | đo trên tập**CUNG**, không trên toàn bảng                                           |
+
+Thêm **cổng ngoại vi ở tầng master** (`validate.py`): `ts_val_max > num_connectors` → **WARN** kèm số, *không*
+CRITICAL — 159 mâu thuẫn là **thuộc tính của NGUỒN**, master không sửa được; cổng CRITICAL đặt đúng chỗ sửa được là
+① của `resolve_config`. Các cột cấu hình + `ts_val_max` cũng đã được thêm vào `REQUIRED_COLS`.
+**19 test** khoá ngữ nghĩa ở [`tests/test_config_semantics.py`](../tests/test_config_semantics.py), trong đó **7 test
+chứng minh từng cổng CÓ THỂ FAIL**.
+
+**Ảnh hưởng lên `E-DQ7d` — nói đủ, không nói quá.** ρ(số súng trong ô, occ) đi **0,7711 → 0,7745**; ô poll dày
+(≥500, n=6.236) **0,7937 → 0,8021**. E-DQ4 **KHÔNG cứu** proxy cầu (verdict **0,33/0,865** của 7d đứng nguyên) và
+**không** đổi thứ hạng ô đủ để MCLP quan tâm. Nó sửa đúng hai thứ 7d cần: **biến phân tầng** (`current_type_asset`,
+531 trạm) và **mẫu số exposure** để phát biểu được *"cầu trên mỗi súng"* — điều mà chẩn đoán **B** của 7d
+("target thô **77%** là công suất") biến thành **điều kiện tiên quyết**, chứ không phải tuỳ chọn.
+
+**Limitation (`DOC`):**
+
+- **`site_power_kw` cần MỘT lần đối chiếu spec phần cứng.** Nhóm theo `physical_reference` cho thấy 21.806 tủ
+  **≥2 hồng, 100% cùng rated kW + cùng standard** — rất mạnh nhưng **chưa phải bằng chứng** rằng tủ không cấp đủ
+  rated cho cả hai hồng cùng lúc. Nếu VinFast **chia** công suất thì `max()` đúng; nếu **dual-power** thì `sum()`
+  đúng. Cả hai đọc đều có sẵn (`site_power_kw` vs `nameplate_power_kw`) nên đổi kết luận **không phải chạy lại
+  pipeline** — nhưng **đừng công bố `site_power_kw` trước khi đối chiếu**.
+- **80 trạm mạng thứ ba** (BitCharge · Esky · EBOOST · EV One · ChargeLink · Rabbit EVC · EVPay · "Hỗ trợ cộng
+  đồng" · "Trạm sạc Tiền mặt"): evcs.vn **không công bố cấu hình** cho mạng ngoài VinFast và chúng **không có** trong
+  registry VinFast ⇒ không nguồn nào điền được. *(Phát hiện phụ cho **E-DQ5**: tên mạng của chúng nằm ở cột `evse`
+  của catalog thô — cột đó chứa **tên network**, không phải số súng.)*
+- **60 ô cung vẫn đọc công suất 0** sau khi sửa: chúng thuộc đúng 134 trạm `MAINTENANCE` không resolve được, nên
+  đây là **giới hạn nguồn**, không phải lỗi hợp giải. Chính sách dư (mục 3) là cách xử lý đúng, không phải imputation.
+- **Chỉ có MỘT snapshot.** Vì cả hai feed là trạng thái sống, công suất lắp đặt **chỉ khôi phục đầy đủ được bằng HỢP
+  THEO THỜI GIAN**. Một lần crawl `evse_powers` ở ngày thứ hai, hợp bằng `max`, sẽ siết chặt thêm — nhưng nó phải vào
+  như **input mới có checksum riêng** dưới **E-DQ10**, **không** được là phép sửa đổi `snapshot_id=2026-07-20`.
+- **Nợ đã biết, cố ý KHÔNG sửa ở đây** (cần dòng register riêng): `build_covered0` vẫn lọc bằng `status`/`is_public`
+  **thô** thay vì `op_status`/`access`/`is_operational` của **P8**, và `_DIRTY_COORD_FLAGS` vẫn tìm cờ `DUP_COORD`
+  mà **E-DQ1** đã thay. Vì vậy `n_covered0` **15.451 ≠ 19.015** của tập cung canonical, và các tổng công suất trong
+  `covered0_report.json` mang đúng sai lệch đó. Đã ghi cảnh báo vào docstring của module.
 
 #### E-DQ7d — Proxy cầu chưa kiểm chứng ngoại vi (bước 7)
 
