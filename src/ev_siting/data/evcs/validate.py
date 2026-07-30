@@ -69,7 +69,6 @@ def main():
     ts_files = {fn[:-4] for fn in os.listdir(TS_DIR) if fn.endswith(".csv")}
     ts_missing_file = master_has_ts - ts_files          # master bảo có TS nhưng thiếu file
     ts_orphan_file  = ts_files - master_codes           # file TS không có dòng master
-    ts_flag_but_nofile = master_has_ts - ts_files
     file_but_flag_false = ts_files - master_has_ts       # có file nhưng master ghi False/không có
 
     if ts_missing_file:
@@ -158,9 +157,9 @@ def main():
             if snap_issues:
                 crit.append(f"SNAPSHOT drift: {len(snap_issues)} input lệch khỏi manifest "
                             f"(vd {snap_issues[0]})")
-    except Exception as e:  # thiếu module / manifest hỏng -> cảnh báo, không chặn
+    except Exception as e:  # manifest hỏng = provenance không kiểm chứng được -> CHẶN
         snap_status = "ERROR"
-        warn.append(f"SNAPSHOT: không đối chiếu được manifest ({e})")
+        crit.append(f"SNAPSHOT: không đối chiếu được manifest ({e})")
 
     def ms_iso(ms):
         if ms is None:

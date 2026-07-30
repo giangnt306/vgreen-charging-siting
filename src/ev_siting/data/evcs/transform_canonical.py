@@ -21,14 +21,22 @@ Output: Parquet Hive-partitioned theo `province_code`:
   data/interim/canonical/stations/province_code=<XX>/*.parquet
   data/interim/canonical/connectors/province_code=<XX>/*.parquet
 
+F7/F12 (port tu review 28/07): `join_xref` FAIL-FAST khi `official_xref.parquet`
+thieu hoac cu (doi chieu sha256 byte-for-byte voi master, khoa unique, PHU du
+station_code canonical can); recovery tuong minh bang `--allow-missing-xref`.
+Ghi canonical NGUYEN TU — swap ca generation (`_write_partitioned_atomically`),
+crash giua chung khong bao gio de canonical cut nua.
+
 Chay:
     PYTHONPATH=src python -m ev_siting.data.evcs.transform_canonical
     PYTHONPATH=src python -m ev_siting.data.evcs.transform_canonical --keep-bss
 """
 import argparse
+import hashlib
 import json
 import re
 import shutil
+import uuid
 
 import h3
 import pandas as pd
@@ -237,19 +245,52 @@ def completeness(row) -> float:
     return round(sum(ind) / len(ind), 3)
 
 
-def join_xref(df: pd.DataFrame) -> pd.DataFrame:
+def _sha256(path) -> str:
+    """sha256 noi dung file — cung ham bam voi match_official (cong F7)."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def join_xref(df: pd.DataFrame, *, require_xref: bool = True) -> pd.DataFrame:
     """Left-join provenance tu official_xref.parquet theo `station_code`.
 
-    Neu chua co xref -> tra cot provenance rong (pipeline van chay doc lap)."""
+    F7: xref phai duoc sinh tu DUNG master hien tai (sha256 byte-for-byte), khoa
+    unique va PHU du station_code canonical can — sai la FAIL-FAST, khong join am
+    tham tren xref cu. `--allow-missing-xref` chi danh cho recovery co chu dich."""
     # bo cot cung ten tu master (verified/confidence tho) de xref lam chu.
     df = df.drop(columns=[c for c in ("verified", "confidence", *XREF_COLS)
                           if c in df.columns])
     if XREF_PARQUET.exists():
         xref = pd.read_parquet(XREF_PARQUET)
+        missing = {"station_code", "source_master_sha256"} - set(xref.columns)
+        if missing:
+            raise SystemExit(f"F7 FAIL: xref thieu cot gate {sorted(missing)}; "
+                             f"chay match_official lai")
+        hashes = set(xref["source_master_sha256"].dropna().astype(str))
+        if hashes != {_sha256(MASTER_CSV)}:
+            raise SystemExit("F7 FAIL: official_xref stale so voi "
+                             "stations_master_evcs.csv; chay match_official lai")
+        if xref["station_code"].duplicated().any():
+            raise SystemExit("F7 FAIL: official_xref station_code khong unique")
+        # PHU chu khong BANG: matcher chay tren master DAY DU (gom BATTERY_SWAP),
+        # con `df` o day da loc pham vi. Doi bang nhau => canonical FAIL 100% o
+        # duong mac dinh. Dieu kien dung: xref phai phu MOI ma canonical can.
+        missing_codes = (set(df["station_code"].astype(str))
+                         - set(xref["station_code"].astype(str)))
+        if missing_codes:
+            raise SystemExit(
+                f"F7 FAIL: official_xref thieu {len(missing_codes)} station_code "
+                f"cua master (vd {sorted(missing_codes)[:3]}); chay match_official lai")
         keep = ["station_code", "confidence", "verified"] + XREF_COLS
         xref = xref[[c for c in keep if c in xref.columns]]
         df = df.merge(xref, on="station_code", how="left")
         df["_has_xref"] = df["official_matched"].notna()
+    elif require_xref:
+        raise SystemExit("F7 FAIL: thieu official_xref.parquet; "
+                         "chay `make match-official` truoc canonical")
     else:
         for c in ["confidence", "verified", *XREF_COLS]:
             df[c] = pd.NA
@@ -270,7 +311,37 @@ def redefine_confidence(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def run(keep_bss: bool = False):
+def _write_partitioned_atomically(stations: pd.DataFrame, connectors: pd.DataFrame) -> None:
+    """F12: dung ca hai dataset NGOAI duong dan roi swap nguyen the he canonical.
+
+    Ghi truc tiep (rmtree roi to_parquet thang vao cho) nghia la crash giua chung
+    de lai canonical cut nua chung (stations moi + connectors cu, hoac thieu han
+    mot bang). Swap ca generation: hoac the he moi day du, hoac giu the he cu."""
+    parent = CANONICAL_DIR.parent
+    tmp = parent / f".canonical-tmp-{uuid.uuid4().hex}"
+    backup = parent / f".canonical-prev-{uuid.uuid4().hex}"
+    try:
+        tmp.mkdir(parents=True)
+        stations.to_parquet(tmp / "stations", partition_cols=["province_code"], index=False)
+        connectors.to_parquet(tmp / "connectors", partition_cols=["province_code"], index=False)
+        moved_old = False
+        if CANONICAL_DIR.exists():
+            CANONICAL_DIR.replace(backup)
+            moved_old = True
+        try:
+            tmp.replace(CANONICAL_DIR)
+        except Exception:
+            if CANONICAL_DIR.exists():
+                shutil.rmtree(CANONICAL_DIR)
+            if moved_old and backup.exists():
+                backup.replace(CANONICAL_DIR)
+            raise
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+        shutil.rmtree(backup, ignore_errors=True)
+
+
+def run(keep_bss: bool = False, *, require_xref: bool = True):
     if not MASTER_CSV.exists():
         raise SystemExit(f"thieu {MASTER_CSV} — chay build_master_evcs truoc")
 
@@ -304,7 +375,7 @@ def run(keep_bss: bool = False):
         {True: True, False: False, "True": True, "False": False})
 
     # --- provenance/verified/confidence tu doi chieu nguon chinh thuc ---
-    df = join_xref(df)
+    df = join_xref(df, require_xref=require_xref)
     df = redefine_confidence(df)
 
     stations_cols = [
@@ -413,16 +484,11 @@ def run(keep_bss: bool = False):
 
     stations = df[stations_cols].reset_index(drop=True)
 
-    # --- ghi Parquet Hive-partitioned theo province_code (ghi de sach) ---
-    for d in (STATIONS_DIR, CONNECTORS_DIR):
-        if d.exists():
-            shutil.rmtree(d)
-        d.mkdir(parents=True, exist_ok=True)
+    # --- ghi Parquet Hive-partitioned theo province_code (F12: swap ca generation) ---
     # province_code rong -> "NA" de khong vo partition.
     stations["province_code"] = stations["province_code"].fillna("").replace("", "NA")
     connectors["province_code"] = connectors["province_code"].fillna("").replace("", "NA")
-    stations.to_parquet(STATIONS_DIR, partition_cols=["province_code"], index=False)
-    connectors.to_parquet(CONNECTORS_DIR, partition_cols=["province_code"], index=False)
+    _write_partitioned_atomically(stations, connectors)
 
     # --- bao cao ---
     rel = lambda p: p.relative_to(PROJECT_ROOT)
@@ -508,8 +574,10 @@ def main():
     ap = argparse.ArgumentParser(description="master CSV -> canonical parquet (stations/connectors)")
     ap.add_argument("--keep-bss", action="store_true",
                     help="giu lai BATTERY_SWAP (mac dinh bo — du an chi nham oto)")
+    ap.add_argument("--allow-missing-xref", action="store_true",
+                    help="recovery tuong minh: cho phep canonical chay khong co official_xref (F7)")
     args = ap.parse_args()
-    run(keep_bss=args.keep_bss)
+    run(keep_bss=args.keep_bss, require_xref=not args.allow_missing_xref)
 
 
 if __name__ == "__main__":
