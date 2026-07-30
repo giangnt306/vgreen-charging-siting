@@ -150,11 +150,15 @@ def source_specs() -> list[dict]:
             "name": "evcs.vn — catalog trạm sạc công cộng + telemetry occupancy",
             "retrieval_url": "https://evcs.vn (API bản đồ nội bộ)",
             "license": "Proprietary (public map API, dùng cho nghiên cứu)",
-            "vintage": "crawl 2026-07-21/22",
+            "vintage": "crawl 2026-07-21/22 (168h) + 2026-07-29 (720h)",
             "temporal_extent": evcs_window or None,
             "members": [
                 {"role": "catalog", "path": evcs.CATALOG_DIR, "kind": "dir"},
                 {"role": "occupancy_timeseries", "path": evcs.LOAD_TS, "kind": "file"},
+                # Từ 29/07 mỗi lần crawl telemetry ghi ra 1 run riêng trong thư mục này và
+                # `split_timeseries` mới tách về `data/interim`. Nếu không đóng băng nó thì
+                # bản telemetry mà TOÀN BỘ master đang dựa vào nằm ngoài snapshot.
+                {"role": "occupancy_runs", "path": evcs.TIMESERIES_RUNS_DIR, "kind": "dir"},
             ],
         },
         {
@@ -167,6 +171,15 @@ def source_specs() -> list[dict]:
                 {"role": "locators_meta", "path": vo.META_JSON, "kind": "file"},
                 {"role": "locators_full", "path": vo.BULK_JSON, "kind": "file"},
                 {"role": "station_details", "path": vo.DETAIL_DIR, "kind": "dir"},
+                # Registry la nguon SONG. Pull moi ghi vao `snapshot=<ngay>/` de khong de len
+                # ban frozen — nhung phai dong bang chung, vi chinh gen 179 (29/07) la SEED
+                # sinh ra 298 tram moi trong catalog da freeze; thieu no thi dau vao cua
+                # `--seed-from-official` khong tai lap duoc (L10).
+                *[
+                    {"role": f"locators_snapshot_{d.name.split('=')[-1]}", "path": d, "kind": "dir"}
+                    for d in sorted(vo.RAW_DIR.glob(vo.SNAPSHOT_GLOB))
+                    if d.is_dir()
+                ],
             ],
         },
         {
@@ -183,19 +196,22 @@ def source_specs() -> list[dict]:
         },
         {
             "id": "worldpop",
-            "name": "WorldPop — VN mật độ dân số 2020 constrained (~100m)",
-            "retrieval_url": wp.WORLDPOP_URL,
+            "name": "WorldPop — VN mật độ dân số, HAI niên đại (~100m)",
+            "retrieval_url": f"{wp.WORLDPOP_URL} ; {wp.WORLDPOP_2025_URL}",
             "license": "CC-BY 4.0",
             # E-DQ7e (2026-07-29): đổi từ bản UN-unadjusted sang **UNadj**. Bản cũ GIỮ
             # trong snapshot (không xoá) vì cổng `pop_scale_ratio_is_constant` cần nó để
             # chứng minh phép hiệu chuẩn là hằng số quốc gia -> thứ hạng ô bất biến.
+            # P10: raster 2025 R2024B (CN) giữ làm sensitivity — `demand_h3` mang cả
+            # `pop` lẫn `pop_2025` -> cả hai đều là INPUT thật, phải nằm trong snapshot.
             "vintage": "2020 constrained (BSGM), UN-adjusted (UNadj); "
                        "Σ = 97.569.444 người (E-DQ7e, đổi 2026-07-29 từ UN-unadjusted "
-                       "99.627.388 — hệ số 0,979344)",
+                       "99.627.388 — hệ số 0,979344); + 2025 R2024B (CN) unadjusted (P10)",
             "members": [
                 {"role": "population_raster", "path": wp.POP_TIF, "kind": "file"},
                 {"role": "population_raster_unadjusted_legacy",
                  "path": wp.POP_TIF_UNADJUSTED, "kind": "file"},
+                {"role": "population_raster_2025", "path": wp.POP_TIF_2025, "kind": "file"},
             ],
         },
         {

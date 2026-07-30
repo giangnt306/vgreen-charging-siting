@@ -1,20 +1,21 @@
 {
   "schema": "vgreen.snapshot-manifest/1",
-  "snapshot_id": "2026-07-20",
-  "frozen_at": "2026-07-29T15:21:30.579216+07:00",
+  "snapshot_id": "2026-07-29",
+  "frozen_at": "2026-07-29T22:01:52.038498+07:00",
   "hash_algo": "sha256",
   "content_hashed": true,
-  "project_root": "/home/wanderer210/Documents/AI/vgreen-charging-siting",
+  "project_root": "/home/n91ym1nhky/Work/internVSF/aGiang-evcs",
+  "merge_note": "Hợp nhất thủ công 2026-07-30 (integrate/final): nền = snapshot 2026-07-29 (devky/review-dataset); bổ sung từ bản re-freeze 2026-07-20 của data/giang (frozen_at 2026-07-29T15:21:30+07:00): nguồn vnsdi, worldpop/population_raster đổi sang 2020 UN-adjusted (E-DQ7e) + population_raster_unadjusted_legacy. Member gốc Giang được băm trên máy Giang — vnsdi/pages và raster UNadj chưa có trên đĩa này, cần copy raw trước khi `make verify-snapshot` PASS. Sau tích hợp chạy lại `make freeze` (snapshot 2026-07-30) làm bản chân lý duy nhất; bản gốc 2026-07-20 giữ ở MANIFEST-2026-07-20.json.",
   "sources": [
     {
       "id": "evcs",
       "name": "evcs.vn — catalog trạm sạc công cộng + telemetry occupancy",
       "retrieval_url": "https://evcs.vn (API bản đồ nội bộ)",
       "license": "Proprietary (public map API, dùng cho nghiên cứu)",
-      "vintage": "crawl 2026-07-21/22",
+      "vintage": "crawl 2026-07-21/22 (168h) + 2026-07-29 (720h)",
       "temporal_extent": {
-        "time_window_start": "2026-07-13T20:51:56.935000+07:00",
-        "time_window_end": "2026-07-21T00:32:01.302000+07:00"
+        "time_window_start": "2026-06-29T11:40:00+07:00",
+        "time_window_end": "2026-07-29T14:20:00+07:00"
       },
       "members": [
         {
@@ -22,9 +23,9 @@
           "path": "data/raw/evcs/catalog",
           "kind": "dir",
           "present": true,
-          "n_files": 11,
-          "total_bytes": 15248868,
-          "tree_sha256": "2a64e8d33da38ed9109a3fa1dac55cfbc6ca76d12dc85b7f9c1d5d906de909b9",
+          "n_files": 12,
+          "total_bytes": 15339843,
+          "tree_sha256": "0362afab55ee35c7d7dd5835b9a3927dfe791fdc097efb5c7667d902ec1a059b",
           "files": [
             {
               "path": "evcs_all_codes.txt",
@@ -77,6 +78,11 @@
               "sha256": "4853c263a573a08290e637d68ac05c5db9d454033f64b88217850da429155456"
             },
             {
+              "path": "evcs_stations_2026-07-29-new.csv",
+              "bytes": 90975,
+              "sha256": "4521f08823d33b6e5e71cb8e8d658b78f813ca9de1ab3a4ab1b5f3161963732c"
+            },
+            {
               "path": "evcs_stations_codes.txt",
               "bytes": 202055,
               "sha256": "a0d3d7b92400828b0c354059debc037915d9fd7b81883fc6c1d1b39527f69f3d"
@@ -89,8 +95,49 @@
           "kind": "file",
           "present": true,
           "bytes": 508491412,
-          "modified": "2026-07-21T16:24:28.548248+07:00",
+          "modified": "2026-07-28T11:07:12.261070+07:00",
           "sha256": "2e6bd5f98676a095d007677504aa4f59ff0f54fb5323ebcd03937344e62f8abd"
+        },
+        {
+          "role": "occupancy_runs",
+          "path": "data/raw/evcs/timeseries_runs",
+          "kind": "dir",
+          "present": true,
+          "n_files": 6,
+          "total_bytes": 1044905499,
+          "tree_sha256": "e22a1d7ea0d4f7bd85bd2d977176dccd59aa7d281e99b44e0198ec0f51aa679d",
+          "files": [
+            {
+              "path": "PILOT_2026-07-29.csv",
+              "bytes": 51042,
+              "sha256": "a786e08f9e91df8ed5af0ad166600bb66b081236d871d3c7dfc88db51562a791"
+            },
+            {
+              "path": "PILOT_2026-07-29.csv.done",
+              "bytes": 3098,
+              "sha256": "5ea1be4b2c74da78703816ba053f477b0df0d92aef58aca48ae25ed24dc87b12"
+            },
+            {
+              "path": "PILOT_2026-07-29.csv.failed",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "load_ts_2026-07-29-full.csv",
+              "bytes": 1044649295,
+              "sha256": "36046025b43d2c058e43e30fb6e561322faf4d7e23c569dce5d2b5095e9ae4a2"
+            },
+            {
+              "path": "load_ts_2026-07-29-full.csv.done",
+              "bytes": 202064,
+              "sha256": "bd9fe747912c6ed343bf2ace3c11f74aa57f7f8b3a5742ce9709088ac0fc6b8f"
+            },
+            {
+              "path": "load_ts_2026-07-29-full.csv.failed",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          ]
         }
       ]
     },
@@ -110,7 +157,7 @@
           "kind": "file",
           "present": true,
           "bytes": 97,
-          "modified": "2026-07-22T16:12:52.902698+07:00",
+          "modified": "2026-07-28T11:08:04.838929+07:00",
           "sha256": "8e4cac606d3253a2b3b30d619990ff12cece908942c0fed71ca48ac319e3af71"
         },
         {
@@ -119,7 +166,7 @@
           "kind": "file",
           "present": true,
           "bytes": 60940742,
-          "modified": "2026-07-22T16:13:00.641642+07:00",
+          "modified": "2026-07-28T11:08:06.469955+07:00",
           "sha256": "85e00caf12b42d0d2a594ff4d1d9fb2a479f0b914f50b8c6534a169889ba90d3"
         },
         {
@@ -130,6 +177,27 @@
           "n_files": 23240,
           "total_bytes": 165438117,
           "tree_sha256": "4f4f04973174e53b029ae6002c4923c5ab29822e76235f387ef6daa33d03f49e"
+        },
+        {
+          "role": "locators_snapshot_2026-07-29",
+          "path": "data/raw/vinfast_official/snapshot=2026-07-29",
+          "kind": "dir",
+          "present": true,
+          "n_files": 2,
+          "total_bytes": 63019588,
+          "tree_sha256": "9fde7bca134e860222fe114d076e473f0661be769243d57af43434bfdda1ca16",
+          "files": [
+            {
+              "path": "locators_full.json",
+              "bytes": 63019488,
+              "sha256": "9541d78345349a0aca1d29da6ddea2d176c3a319411fc17f2cc0fa8fdee10615"
+            },
+            {
+              "path": "locators_meta.json",
+              "bytes": 100,
+              "sha256": "a2059a4748408c8918c7c73056d7b611da86753745c29cef70f301d8e37f0f4c"
+            }
+          ]
         }
       ]
     },
@@ -158,7 +226,7 @@
           "kind": "file",
           "present": true,
           "bytes": 325450635,
-          "modified": "2026-07-21T21:25:32.874501+07:00",
+          "modified": "2026-07-28T11:08:50.119668+07:00",
           "sha256": "be18de21c54b3cd5c4598710500b38c4a0fbc6a270b3c06376c1fe42fcc03c4c"
         },
         {
@@ -201,10 +269,10 @@
     },
     {
       "id": "worldpop",
-      "name": "WorldPop — VN mật độ dân số 2020 constrained (~100m)",
-      "retrieval_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_UNadj_constrained.tif",
+      "name": "WorldPop — VN mật độ dân số, HAI niên đại (~100m)",
+      "retrieval_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_UNadj_constrained.tif ; https://data.worldpop.org/GIS/Population/Individual_countries/VNM/vnm_pop_2025_CN_100m_R2024B_v1.tif",
       "license": "CC-BY 4.0",
-      "vintage": "2020 constrained (BSGM), UN-adjusted (UNadj); Σ = 97.569.444 người (E-DQ7e, đổi 2026-07-29 từ UN-unadjusted 99.627.388 — hệ số 0,979344)",
+      "vintage": "2020 constrained (BSGM), UN-adjusted (UNadj); Σ = 97.569.444 người (E-DQ7e, đổi 2026-07-29 từ UN-unadjusted 99.627.388 — hệ số 0,979344); + 2025 R2024B (CN) unadjusted (P10)",
       "members": [
         {
           "role": "population_raster",
@@ -223,6 +291,50 @@
           "bytes": 26519892,
           "modified": "2026-07-22T08:46:39.277995+07:00",
           "sha256": "ce1e774cdbfd03a63548afb7228b5d2b03d8b976ea9ac5fdd62617be5d6dcf6f"
+        },
+        {
+          "role": "population_raster_2025",
+          "path": "data/raw/worldpop/vnm_pop_2025_CN_100m_R2024B_v1.tif",
+          "kind": "file",
+          "present": true,
+          "bytes": 73771675,
+          "modified": "2026-07-29T17:40:15.055082+07:00",
+          "sha256": "4c96bd6bf615870db131f8d465c58efb2d70072b5024d023be2cea8e87cb245a"
+        }
+      ]
+    },
+    {
+      "id": "vn_admin",
+      "name": "Ranh gioi hanh chinh VN 2025-07-01 (34 tinh, 2 cap) — OSM adm6",
+      "retrieval_url": "OpenStreetMap adm6 (dan xuat, luu trong repo)",
+      "license": "ODbL 1.0 (OpenStreetMap contributors) — VAULT-only, xem admin_join.py",
+      "vintage": "valid_from=2025-07-01 (sau sap nhap 2025)",
+      "members": [
+        {
+          "role": "boundary_layer",
+          "path": "data/ref/vn_admin/valid_from=2025-07-01",
+          "kind": "dir",
+          "present": true,
+          "n_files": 3,
+          "total_bytes": 51162690,
+          "tree_sha256": "9979474859c9601981edc0bd82c07485837696d973b8a919eb768a33baac800d",
+          "files": [
+            {
+              "path": "_admin_report.json",
+              "bytes": 926,
+              "sha256": "673bd20704f824729ff32e269e0b02d89c0bc1ad38feaaebb2a4dc0ce2c2764d"
+            },
+            {
+              "path": "communes.parquet",
+              "bytes": 45355761,
+              "sha256": "b05c25eea7ebc626fc2255ca5db3daf296b1269cad0c3821969a1f8665fe1708"
+            },
+            {
+              "path": "provinces.parquet",
+              "bytes": 5806003,
+              "sha256": "f17ef6f349a8d21ce42bd7539574b0aab518332d8b7718496796780fc6aba6a2"
+            }
+          ]
         }
       ]
     },
