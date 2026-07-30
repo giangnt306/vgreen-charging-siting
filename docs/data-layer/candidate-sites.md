@@ -132,7 +132,7 @@ FAIL bất kỳ gate nào (mặc định) → exit ≠ 0, **không bàn giao K�
 | `candidate_id` | string | **PK** (`cand-<city>-<idx>`) |
 | `lat`, `lng` | double | toạ độ thật (explainability) |
 | `h3_r8` | string | ô coverage (**unique** — ≤1/ô) |
-| `province_code` | string | null → enrich khi có admin (`E-DQ3`) |
+| `province_code` | string | null trên candidate không phải trạm; nhãn hành chính **đã có ở `demand_h3`** (`E-DQ3`, 30/07) → join theo `h3_r8` để lấy `admin_l1_code`/`commune_code` |
 | `tier` | string | T0–T4 |
 | `anchor_type` | string | `existing_station`/`parking`/`fuel`/`mall`/`retail`/`apartments`/`gapfill_synthetic` |
 | `source_ref` | string | `station_id` \| `osm_type/osm_id` \| `synthetic:<h3>` |
@@ -162,10 +162,11 @@ make candidates CITY=hanoi     # sinh candidate + QA gate
 | 4 | QA land-use | `data/landuse/validate.py` | `landuse_quality_report.json` |
 | 5 | Sinh candidate + QA | `features/build_candidates.py` | **`candidate_sites.{parquet,geojson}`** + `_qa.json` |
 
-**AOI** (`src/ev_siting/aoi.py`): MVP = 1 thành phố + buffer 5 km, định nghĩa bằng **tâm + bán kính**
-(vì cột admin chưa có — `E-DQ3`). Preset: `hanoi`/`hcm`/`danang`/`haiphong`/`cantho`; override bằng
-`--aoi-lat/--aoi-lng/--radius-km/--buffer-km`. Khi enrich admin xong, chỉ cần thay `AOI.cells()` bằng
-spatial-join ranh giới — module tiêu thụ không đổi.
+**AOI** (`src/ev_siting/aoi.py`): MVP = 1 thành phố + buffer 5 km, định nghĩa bằng **tâm + bán kính**.
+Preset: `hanoi`/`hcm`/`danang`/`haiphong`/`cantho`; override bằng `--aoi-lat/--aoi-lng/--radius-km/--buffer-km`.
+*(30/07 — `E-DQ3` đã enrich admin cho `demand_h3`, nên đổi sang AOI **ranh giới thật** giờ chỉ là thay
+`AOI.cells()` bằng lọc `admin_l1_code`; module tiêu thụ không đổi. **Chưa đổi** vì nó đổi tập ô của mọi artefact
+city đã dựng — nên chạy cùng lần rebuild tessellation của `E-DQ8c`.)*
 
 ---
 
@@ -197,9 +198,11 @@ chỉnh; đã cô lập thành hằng số để không rải rác trong code.
 Ngoài MVP 1 thành phố, pipeline chạy được **toàn Việt Nam** trên **lưới `demand_h3` quốc gia
 (268.404 ô res 8)** — dùng `--national` ở mọi bước, hoặc `make landuse-national && make candidates-national`.
 
-> **Một tập candidate duy nhất toàn quốc (không per-tỉnh).** Per-tỉnh cần gán ô → tỉnh, nhưng cột admin
-> hiện **null 100%** (`E-DQ3` chưa xong) → chưa cắt theo tỉnh được. Hệ quả: MCLP quốc gia là **một bài
-> toán lớn** — phía model (Kỳ) có thể cần phân rã theo vùng; đó là quyết định của tầng model.
+> **Một tập candidate duy nhất toàn quốc (không per-tỉnh).** *(Cập nhật 30/07 — **rào chặn dữ liệu đã gỡ**:
+> `E-DQ3` gán `admin_l1_code`/`commune_code` cho **255.298/255.480** ô `demand_h3`, nên cắt theo tỉnh giờ là
+> một phép lọc.)* Việc **có nên** phân rã MCLP theo tỉnh hay không vẫn là **quyết định của tầng model** (Kỳ) —
+> phân rã theo địa giới làm mất coverage vắt qua ranh giới tỉnh, đúng cùng loại lỗi rìa mà `buffer_km` của AOI
+> sinh ra để tránh.
 
 **National khác city ở đâu (đều tự động theo `--national`):**
 

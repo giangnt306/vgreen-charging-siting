@@ -6,11 +6,11 @@ crawl tho) thanh HAI bang canonical dung SCHEMA_CONTRACT muc 2/3:
 
   - `stations`   : 1 dong/tram (khoa `station_id` = `vn-<code>`), co `h3_r8`,
                    `operator`, tin hieu chat luong (`confidence`/`freshness`/
-                   `quality_flags`), cot admin de trong (enrich o Step B).
+                   `quality_flags`), nhan hanh chinh (E-DQ3).
   - `connectors` : tang 2 — no `evse_powers` thanh 1 dong/nhom cong suat
                    (FK `station_id`). Day la mo hinh `station -> connector`.
 
-PHAM VI (Step A): du an chi nham vao O TO -> MAC DINH BO `BATTERY_SWAP`
+PHAM VI: du an chi nham vao O TO -> MAC DINH BO `BATTERY_SWAP`
 (tram doi pin khong phai tram sac oto). Co the keo lai bang `--keep-bss`.
 
 P7 (nhiem xe may / power tier): evcs.vn chi lo cong suat, khong lo chuan cam ->
@@ -37,6 +37,9 @@ from .paths import MASTER_CSV, STATIONS_DIR, CONNECTORS_DIR, CANONICAL_DIR, PROJ
 from .dedup_crosssource import assign_physical_id, dedup_report, DUP_COLS
 from .fix_coords import resolve_coords, fix_report, FIX_COLS
 from .resolve_config import resolve_config, config_report, load_occ_max, CONFIG_COLS
+from ..admin.enrich_stations import (ADMIN_COLS, admin_report, build_crosswalk,
+                                     enrich_admin)
+from ..admin.paths import PROVINCE_CROSSWALK, ensure_dirs as ensure_admin_dirs
 from ..vinfast_official.paths import XREF_PARQUET, CONNECTORS_PARQUET as OFFICIAL_CONNECTORS
 
 H3_RES = 8
@@ -57,8 +60,10 @@ XREF_COLS = [
 ]
 AC_MAX_W = 25000                       # <=25 kW = AC, >25 kW = DC (khop build_master_evcs)
 VN_BBOX = (8.0, 23.6, 102.0, 110.0)    # lat_min, lat_max, lng_min, lng_max
-# Cot admin chua co nguon ranh gioi (Step B) -> tao san de dung schema, dien sau.
-ADMIN_COLS = ["admin_l1_code", "province_name", "commune_name", "commune_kind"]
+# ADMIN_COLS nay gio do E-DQ3 (admin/enrich_stations.py) dien tu ranh gioi xa VNSDI —
+# KHONG con la "cot de trong cho Step B". `province_code` (he 63 tinh CU, prefix ma evcs)
+# GIU NGUYEN canh `admin_l1_code` (34 tinh, nien dai 2025-06-16): mot cai la provenance
+# tho, mot cai la su that hinh hoc. Khong doi ten cai nay thanh cai kia.
 
 # --- P8: loc trang thai van hanh & access (private vs public) — QUYET DINH TUONG MINH ---
 # Hai truc DOC LAP, deu resolve OFFICIAL-FIRST (registry VinFast la ground truth,
@@ -297,8 +302,6 @@ def run(keep_bss: bool = False):
         df[c] = pd.to_numeric(df[c], errors="coerce")
     df["is_public"] = df["is_public"].map(
         {True: True, False: False, "True": True, "False": False})
-    for c in ADMIN_COLS:
-        df[c] = pd.NA                       # dien o Step B (enrich ranh gioi)
 
     # --- provenance/verified/confidence tu doi chieu nguon chinh thuc ---
     df = join_xref(df)
@@ -306,7 +309,8 @@ def run(keep_bss: bool = False):
 
     stations_cols = [
         "station_id", "station_code", "lat", "lng", "h3_r8",
-        "admin_l1_code", "province_name", "province_code", "commune_name", "commune_kind",
+        # E-DQ3: nhan hanh chinh (VNSDI cap xa, nien dai 2025-06-16) + provenance/trong tai
+        *ADMIN_COLS, "province_code",
         "name", "address", "operator", "station_type", "vehicle_class",
         "current_type", "max_power_kw", "total_power_kw", "num_connectors", "connector_types",
         "status", "is_public", "op_status", "access", "is_operational",
@@ -391,6 +395,22 @@ def run(keep_bss: bool = False):
     if not dq4["all_gates_pass"]:
         raise SystemExit(f"E-DQ4 QA gate FAIL: {dq4['gates']}")
 
+    # cung TRUOC E-DQ3 — de doi soat tac dong cua trong tai toa do bang ranh gioi xa.
+    n_supply_pre = int((df["is_operational"] & (df["access"] == "PUBLIC")
+                        & df["is_primary"] & df["coord_resolved"]).sum())
+
+    # --- E-DQ3: nhan hanh chinh + TRONG TAI toa do (chay SAU E-DQ1 — doc coord_resolved) ---
+    # Point-in-polygon tren ranh gioi xa VNSDI dien 4 cot khai bao (null 100% tu truoc
+    # den nay) VA phan xu not phan du ma E-DQ1 co y hoan: 758 COORD_ADDR_MISMATCH. Ranh
+    # gioi xa chi co DAT nen no bat duoc toa do sai ma `in_vn` cua E-DQ7a khong bat duoc
+    # (polygon adm2 GOM lanh hai) -> COORD_OUTSIDE_ADMIN loai them khoi cung.
+    df = enrich_admin(df)
+    dq3 = admin_report(df)
+    if not dq3["all_gates_pass"]:
+        raise SystemExit(f"E-DQ3 QA gate FAIL: {dq3['gates']}")
+    ensure_admin_dirs()
+    build_crosswalk(df).to_csv(PROVINCE_CROSSWALK, index=False)
+
     stations = df[stations_cols].reset_index(drop=True)
 
     # --- ghi Parquet Hive-partitioned theo province_code (ghi de sach) ---
@@ -457,11 +477,29 @@ def run(keep_bss: bool = False):
           f"(chua resolve {dq4['supply']['n_unresolved']:,}; o cung cong suat 0: "
           f"{dq4['supply']['cells_zero_capacity']:,})")
     print(f"  QA gates (8 cong)       : {'PASS' if dq4['all_gates_pass'] else 'FAIL'}  {dq4['gates']}")
+    print("--- E-DQ3 (nhan hanh chinh + trong tai toa do) ------------")
+    print(f"  nguon / nien dai        : VNSDI cap xa / {dq3['admin_vintage']} "
+          f"({dq3['n_provinces']} tinh · {dq3['n_communes']:,} xa co tram)")
+    print(f"  gan nhan duoc           : {dq3['n_labelled']:,} "
+          f"({dq3['join_rate_on_resolved']:.4%} tren tap coord_resolved) {dq3['admin_src']}")
+    print(f"  COORD_OUTSIDE_ADMIN     : {dq3['n_outside_admin']:,} (toa do ngoai moi xa "
+          f"> {dq3['snap_tol_m']:.0f} m -> loai khoi cung, h3_r8=NULL)")
+    print(f"  snap bien 1:1M          : {dq3['n_snapped']:,} (ven bien/song, xa gan nhat khop dia chi)")
+    print(f"  phan xu COORD_ADDR_MISMATCH: CONFIRMED {dq3['verdicts'].get('COORD_CONFIRMED', 0):,} "
+          f"· BAD {dq3['verdicts'].get('COORD_BAD', 0):,} · UNRESOLVED "
+          f"{dq3['verdicts'].get('UNRESOLVED', 0):,} (E-DQ1 hoan lai, nay dong duoc)")
+    print(f"  ADMIN_PROVINCE_CONFLICT : {dq3['n_province_conflict']:,} (advisory — "
+          f"province_code he 63 CU vs admin_l1_code 34)")
+    print(f"  crosswalk 63 -> 34      : {dq3['n_crosswalk_ok']} ma OK, "
+          f"AMBIGUOUS {dq3['crosswalk_ambiguous']} -> {PROVINCE_CROSSWALK.relative_to(PROJECT_ROOT)}")
+    print(f"  cung sau E-DQ3          : {dq3['n_supply']:,} (= {n_supply_pre:,} - "
+          f"{dq3['n_outside_admin']:,} toa do ngoai moi xa)")
+    print(f"  QA gates (7 cong)       : {'PASS' if dq3['all_gates_pass'] else 'FAIL'}  {dq3['gates']}")
     print(f"  confidence trung binh   : {stations['confidence'].mean():.3f}")
     print(f"  verified (first-party)  : {int(stations['verified'].sum()):,} / {len(stations):,}")
     print(f"  match_method            : {stations['match_method'].value_counts().to_dict()}")
     print(f"  provenance              : {stations['provenance'].value_counts().to_dict()}")
-    print("Con lai (Step B): enrich admin_l1_code/province_name/commune_* tu ranh gioi.")
+    print("Buoc ke: `make admin-grid` de gan nhan hanh chinh cho `demand_h3` + rollup xa.")
     print("=============================================================")
     return stations, connectors
 

@@ -79,7 +79,7 @@ data/raw/ → data/interim/ → data/processed/
 | Số cột | **34** | **34** ✅ |
 | `operator` | Liệt kê là trường solver tối thiểu | ⚠️ `operator` đang bẩn (P6/P7 trong known-issues) — lẫn nhãn, chưa làm sạch |
 | `status` | Solver tối thiểu | ⚠️ null 72 dòng, chưa xử lý |
-| `province_name`, `commune_name` | Khai báo có | 🔴 null **100%** — chưa enrich admin |
+| `province_name`, `commune_name` | Khai báo có | ✅ **enrich xong 30/07 (`E-DQ3`)** — 19.453/19.507 có nhãn, nguồn VNSDI cấp xã niên đại 2025-06-16; thêm `commune_code`/`admin_src`/`admin_verdict` |
 | `source_lineage`, `primary_source` | Liệt kê | Chưa thấy trong schema thực tế — cần kiểm |
 
 > [!IMPORTANT]
@@ -100,7 +100,7 @@ data/raw/ → data/interim/ → data/processed/
 | Số ô lệch | 316.526 vs 268.404 — lệch ~48k ô |
 | `demand_a/b` chưa tồn tại | Đây là TODO (`features/build_demand_proxy.py`) |
 | `pop_n/poi_n/road_n` chưa tồn tại | Chưa normalize |
-| Admin fields chưa có | Null 100%, theo dõi ở `E-DQ3` (enrich admin) |
+| Admin fields chưa có | ✅ **có từ 30/07 (`E-DQ3`)** — 255.298/255.480 ô; kèm `admin_frac`/`n_communes`. ⚠️ nhãn là **argmax diện tích**, cộng khối lượng phải qua `cell_commune`/`demand_commune` (40% dân ở ô vắt ≥2 xã) |
 | `n_parking`, `n_fuel` không khai báo | Có trong thực tế nhưng bị bỏ qua trong schema collaborator |
 
 > [!NOTE]
@@ -165,7 +165,7 @@ Schema không đề cập `candidate_sites` là điểm bàn giao thứ 3 (đã 
 | **P10** WorldPop 2020 lỗi thời | ❌ Không nhắc | |
 | **P11** Tổng dân số vs sở hữu ô tô | ❌ Không nhắc | |
 | Tọa độ placeholder (274 trùng) | ❌ Không nhắc | Ảnh hưởng `lat/lng` solver |
-| `admin_*` null 100% | ❌ Không nhắc — nhưng liệt kê `province_name/commune_name` như có sẵn | |
+| `admin_*` null 100% | ❌ Không nhắc — nhưng liệt kê `province_name/commune_name` như có sẵn | ✅ đã đóng ở `E-DQ3` (30/07) |
 
 ---
 
@@ -181,7 +181,7 @@ Schema không đề cập `candidate_sites` là điểm bàn giao thứ 3 (đã 
 ### Ưu tiên trung bình
 
 5. **Thêm `n_parking`, `n_fuel`** vào schema `gold/demand_proxy`.
-6. **Ghi rõ trạng thái null** của `province_name`, `commune_name`, `status`, `is_public` trong bảng stations.
+6. ~~**Ghi rõ trạng thái null** của `province_name`, `commune_name`~~ → **hết null 30/07 (`E-DQ3`)**; `status`/`is_public` → resolve qua `op_status`/`access` (**P8**, 27/07).
 7. **Thêm cảnh báo P6–P11** vào phần QA của schema (ít nhất là comment).
 
 ### Ưu tiên thấp (nice-to-have)

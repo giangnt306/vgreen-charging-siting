@@ -188,7 +188,14 @@
       "Bash(PYTHONPATH=src python -m pytest tests/test_config_semantics.py -q)",
       "Bash(make canonical *)",
       "Bash(sed -n '/E-DQ4/,/QA gates \\(8/p')",
-      "Bash(make resolve-config *)"
+      "Bash(make resolve-config *)",
+      "Bash(python -c \"import duckdb; print\\(duckdb.__version__\\)\")",
+      "Bash(python -c \"import shapely; print\\(shapely.__version__\\)\")",
+      "Bash(PYTHONPATH=src timeout 900 python -)",
+      "Bash(PYTHONPATH=src python -m ev_siting.data.admin.enrich_stations --dump)",
+      "Bash(time PYTHONPATH=src python -m ev_siting.data.admin.enrich_grid)",
+      "Bash(PYTHONPATH=src python -m ev_siting.data.admin.enrich_grid)",
+      "Bash(PYTHONPATH=src python -m pytest tests/test_admin.py -q)"
     ]
   }
 }

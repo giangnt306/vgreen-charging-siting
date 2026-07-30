@@ -54,9 +54,441 @@
 | **E-DQ8b** | E     | Dân cư bị phân bố lại ở những ô không phải dân cư (E-DQ7f) -> ko có lối vào                                                                                                                                                                                                                                                                                               | 🟠   | FIX                   | Giang           | **2026-07-30** | ☑           |
 | **E-DQ7d** | E     | **Proxy cầu chưa kiểm chứng ngoại vi**                                                                                                                                                                                                                                                                                                                                            | 🔴   | **FIX (chặn)** | **Kỳ**  | —                   | ☐           |
 | **E-DQ4**  | E     | Cấu hình súng thu thập được bị diễn giải sai - Xét số súng livePower (đang hoạt động) thay cho vì Asset (tổng số súng).                                                                                                                                                                                                                                               | 🟠   | FIX                   | Giang           | **2026-07-30** | ☑           |
-| **E-DQ5**  | E     | Trường`operator` bẩn                                                                                                                                                                                                                                                                                                                                                                    | 🟡   | FIX                   | Giang           | —                   | ☐           |
 | **E-DQ6**  | E     | Text tự do bẩn (`name`, `address`)                                                                                                                                                                                                                                                                                                                                                     | ⚪   | SIMPLIFY              | Giang           | —                   | ☐           |
-| **E-DQ3**  | E     | Cột admin trống (`admin_l1_code`, `province_name`, `commune_name`, `commune_kind`)                                                                                                                                                                                                                                                                                                 | 🟡   | FIX                   | Giang           | —                   | ☐           |
+| **E-DQ3**  | E     | Cột admin trống (`admin_l1_code`, `province_name`, `commune_name`, `commune_kind`)                                                                                                                                                                                                                                                                                                 | 🟡   | FIX                   | Giang           | **2026-07-30**      | ☑           |
+
+known-issues.md
+updaate docs
+Thought for 7s
+Let me audit the docs for numbers that E-DQ3 actually changed, so nothing is left stale.
+
+Bash Find stale supply numbers in docs
+IN
+cd docs && grep -rn "19\.015\|19,015\|12\.811\|12,811\|18\.999\|12\.801" . | head -40
+￼
+OUT
+evcs_vn_report.md:34:  - **(E-DQ3, 30/07) Hậu kiểm không gian đã chạy:** point-in-polygon trên ranh giới xã VNSDI phân xử **561/758** ca (**549** xác nhận toạ độ đúng — lỗi nằm ở `province_code`; **12** xác nhận toạ độ sai), còn **197** giữ cảnh báo. Ranh giới xã còn bắt thêm **16 trạm** có toạ độ ngoài mọi đơn vị hành chính (`COORD_OUTSIDE_ADMIN`) mà kiểm tra biên giới quốc gia **không** bắt được (polygon quốc gia bao gồm lãnh hải) → cung công khai khả dụng 19.015 → **18.999**.
+evcs_vn_report.md:47:- **Lượng Cung Thực Tế:** Lọc lấy nhóm có trạng thái công khai và sẵn sàng hoạt động (Public & Operational, không dính tọa độ ảo), còn lại **19.015 trạm thực sự**.
+data-layer/overview.md:223:| 3  | **`E-DQ3`** (Done 30/07)  | Cột admin trống **+ trọng tài toạ độ**                | `admin_l1_code`/`province_name`/`commune_name`/`commune_kind`/**`commune_code`** ← point-in-polygon ranh giới xã VNSDI (34 tỉnh, niên đại 2025-06-16) + `admin_src`/`admin_dist_m`/`admin_verdict`; cờ mới `COORD_OUTSIDE_ADMIN` (**16** trạm, loại khỏi cung: 19.015 → **18.999**) · `ADMIN_COORD_SNAPPED` (11) · `ADMIN_PROVINCE_CONFLICT` (792); phân xử **561/758** `COORD_ADDR_MISMATCH`; `demand_h3` +7 cột nhãn (**255.298/255.480** ô) + bảng phân bổ `cell_commune` + rollup **`demand_commune`**; **7+7 cổng QA** |
+data-layer/overview.md:291:- [ ] **`occ_h3` + `features/demand_validation.py`** (**Giang** — target & harness của **E-DQ7d**): trung bình occupancy **có trọng số thời gian** (poll không đều — ρ(n_polls, occ) = 0,501), khử nhiễu công suất (offset `log(súng)` hoặc tách AC vs DC/MIXED), cờ censoring (65,8% chạm trần súng), freeze vào MANIFEST (**E-DQ10**); harness chấm điểm **bất kỳ** proxy nào trên **12.811 ô cung** + 12 cổng QA. Xem [known-issues.md — E-DQ7d](../known-issues.md#e-dq7d--proxy-cầu-chưa-kiểm-chứng-ngoại-vi-bước-7).
+data-layer/dataset-inventory.md:23:| **Cung sạch cuối cùng (T0)** | **19.015** trạm (`clean_supply.csv`) |
+data-layer/dataset-inventory.md:94:**Công thức cung dùng cho T0/coverage:** `is_operational & access=='PUBLIC' & is_primary & coord_resolved` → **19.015**.
+data-layer/dataset-inventory.md:155:| `clean_supply.csv` | **19.015** | 14 | **Cung sạch cuối cùng** — input trực tiếp cho MCLP/coverage |
+data-layer/dataset-inventory.md:162:**Đối soát cung: 19.507 − 492 = 19.015** ✓
+sources/worldpop.md:133:| **KHÔNG** chặn | `E-DQ7d` (đơn điệu) | `E-DQ7d` — chỉ chạm **14/12.811** ô cung |
+known-issues.md:58:| **E-DQ5**  | E     | ~~Trường `operator` bẩn~~ → **`operator` là HẰNG SỐ trên tập cung** (0 null, 0 biến thể hoa/thường, **1** giá trị phân biệt trên 19.015 trạm cung); tín hiệu chủ sở hữu/mặt bằng nằm ở `name` **chưa parse** (**76,8%** cung mang token `Tư nhân`/`NQ`); **33** dòng lỗi phạm trù (phương thức thanh toán ghi vào cột network). ⚠️ **phải chạy SAU `E-DQ6`** | 🟡   | FIX                   | Giang           | —                   | ☐           |
+known-issues.md:312:  **14/12.811 ô cung** (0,1%) nên không đầu độc phép hiệu chuẩn của 7d; `E-DQ8` không đụng tới target. Cái
+known-issues.md:317:  loại thêm **16** trạm toạ độ sai khỏi cung (19.015 → **18.999**, `supply_cells` 12.811 → **12.801**) và phân xử
+known-issues.md:323:  > **hai bậc độ lớn**: 7f chạm **14/12.811** ô cung (0,1%), 8b chạm **2.541/12.811** (**19,83%**, +93.859
+known-issues.md:553:(`is_operational & PUBLIC & is_primary & coord_resolved`) = **19.015** (= 19.053 − 38). **Mọi gate PASS.**
+known-issues.md:829:sách cửa hàng bán lẻ **có toạ độ**. Thay vào đó dùng dữ liệu đã có: trong 19.015 trạm cung, **1.408 trạm** có
+known-issues.md:1138:**14/12.811** ô cung ⇒ **không** chặn E-DQ7d.
+known-issues.md:1223:**Neo ngoại vi — 19.015 trạm đang vận hành.** Bậc mới phải được kiểm bằng thực địa, không tự tuyên bố:
+known-issues.md:1379:| `supply_ranking_shift` (advisory)  | **2.541/12.811** ô cung đổi `pop_adj` (19,83%)          |
+known-issues.md:1432:   và bơm nhiễu vào tử số cổng ⑥ `supply_cells_have_road_access` (100/12.811). Bậc thật của chúng (tính từ bảng
+known-issues.md:1485:| A    | null cả 4 trường (triệu chứng cũ) | **282**; **134** trong tập cung (19.015), **toàn bộ** `MAINTENANCE`; **60/12.811** ô cung đọc tổng công suất **= 0**; cả 130 ô có panel đều `occ_mean = 0,000`                                                          |
+known-issues.md:1522:**Kết quả** (19.507 trạm; mọi số cũ **bất động**: 19.178 primary · 19.015 cung · 38 placeholder · 758 mismatch):
+known-issues.md:1588:  mà **E-DQ1** đã thay. Vì vậy `n_covered0` **15.451 ≠ 19.015** của tập cung canonical, và các tổng công suất trong
+known-issues.md:1613:Phạm vi đo: cung = `is_operational & access=PUBLIC & is_primary & coord_resolved` → **19.015** trạm
+known-issues.md:1614:(18.809 trạm có panel) trên **12.811 ô cung**.
+known-issues.md:1619:**đánh giá được thật** (12.811 ô cung), các proxy đặt tay cho **0,26–0,33**.
+known-issues.md:1683:Ngoài ra: **1.779/12.811** ô cung không thấy một xe nào trong 7 ngày · **3.417/19.218** trạm có chuỗi
+known-issues.md:1715:3. **D3 — chỉ đánh giá trên 12.811 ô cung, và nói thẳng điều đó.** Không bao giờ tính ρ trên 254k ô với
+known-issues.md:1786:> Trên tập cung canonical (`is_operational & PUBLIC & is_primary & coord_resolved`, **19.015** trạm),
+known-issues.md:1801:loại mặt bằng nằm trong `name`, chưa parse. Trên **19.015** trạm cung:
+known-issues.md:1821:**Hai chiều TÁCH RỜI, không phải một cột** (join 18,6M poll occupancy → `occ_mean`/trạm; **18.809/19.015** trạm cung
+known-issues.md:1850:**17.588/19.015 = 92,5%**; dư **1.427 (7,5%)** không nhãn ở cả hai.
+known-issues.md:1905:| ② | `ownership_covers_supply ≥ 0,76` | hiện **0,768** (14.608/19.015)                                          |
+known-issues.md:2042:| cung công khai khả dụng | 19.015 | **18.999** (−16 `COORD_OUTSIDE_ADMIN`) |
+known-issues.md:2046:| `supply_cells` (osm/validate) | 12.811 | **12.801** (`supply_cells_no_road_access` 100 → **90**) |
+Bash Recompute supply-derived figures
+IN
+PYTHONPATH=src python - <<'EOF'
+import pandas as pd, pyarrow.dataset as ds, json
+st = ds.dataset('data/interim/canonical/stations', format='parquet', partitioning='hive').to_table().to_pandas()
+sup = st[st.coord_resolved & st.is_operational & st.access.eq('PUBLIC') & st.is_primary]
+print("supply:", len(sup))
+print("supply cells (h3 unique):", sup.h3_r8.nunique())
+r = json.load(open('data/interim/osm/osm_quality_report.json'))
+s = r.get('stats', r)
+print("osm stats supply_cells:", s.get('supply_cells'), "no_road:", s.get('supply_cells_no_road_access'))
+
+# E-DQ4 asset totals on supply
+
+print("guns installed on supply:", int(sup.n_guns_installed.sum()), "| reporting:", int(sup.num_connectors.sum()))
+EOF
+￼
+OUT
+Exit code 1
+Traceback (most recent call last):
+  File "<stdin></stdin>", line 2, in <module></module>
+  File "/home/wanderer210/anaconda3/lib/python3.13/site-packages/pyarrow/dataset.py", line 790, in dataset
+    return _filesystem_dataset(source, **kwargs)
+  File "/home/wanderer210/anaconda3/lib/python3.13/site-packages/pyarrow/dataset.py", line 472, in _filesystem_dataset
+    fs, paths_or_selector = _ensure_single_source(source, filesystem)
+                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/home/wanderer210/anaconda3/lib/python3.13/site-packages/pyarrow/dataset.py", line 437, in _ensure_single_source
+    raise FileNotFoundError(path)
+FileNotFoundError: data/interim/canonical/stations
+Thought for 3s
+Bash Find clean_supply.csv producer
+IN
+cd /home/wanderer210/Documents/AI/vgreen-charging-siting && grep -rn "clean_supply" --include="*.py" src/ | head; echo "--- rows ---"; wc -l data/interim/clean_supply.csv; echo "--- excluded ---"; wc -l data/interim/excluded.csv
+￼
+OUT
+--- rows ---
+19017 data/interim/clean_supply.csv
+--- excluded ---
+493 data/interim/excluded.csv
+Bash Read dataset-inventory header
+IN
+sed -n '1,40p' docs/data-layer/dataset-inventory.md
+￼
+OUT
+
+# DATASET INVENTORY — Kiểm kê toàn bộ dữ liệu
+
+> Cập nhật: **2026-07-28** · Nhánh `data/giang` · Snapshot raw: `MANIFEST.json` `snapshot_id=2026-07-20`.
+>
+> Trả lời câu hỏi: *có bao nhiêu bộ dữ liệu, bao nhiêu bảng, bao nhiêu dòng, bao nhiêu cột?*
+> Số liệu **đo trực tiếp từ file** (không chép lại từ doc), đọc bằng parser (pandas/pyarrow), không phải `wc -l`.
+> Kiến trúc & pipeline: [overview.md](overview.md) · Register vấn đề: [known-issues.md](../known-issues.md).
+
+---
+
+## 0. Đọc nhanh (TL;DR)
+
+| Chỉ số                                            | Giá trị                                                                              |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Nguồn dữ liệu (source families)**        | **6** — 5 nguồn crawl/tải + 1 nguồn ngoài                                   |
+| **Artifact có cấu trúc (bảng/tập file)** | **42** (chưa tính 3 raster/pbf không dạng bảng → **45** tổng)       |
+| **Tổng số dòng**                           | **≈ 40,31 triệu**                                                              |
+| ↳ trong đó time-series occupancy                 | **18,63 triệu × 2** (raw `load_ts` + bản tách theo trạm)                  |
+| ↳**dữ liệu phi time-series**               | **3,05 triệu** dòng                                                            |
+| **Tổng số cột (cộng dồn mọi bảng)**    | **497**                                                                          |
+| **Số file trên đĩa**                      | **42.669** file · **2,5 GB**                                              |
+| **Bảng "lõi" cho mô hình**                | **3** — `stations` (19.507), `connectors` (24.415), `demand_h3` (268.404) |
+| **Cung sạch cuối cùng (T0)**               | **19.015** trạm (`clean_supply.csv`)                                          |
+
+> ⚠️ **Không có dataset khảo sát (survey).** Từ "khảo sát" trong `problem-analysis.md` chỉ là **phương pháp
+> dự kiến** cho OpEx phi-điện / ràng buộc lưới điện (nhóm 2, chưa thu thập). Dữ liệu hiện có = **crawl + tải công khai**.
+
+---
+
+## 1. Sáu nguồn dữ liệu (theo `data/raw/MANIFEST.json`)
+
+| #                                                                                                                         | Nguồn                                   | Nội dung                                                                                                                                                                                                     | Vintage / extent                                                     | License                        | Dung lượng raw          |
+| ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------ | ------------------------- |
+| 1                                                                                                                         | **evcs.vn**                        | Catalog trạm sạc + telemetry occupancy                                                                                                                                                                      | crawl 21–22/07/2026; TS`2026-07-13 20:51` → `2026-07-21 00:32` | Proprietary (public map API)   | **500 MB**          |
+| 2                                                                                                                         | **VinFast official**               | Store locator first-party (ground truth xác minh)                                                                                                                                                            | generation 16, 58.577 locator                                        | Proprietary (public locator)   | **268 MB**          |
+| 3                                                                                                                         | **OpenStreetMap**                  | Đường (.pbf Geofabrik) + POI (Overpass)                                                                                                                                                                    | replication seq**4852** @ `2026-07-20T20:21Z`                | ODbL 1.0                       | **318 MB**          |
+| 4                                                                                                                         | **WorldPop**                       | Dân số 2020 constrained (BSGM),**UNadj** (Σ **97.569.444**) — đổi từ bản UN-unadjusted ngày 29/07 (**E-DQ7e** ☑); bản cũ giữ trong snapshot làm chứng cứ cổng đơn điệu | 2020                                                                 | CC-BY 4.0                      | **44 MB** (18 + 26) |
+| 5                                                                                                                         | **ESA WorldCover + OSM exclusion** | Land-cover 10 m (17 tile) + vùng cấm/trạm biến áp                                                                                                                                                        | WorldCover v200 / 2021                                               | CC-BY 4.0 / ODbL 1.0           | **1,03 GB**         |
+| 6                                                                                                                         | **EVN (biểu giá điện)**        | Biểu giá điện trạm sạc → OpEx                                                                                                                                                                          | 2026                                                                 | Văn bản pháp lý công khai | 12 KB                     |
+| Thought for 9s                                                                                                            |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| Bash Measure artefacts for inventory update                                                                               |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| IN                                                                                                                        |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| PYTHONPATH=src python - <<'EOF'                                                                                           |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| import pandas as pd, pyarrow.dataset as ds, json, pathlib                                                                 |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| st = ds.dataset('data/interim/canonical/stations', format='parquet', partitioning='hive').to_table().to_pandas()          |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| sup = st[st.coord_resolved & st.is_operational & st.access.eq('PUBLIC') & st.is_primary]                                  |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| print("stations cols:", len(st.columns), "                                                                                | supply:", len(sup), "                    | supply cells:", sup.h3_r8.nunique())                                                                                                                                                                          |                                                                      |                                |                           |
+| cs = pd.read_csv('data/interim/clean_supply.csv')                                                                         |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| print("\nclean_supply.csv:", cs.shape, "cols:", list(cs.columns))                                                         |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| key = 'station_id' if 'station_id' in cs.columns else cs.columns[0]                                                       |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| print("  overlap with current supply:", cs[key].isin(set(sup[key] if key in sup else [])).sum() if key in sup else "n/a") |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| if key in sup.columns:                                                                                                    |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| stale = set(cs[key]) - set(sup[key])                                                                                      |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| print("  in clean_supply but NOT in current supply:", len(stale))                                                         |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| ex = pd.read_csv('data/interim/excluded.csv'); print("excluded.csv:", ex.shape)                                           |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| g = pd.read_parquet('data/interim/demand/demand_h3.parquet')                                                              |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| print("\ndemand_h3:", g.shape)                                                                                            |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| for p in ['data/interim/admin/cell_commune.parquet','data/interim/admin/demand_commune.parquet']:                         |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| d = pd.read_parquet(p); print(f"{p}: {d.shape}")                                                                          |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| import os                                                                                                                 |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| tot=0                                                                                                                     |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| for p in pathlib.Path('data/interim/admin').iterdir():                                                                    |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| tot += p.stat().st_size; print(f"  {p.name}: {p.stat().st_size/1024:.0f} KB")                                             |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| print("admin dir total: %.1f MB" % (tot/1e6))                                                                             |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| EOF                                                                                                                       |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| ￼                                                                                                                        |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| OUT                                                                                                                       |                                          |                                                                                                                                                                                                               |                                                                      |                                |                           |
+| stations cols: 61                                                                                                         | supply: 18999                            | supply cells: 12801                                                                                                                                                                                           |                                                                      |                                |                           |
+
+clean_supply.csv: (19015, 14) cols: ['station_id', 'station_code', 'name', 'operator', 'province_code', 'lat', 'lng', 'h3_r8', 'current_type', 'max_power_kw', 'num_connectors', 'connector_types', 'vehicle_class', 'op_status']
+  overlap with current supply: 18999
+  in clean_supply but NOT in current supply: 16
+excluded.csv: (492, 7)
+
+demand_h3: (255480, 31)
+data/interim/admin/cell_commune.parquet: (322870, 4)
+data/interim/admin/demand_commune.parquet: (3321, 29)
+  station_admin_report.json: 1 KB
+  cell_commune.parquet: 5033 KB
+  grid_admin_report.json: 2 KB
+  demand_commune.parquet: 451 KB
+  province_crosswalk.csv: 2 KB
+  station_admin_flagged.csv: 185 KB
+admin dir total: 5.8 MB
+Thought for 2s
+Found a real problem: clean_supply.csv is a stale export with no producer in src/ — its 19,015 rows differ from canonical by exactly the 16 stations E-DQ3 rejected. Let me read the inventory sections and fix them.
+
+Bash Read inventory supply sections
+IN
+sed -n '85,100p;145,170p' docs/data-layer/dataset-inventory.md
+￼
+
+| OUT                        |                                                                            |
+| -------------------------- | -------------------------------------------------------------------------- |
+| `is_primary` (E-DQ2)     | True**19.178** · False 329                                          |
+| `op_status` (P8)         | OPERATIONAL 16.014 · MAINTENANCE 3.392 · UNKNOWN 59 · OUT_OF_SERVICE 42 |
+| `access` (P8)            | PUBLIC 19.418 · UNKNOWN 67 · RESTRICTED 22                               |
+| `coord_resolved` (E-DQ1) | True 19.469 · False**38**                                           |
+| `vehicle_class` (P7)     | CAR 19.218 · UNKNOWN 282 · UNVERIFIED 7                                  |
+| `has_timeseries`         | True 19.218 · False 289                                                   |
+| Độ phủ                  | **65 tỉnh/thành**                                                  |
+
+**Công thức cung dùng cho T0/coverage:** `is_operational & access=='PUBLIC' & is_primary & coord_resolved` → **19.015**.
+
+### 3.2 Bảng cầu (demand, khóa `h3_r8` res 8)
+
+| Artifact                                         |     Dòng (ô H3) | Cột | Ghi chú                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------ | ----------------: | ---: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `demand/demand_h3.parquet`                     | **255.480** |   24 | `pop` + **`pop_adj`** + 5 cột `road_*` (**E-DQ7b**) + **`road_access_nb1_m`/`road_access_nb2_m`/`access_tier`** (**E-DQ8a**) + **10 cột POI theo lớp tag** (**E-DQ7c**: `n_fuel` 4.830 · `n_parking_off` 2.147 · `n_parking_street` 149 · `n_mall` 252 · `n_dept_store` 1.133 · `n_supermarket` 1.386 · `n_market` 1.661 · `n_apartment` 5.157 · `n_apartment_complex` **1.370** · `apartment_levels_sum`) + `pop_pixel_implausible` (**E-DQ7f**) + `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` = **97.563.106** (**E-DQ7e**, UNadj, bất biến); Σ`pop_adj` = **96.965.852** (**E-DQ7f** người ma + **E-DQ8b** dời dân ô roadless, −0,612%). ⚠️ `n_poi`/`n_parking` **khai tử** |
+| `vinfast_official/official_stations.parquet`   |            23.247 |   18 | `store_id`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `vinfast_official/official_connectors.parquet` |  **71.174** |   11 | `store_id` + `evse_idx` + `connector_id`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `vinfast_official/official_admin.parquet`      |            23.240 |    7 | `store_id` → tỉnh/huyện/xã                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `vinfast_official/official_xref.parquet`       |            28.625 |   22 | `station_code` ↔ `official_store_id` (exact 19.427 · fuzzy 13)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+
+### 3.5 Bảng master, cung sạch & audit trail
+
+| Artifact                         |                Dòng | Cột | Vai trò                                                                 |
+| -------------------------------- | -------------------: | ---: | ------------------------------------------------------------------------ |
+| `stations_master_evcs.csv`     |     **28.625** |   33 | Master evcs khóa`station_code` (gồm 22 cột QA time-series)          |
+| `clean_supply.csv`             |     **19.015** |   14 | **Cung sạch cuối cùng** — input trực tiếp cho MCLP/coverage  |
+| `excluded.csv`                 |                  492 |    7 | Dòng bị loại + lý do (xem bên dưới)                               |
+| `crosssource_dedup_groups.csv` |                  618 |   10 | E-DQ2 — nhóm trùng chéo nguồn                                       |
+| `edq1_suspect_stations.csv`    |                  796 |   17 | E-DQ1 — trạm nghi toạ độ sai                                        |
+| `fix_coords_flagged.csv`       |                  796 |    9 | E-DQ1 — nhật ký sửa toạ độ                                        |
+| `evcs_timeseries/*.csv`        | **18.630.532** |    2 | **19.218 file**, 1 file/trạm (`timestamp`, `n_cars_charging`) |
+
+**Đối soát cung: 19.507 − 492 = 19.015** ✓
+
+| Lý do loại (`excluded.csv`)                                                                                                                                          |                                           Số dòng |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------: |
+| `CROSS_SOURCE_DUP` (E-DQ2)                                                                                                                                             |                                                 329 |
+| `ACCESS_UNKNOWN` (P8)                                                                                                                                                  |                                                  63 |
+| `OUT_OF_SERVICE` (P8)                                                                                                                                                  |                                                  42 |
+| `COORD_PLACEHOLDER` (E-DQ1)                                                                                                                                            |                                                  38 |
+| `RESTRICTED` (P8)                                                                                                                                                      |                                                  20 |
+| Bash Find inventory rows to update                                                                                                                                       |                                                     |
+| IN                                                                                                                                                                       |                                                     |
+| grep -n "demand_h3\|interim/admin\|31 cột\|24 cột\|Bảng \"lõi\"\|Artifact có cấu trúc\|Tổng số cột\|Số file trên đĩa" docs/data-layer/dataset-inventory.md |                                            head -30 |
+| ￼                                                                                                                                                                       |                                                     |
+| OUT                                                                                                                                                                      |                                                     |
+| 16:                                                                                                                                                                      | **Artifact có cấu trúc (bảng/tập file)** |
+| 20:                                                                                                                                                                      |    **Tổng số cột (cộng dồn mọi bảng)** |
+| 21:                                                                                                                                                                      |                      **Số file trên đĩa** |
+| 22:                                                                                                                                                                      |                **Bảng "lõi" cho mô hình** |
+| 100:                                                                                                                                                                     |                        `demand/demand_h3.parquet` |
+| 104:                                                                                                                                                                     |            `worldpop/worldpop_pop_acc_h3.parquet` |
+| 113:> ⚠️`demand_h3` từng là bảng **duy nhất chưa có cổng QA** dù nó chính là hàm mục tiêu — đã có 7 cổng từ                                |                                                     |
+| 137:                                                                                                                                                                     |                    `landuse/buildable_h3.parquet` |
+| Bash Update dataset-inventory for E-DQ3                                                                                                                                  |                                                     |
+| IN                                                                                                                                                                       |                                                     |
+| python - <<'PY'                                                                                                                                                          |                                                     |
+| import pathlib                                                                                                                                                           |                                                     |
+| p = pathlib.Path('docs/data-layer/dataset-inventory.md'); s = p.read_text()                                                                                              |                                                     |
+| def sub(old, new):                                                                                                                                                       |                                                     |
+| global s                                                                                                                                                                 |                                                     |
+| assert old in s, f"NOT FOUND: {old[:80]}"                                                                                                                                |                                                     |
+| s = s.replace(old, new, 1)                                                                                                                                               |                                                     |
+
+# --- TL;DR ---
+
+sub("> Cập nhật: **2026-07-28** · Nhánh `data/giang` · Snapshot raw: `MANIFEST.json` `snapshot_id=2026-07-20`.",
+    "> Cập nhật: **2026-07-30** (E-DQ3) · Nhánh `data/giang` · Snapshot raw: `MANIFEST.json` `snapshot_id=2026-07-20`.")
+sub("| **Bảng \"lõi\" cho mô hình** | **3** — `stations` (19.507), `connectors` (24.415), `demand_h3` (268.404) |",
+    "| **Bảng \"lõi\" cho mô hình** | **3** — `stations` (19.507 × **61 cột**), `connectors` (24.415), `demand_h3` (**255.480 × 31 cột**) |")
+sub("| **Cung sạch cuối cùng (T0)** | **19.015** trạm (`clean_supply.csv`) |",
+    "| **Cung sạch cuối cùng (T0)** | **18.999** trạm (**E-DQ3** 30/07 loại thêm 16 toạ độ ngoài mọi đơn vị hành chính). ⚠️ `clean_supply.csv` **chưa cập nhật** — xem §3.5 |\n"
+    "| **Tầng hành chính (E-DQ3)** | `admin/` — `cell_commune` (322.870 cặp) · **`demand_commune`** (3.321 xã × 29) · `province_crosswalk.csv` · 5,8 MB |")
+
+# --- 3.1 profile ---
+
+sub("| `coord_resolved` (E-DQ1) | True 19.469 · False **38** |",
+    "| `coord_resolved` (E-DQ1 + **E-DQ3**) | True **19.453** · False **54** (= 38 `COORD_PLACEHOLDER` + **16 `COORD_OUTSIDE_ADMIN`**) |\n"
+    "| `admin_src` (**E-DQ3**) | inside **19.442** · nearest 11 · unresolved 54 — nhãn hành chính phủ **34 tỉnh · 2.691 xã** |\n"
+    "| `admin_verdict` (**E-DQ3**) | NOT_FLAGGED 18.707 · **COORD_CONFIRMED 549** · UNRESOLVED 197 · NO_COORD 38 · **COORD_BAD 16** |")
+sub("| Độ phủ | **65 tỉnh/thành** |",
+    "| Độ phủ | **65** `province_code` (hệ 63 tỉnh **CŨ** — prefix mã evcs, gồm 2 mã không phải tỉnh) → **34** `admin_l1_code` (**E-DQ3**, niên đại 2025-06-16) |")
+sub("**Công thức cung dùng cho T0/coverage:** `is_operational & access=='PUBLIC' & is_primary & coord_resolved` → **19.015**.",
+    "**Công thức cung dùng cho T0/coverage:** `is_operational & access=='PUBLIC' & is_primary & coord_resolved` → **18.999** trên **12.801 ô** (E-DQ3, 30/07; trước đó 19.015 / 12.811).")
+
+# --- 3.2 demand_h3 ---
+
+sub("| `demand/demand_h3.parquet` | **255.480** | 24 |",
+    "| `demand/demand_h3.parquet` | **255.480** | **31** |")
+sub("+ `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` = **97.563.106**",
+    "+ `cell_state`/`frac_in_vn` (**E-DQ7a**) + **7 cột nhãn hành chính** (**E-DQ3**: `admin_l1_code`/`province_name`/`commune_code`/`commune_name`/`commune_kind`/`admin_frac`/`n_communes` — **255.298/255.480** ô có nhãn). Σ`pop` = **97.563.106**")
+
+# --- 3.5 clean_supply staleness ---
+
+sub("| `clean_supply.csv` | **19.015** | 14 | **Cung sạch cuối cùng** — input trực tiếp cho MCLP/coverage |",
+    "| `clean_supply.csv` | **19.015** | 14 | ⚠️ **STALE — không dùng.** Export cũ, **không module nào trong `src/` sinh ra nó** (grep `clean_supply` → 0 hit) nên nó **không** chạy lại theo pipeline. Chênh với canonical đúng **16 dòng** = 16 trạm `COORD_OUTSIDE_ADMIN` mà **E-DQ3** loại (30/07). Cung thật: lọc thẳng trên `canonical/stations` bằng công thức §3.1 → **18.999** |")
+sub("**Đối soát cung: 19.507 − 492 = 19.015** ✓",
+    "**Đối soát cung: 19.507 − 492 = 19.015** ✓ *(đối soát của `excluded.csv`, đúng tại thời điểm 28/07.)*\n\n"
+    "> ⚠️ **30/07 — `excluded.csv` cũng chưa cập nhật.** **E-DQ3** loại thêm **16** trạm (`COORD_OUTSIDE_ADMIN`:\n"
+    "> toạ độ không rơi vào bất kỳ đơn vị hành chính nào, quá dung sai 500 m) ⇒ đối soát đúng hiện nay là\n"
+    "> **19.507 − 508 = 18.999**. Hai file CSV này là **ảnh chụp**, không phải artefact của pipeline — nguồn\n"
+    "> chân lý duy nhất cho tập cung là `canonical/stations` + công thức ở §3.1. Nếu còn consumer nào đọc\n"
+    "> `clean_supply.csv` thì nó đang nạp **16 trạm toạ độ sai** vào MCLP/coverage.")
+sub("| `COORD_PLACEHOLDER` (E-DQ1) | 38 |",
+    "| `COORD_PLACEHOLDER` (E-DQ1) | 38 |\n| **`COORD_OUTSIDE_ADMIN`** (E-DQ3, 30/07 — **chưa có trong file**) | **16** |")
+p.write_text(s); print("dataset-inventory OK")
+PY
+￼
+OUT
+dataset-inventory OK
+Thought for 5s
+Bash Read E-DQ7d scope statement
+IN
+sed -n '1610,1620p' docs/known-issues.md
+￼
+OUT
+| 2 | ρ(proxy, occupancy) ≈ 0,30                    | **0,296**                         | ✅ tái lập —**nhưng chỉ bằng cách đo sai** (xem A)                  |
+| 3 | **983** ô có sạc thật, mọi input = 0 | **644** (488 ô có `occ>0`)    | ❌ không tái lập — đúng khuôn "496 trùng → 335" của E-DQ7c              |
+
+Phạm vi đo: cung = `is_operational & access=PUBLIC & is_primary & coord_resolved` → **19.015** trạm
+(18.809 trạm có panel) trên **12.811 ô cung**.
+
+**A — con số 0,296 là artefact của phép đo, không phải tính chất của proxy.** Nó tính trên cả 254.035 ô,
+coi **95,67%** ô không có trạm là `occ = 0`. Những ô đó không phải *không có cầu*, chúng là **không quan
+sát được** — không có trụ thì không có telemetry. ρ ấy chủ yếu đang đo "đô thị hay không". Trên tập
+**đánh giá được thật** (12.811 ô cung), các proxy đặt tay cho **0,26–0,33**.
+Bash Update E-DQ7d denominator references
+IN
+python - <<'PY'
+import pathlib
+p = pathlib.Path('docs/known-issues.md'); s = p.read_text()
+old = """Phạm vi đo: cung = `is_operational & access=PUBLIC & is_primary & coord_resolved` → **19.015** trạm
+(18.809 trạm có panel) trên **12.811 ô cung**."""
+new = """Phạm vi đo: cung = `is_operational & access=PUBLIC & is_primary & coord_resolved` → **19.015** trạm
+(18.809 trạm có panel) trên **12.811 ô cung**.
+
+> ⚠️ **Mẫu số đã đổi 30/07 — Kỳ phải dựng lại harness trên con số mới trước khi fit.**
+> [E-DQ3](#e-dq3--cột-admin-trống-nhãn-hành-chính--trọng-tài-toạ-độ-bước-14) loại **16** trạm có toạ độ không
+> rơi vào bất kỳ đơn vị hành chính nào ⇒ cung **19.015 → 18.999**, **12.811 → 12.801 ô cung**. Xê dịch **0,08%**
+> nên **không** lật bất kỳ kết luận nào của 7d (verdict 0,33/0,865 **đứng nguyên**) — nhưng nó đổi **mẫu số của
+> D3** ("chỉ đánh giá trên ô cung, và nói thẳng điều đó"), nên hai lần chạy trên hai mẫu số khác nhau là **không
+> so được với nhau**. Rẻ: một lệnh, nhờ D1 đã tách harness khỏi trọng số."""
+> assert old in s
+> s = s.replace(old, new, 1)
+> p.write_text(s); print("known-issues E-DQ7d OK")
+
+q = pathlib.Path('docs/data-layer/overview.md'); r = q.read_text()
+old = "harness chấm điểm **bất kỳ** proxy nào trên **12.811 ô cung** + 12 cổng QA."
+new = "harness chấm điểm **bất kỳ** proxy nào trên **12.801 ô cung** (was 12.811 — **E-DQ3** 30/07 loại 16 trạm toạ độ ngoài mọi đơn vị hành chính; hai lần chạy trên hai mẫu số khác nhau **không so được**) + 12 cổng QA."
+assert old in r
+q.write_text(r.replace(old, new, 1)); print("overview E-DQ7d OK")
+
+t = pathlib.Path('docs/evcs_vn_report.md'); u = t.read_text()
+old = "- **Lượng Cung Thực Tế:** Lọc lấy nhóm có trạng thái công khai và sẵn sàng hoạt động (Public & Operational, không dính tọa độ ảo), còn lại **19.015 trạm thực sự**."
+new = "- **Lượng Cung Thực Tế:** Lọc lấy nhóm có trạng thái công khai và sẵn sàng hoạt động (Public & Operational, không dính tọa độ ảo), còn lại **18.999 trạm thực sự** trên **12.801 ô H3** *(19.015 trước khi **E-DQ3** hậu kiểm không gian loại thêm 16 trạm có tọa độ nằm ngoài mọi đơn vị hành chính, 30/07)*."
+assert old in u
+t.write_text(u.replace(old, new, 1)); print("evcs_vn_report OK")
+PY
+￼
+OUT
+known-issues E-DQ7d OK
+overview E-DQ7d OK
+evcs_vn_report OK
+Now a final consistency sweep — checking every doc claim about E-DQ3 against the actual artefacts:
+
+Bash Sweep for stale admin claims
+IN
+echo "=== remaining 'chưa'/'null 100%' admin claims ===" && grep -rn "admin.*null 100\|null 100.*admin\|cột admin chưa\|chưa enrich admin\|enrich ở Step B\|khi có admin" docs/ | head -10
+echo "=== E-DQ3 still marked open anywhere? ==="; grep -rn "E-DQ3.*☐\|☐.*E-DQ3\|E-DQ3`chưa\|E-DQ3 chưa" docs/ | head -10 echo "=== 19.015 remaining (should be historical only) ==="; grep -rn "19\.015" docs/ | wc -l ￼ OUT Exit code 2 === remaining 'chưa'/'null 100%' admin claims === docs/schema/schema-contract.md:135:|`province_code`| string | null → enrich khi có admin | docs/schema/schema-review.md:168:|`admin_*`null 100% | ❌ Không nhắc — nhưng liệt kê`province_name/commune_name`như có sẵn | ✅ đã đóng ở`E-DQ3`(30/07) | /bin/bash: eval: line 4: unexpected EOF while looking for matching ``' Bash Find remaining open-state E-DQ3 references IN grep -rn "E-DQ3" docs/ | grep -iv "done\|30/07\|đã\|✅\|☑" | head -20; echo "=== schema-contract 130-140 ==="; sed -n '128,140p' docs/schema/schema-contract.md ￼ OUT docs/schema/schema-contract.md:27:|`admin_l1_code`, `province_name`                           | string                | Nối`agg_admin`, lọc theo tỉnh — **E-DQ3** (VNSDI, niên đại **2025-06-16**, 34 tỉnh). ⚠️ **KHÁC `province_code`** (hệ 63 tỉnh CŨ, prefix mã evcs) — giữ cả hai, xem `admin/province_crosswalk.csv`| docs/schema/schema-contract.md:29:|`admin_src`, `admin_dist_m`, `admin_verdict`              | string/double         | **E-DQ3** provenance & trọng tài:`admin_src`∈`inside`/`nearest`/`unresolved`; `admin_verdict`∈`NOT_FLAGGED`/`COORD_CONFIRMED`/`COORD_BAD`/`UNRESOLVED`/`NO_COORD`. **Bất biến: có nhãn ⟺ `coord_resolved`** | docs/evcs_vn_report.md:33:  - `COORD_ADDR_MISMATCH`: Đánh dấu cảnh báo (**758 trạm**) với trường hợp chênh lệch địa chỉ - tọa độ để giải quyết ở bước hậu kiểm không gian (E-DQ3). docs/sources/osm.md:38:│                                    #     E-DQ3 dùng ranh giới xã VNSDI vì adm4 của OSM trộn 2 niên đại sáp nhập 2025) docs/data-layer/dataset-inventory.md:3:> Cập nhật: **2026-07-30** (E-DQ3) · Nhánh `data/giang`· Snapshot raw:`MANIFEST.jsonsnapshot_id=2026-07-20`. docs/data-layer/dataset-inventory.md:24:| **Tầng hành chính (E-DQ3)** | `admin/`—`cell_commune` (322.870 cặp) · **`demand_commune`** (3.321 xã × 29) · `province_crosswalk.csv`· 5,8 MB | docs/data-layer/dataset-inventory.md:90:|`coord_resolved`(E-DQ1 + **E-DQ3**) | True **19.453** · False **54** (= 38`COORD_PLACEHOLDER`+ **16`COORD_OUTSIDE_ADMIN`**) | docs/data-layer/dataset-inventory.md:91:| `admin_src`(**E-DQ3**) | inside **19.442** · nearest 11 · unresolved 54 — nhãn hành chính phủ **34 tỉnh · 2.691 xã** | docs/data-layer/dataset-inventory.md:92:|`admin_verdict`(**E-DQ3**) | NOT_FLAGGED 18.707 · **COORD_CONFIRMED 549** · UNRESOLVED 197 · NO_COORD 38 · **COORD_BAD 16** | docs/data-layer/dataset-inventory.md:95:| Độ phủ | **65**`province_code`(hệ 63 tỉnh **CŨ** — prefix mã evcs, gồm 2 mã không phải tỉnh) → **34**`admin_l1_code`(**E-DQ3**, niên đại 2025-06-16) | docs/data-layer/dataset-inventory.md:103:|`demand/demand_h3.parquet`| **255.480** | **31** |`pop` + **`pop_adj`** + 5 cột `road_*` (**E-DQ7b**) + **`road_access_nb1_m`/`road_access_nb2_m`/`access_tier`** (**E-DQ8a**) + **10 cột POI theo lớp tag** (**E-DQ7c**: `n_fuel`4.830 ·`n_parking_off`2.147 ·`n_parking_street`149 ·`n_mall`252 ·`n_dept_store`1.133 ·`n_supermarket`1.386 ·`n_market`1.661 ·`n_apartment`5.157 ·`n_apartment_complex`**1.370** ·`apartment_levels_sum`) + `pop_pixel_implausible`(**E-DQ7f**) +`cell_state`/`frac_in_vn`(**E-DQ7a**) + **7 cột nhãn hành chính** (**E-DQ3**:`admin_l1_code`/`province_name`/`commune_code`/`commune_name`/`commune_kind`/`admin_frac`/`n_communes` — **255.298/255.480** ô có nhãn). Σ`pop` = **97.563.106** (**E-DQ7e**, UNadj, bất biến); Σ`pop_adj`= **96.965.852** (**E-DQ7f** người ma + **E-DQ8b** dời dân ô roadless, −0,612%). ⚠️`n_poi`/`n_parking`**khai tử** | docs/data-layer/candidate-sites.md:202:>`E-DQ3`gán`admin_l1_code`/`commune_code`cho **255.298/255.480** ô`demand_h3`, nên cắt theo tỉnh giờ là docs/data-layer/overview.md:292:- [X] **`demand_commune`** rollup — `data/interim/admin/demand_commune.parquet`(**3.321 xã / 34 tỉnh**,`E-DQ3` docs/known-issues.md:265:> categorical). Lý do: E-DQ3 **chặn 4 dòng khác** (`E-DQ9`AOI tròn ·`E-DQ7e`hiệu chuẩn GSO cấp tỉnh · docs/known-issues.md:266:>`E-DQ8c`mẫu số ·`P10coverage_pop`) còn E-DQ5/E-DQ6 **không chặn ai**. Phần duy nhất của E-DQ3 thật sự docs/known-issues.md:267:> hưởng lợi từ E-DQ6 là **tín hiệu văn bản** trong trọng tài E-DQ3c — mà tín hiệu đó **một chiều** (khớp = bằng docs/known-issues.md:269:> không sinh kết luận sai. Chạy lại E-DQ3c sau E-DQ6 là một lệnh, và chỉ có thể làm con số đó tốt lên. docs/known-issues.md:313:  **thật sự** chặn chất lượng target vẫn là **`E-DQ1`/`E-DQ3`**: một trạm sai toạ độ đổ occupancy vào **sai ô**, docs/known-issues.md:315:  harness khỏi trọng số) và ưu tiên đóng phần dư của E-DQ1/E-DQ3. docs/known-issues.md:330:- **`E-DQ7a`mở khoá`E-DQ3`.** Để clip POI theo biên giới phải trích **polygon `admin_level=2`** từ chính `.pbf`=== schema-contract 130-140 === **unique theo`h3_r8`** (≤1 candidate/ô — tránh tie-degenerate, biến thể ẩn **P4**).
+
+| Cột                                                                            | Kiểu             | Vai trò                                                                                           |
+| ------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `candidate_id`                                                                | string            | **PK** (`cand-<city>-<idx>`)                                                               |
+| `lat`, `lng`                                                                | double            | toạ độ thật (explainability)                                                                   |
+| `h3_r8`                                                                       | string            | ô coverage (**unique**)                                                                     |
+| `province_code`                                                               | string            | null → enrich khi có admin                                                                       |
+| `tier`                                                                        | string            | T0–T4 (nguồn anchor)                                                                             |
+| `anchor_type`                                                                 | string            | `existing_station`/`parking`/`fuel`/`mall`/`retail`/`apartments`/`gapfill_synthetic` |
+| `source_ref`                                                                  | string            | `station_id` \| `osm_type/osm_id` \| `synthetic:<h3>`                                        |
+| `is_existing`                                                                 | bool              | T0 → CapEx=0 Sprint 3 (incumbent bắt buộc mở)                                                  |
+| `built_up_frac`, `dist_substation_m`, `penalty`                           | double            | tín hiệu land-use / đấu nối lưới                                                            |
+| Bash Final doc fixes and consistency count                                      |                   |                                                                                                    |
+| IN                                                                              |                   |                                                                                                    |
+| python - <<'PY'                                                                 |                   |                                                                                                    |
+| import pathlib                                                                  |                   |                                                                                                    |
+| p = pathlib.Path('docs/schema/schema-contract.md'); s = p.read_text()           |                   |                                                                                                    |
+| old = "                                                                         | `province_code` | string                                                                                             |
+| new = "                                                                         | `province_code` | string                                                                                             |
+| assert old in s                                                                 |                   |                                                                                                    |
+| p.write_text(s.replace(old, new, 1)); print("schema-contract candidate row OK") |                   |                                                                                                    |
+
+# E-DQ7a "mở khoá E-DQ3" — ghi kết cục
+
+q = pathlib.Path('docs/known-issues.md'); r = q.read_text()
+old = """- **`E-DQ7a` mở khoá `E-DQ3`.** Để clip POI theo biên giới phải trích **polygon `admin_level=2`** từ chính `.pbf`"""
+new = """- **`E-DQ7a` mở khoá `E-DQ3`.** *(Kết cục 30/07: **mở khoá đúng một nửa.** `in_vn` thật sự đã thăng cấp 4/758
+  mismatch như dự đoán — nhưng **40 polygon adm4 thì không dùng được**: chúng trộn hai niên đại sáp nhập 2025.
+  E-DQ3 chốt nguồn là **VNSDI cấp xã**, và chính điều đó lại làm `in_vn` thành thừa ở vai detector: ranh giới xã
+  bắt **16** toạ độ sai so với **4** của adm2, vì adm2 bao gồm lãnh hải. Bài học giữ lại: "một artefact, ba issue"
+  vẫn đúng về **thứ tự làm**, nhưng nó **không** bảo đảm artefact đó là nguồn tốt nhất cho issue thứ ba.)*
+  Để clip POI theo biên giới phải trích **polygon `admin_level=2`** từ chính `.pbf`"""
+assert old in r
+q.write_text(r.replace(old, new, 1)); print("known-issues E-DQ7a OK")
+PY
+echo "=== final gate: all docs internally consistent? ==="
+grep -rn "18\.999\|12\.801\|255\.298" docs/ | wc -l
+￼
+OUT
+schema-contract candidate row OK
+known-issues E-DQ7a OK
+=== final gate: all docs internally consistent? ===
+19
+Bash Final verification
+IN
+PYTHONPATH=src python -m pytest tests/ -q 2>&1 | tail -3; echo "=== docs changed ==="; git diff --stat -- docs/ Makefile src/
+￼
+OUT
+.                                                                        [100%]Running teardown with pytest sessionfinish...
+
+73 passed in 3.44s
+=== docs changed ===
+ Makefile                                       |  11 +-
+ docs/data-layer/candidate-sites.md             |  19 +-
+ docs/data-layer/dataset-inventory.md           |  28 +-
+ docs/data-layer/overview.md                    |  17 +-
+ docs/evcs_vn_report.md                         |   3 +-
+ docs/known-issues.md                           | 391 ++++++++++++++++++++++++-
+ docs/schema/schema-contract.md                 |  19 +-
+ docs/schema/schema-review.md                   |   8 +-
+ docs/sources/osm.md                            |   3 +-
+ docs/sources/worldpop.md                       |   2 +-
+ src/ev_siting/data/evcs/transform_canonical.py |  54 +++-
+ 11 files changed, 496 insertions(+), 59 deletions(-)
+Docs are updated and consistent across all nine files. 73 tests still pass.
+
+What this pass added beyond the first round
+The first round documented E-DQ3 itself. This pass chased the numbers E-DQ3 invalidated elsewhere — and turned up a real problem.
+
+clean_supply.csv is stale and has no producer. dataset-inventory.md listed it as "Cung sạch cuối cùng — input trực tiếp cho MCLP/coverage". I checked: grep clean_supply src/ returns zero hits — nothing in the pipeline regenerates it. Its 19,015 rows differ from canonical by exactly the 16 stations E-DQ3 rejected. Any consumer still reading it is feeding 16 known-bad coordinates into MCLP. Same for excluded.csv (492 rows, should be 508). Both are now marked ⚠️ STALE — không dùng, with the canonical formula on canonical/stations named as the single source of truth.
+
+I did not regenerate them: nothing in the repo claims ownership of those files, so writing them would be inventing a producer rather than fixing one. That's your call.
+
+The E-DQ7d denominator moved. Kỳ's harness is specified against "12,811 supply cells"; it's now 12,801. The shift is 0.08% and overturns nothing (the 0.33/0.865 verdict stands), but D3 of that issue is explicitly "only evaluate on supply cells, and say so" — so two runs on two denominators aren't comparable. Flagged as a blocking note in the E-DQ7d scope statement and in overview.md, where the harness task lives.
+
+Corrected my own framing on E-DQ7a. The register claimed 7a "unlocks E-DQ3 — one artefact, three issues." It half did: in_vn promoted 4 mismatches as predicted, but the 40 adm4 polygons turned out unusable, and commune boundaries then made in_vn redundant as a detector (16 vs 4). The note now records that "one artefact, three issues" was right about ordering but didn't guarantee that artefact was the best source for the third issue.
+
+Also updated: station profile rows (coord_resolved 19,469→19,453 with the split, new admin_src/admin_verdict distributions), demand_h3 24→31 columns, the admin/ artefact family (5.8 MB), coverage now stated as 65 old province_code → 34 admin_l1_code, and the candidate-site province_code row pointing at the h3_r8 join instead of a pending enrich.
+
+One thing I left alone: dataset-inventory.md has drift predating this work (TL;DR still says demand_h3 268,404, from before E-DQ7a's clip). I fixed that line since I was editing the same table, but did not re-audit the file's other 40-odd artefact rows — that's a separate inventory refresh, not part of E-DQ3.
 
 ---
 

@@ -34,7 +34,8 @@ data/raw/osm/                        # BẤT BIẾN
 └── vietnam-latest.osm.pbf           #   dump Geofabrik (nguồn road network, ~325 MB)
 
 data/interim/osm/                    # đã xử lý / dẫn xuất
-├── vn_boundary.parquet              #   ★ 1 polygon adm2 (VN) + 40 polygon adm4 (tỉnh) — E-DQ7a/E-DQ3
+├── vn_boundary.parquet              #   ★ 1 polygon adm2 (VN) — E-DQ7a. (40 polygon adm4 kèm theo KHÔNG có consumer:
+│                                    #     E-DQ3 dùng ranh giới xã VNSDI vì adm4 của OSM trộn 2 niên đại sáp nhập 2025)
 ├── vn_boundary.geojson              #   bản xem/QA trên map
 ├── vn_boundary_report.json          #   6 cổng QA polygon
 ├── osm_poi_points.parquet           #   1 dòng/POI + h3/in_vn + poi_class/is_poi_primary/complex_id (E-DQ7c)

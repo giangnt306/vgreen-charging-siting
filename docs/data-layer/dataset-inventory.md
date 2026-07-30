@@ -1,6 +1,6 @@
 # DATASET INVENTORY — Kiểm kê toàn bộ dữ liệu
 
-> Cập nhật: **2026-07-28** · Nhánh `data/giang` · Snapshot raw: `MANIFEST.json` `snapshot_id=2026-07-20`.
+> Cập nhật: **2026-07-30** (E-DQ3) · Nhánh `data/giang` · Snapshot raw: `MANIFEST.json` `snapshot_id=2026-07-20`.
 >
 > Trả lời câu hỏi: *có bao nhiêu bộ dữ liệu, bao nhiêu bảng, bao nhiêu dòng, bao nhiêu cột?*
 > Số liệu **đo trực tiếp từ file** (không chép lại từ doc), đọc bằng parser (pandas/pyarrow), không phải `wc -l`.
@@ -19,8 +19,9 @@
 | ↳ **dữ liệu phi time-series** | **3,05 triệu** dòng |
 | **Tổng số cột (cộng dồn mọi bảng)** | **497** |
 | **Số file trên đĩa** | **42.669** file · **2,5 GB** |
-| **Bảng "lõi" cho mô hình** | **3** — `stations` (19.507), `connectors` (24.415), `demand_h3` (268.404) |
-| **Cung sạch cuối cùng (T0)** | **19.015** trạm (`clean_supply.csv`) |
+| **Bảng "lõi" cho mô hình** | **3** — `stations` (19.507 × **61 cột**), `connectors` (24.415), `demand_h3` (**255.480 × 31 cột**) |
+| **Cung sạch cuối cùng (T0)** | **18.999** trạm (**E-DQ3** 30/07 loại thêm 16 toạ độ ngoài mọi đơn vị hành chính). ⚠️ `clean_supply.csv` **chưa cập nhật** — xem §3.5 |
+| **Tầng hành chính (E-DQ3)** | `admin/` — `cell_commune` (322.870 cặp) · **`demand_commune`** (3.321 xã × 29) · `province_crosswalk.csv` · 5,8 MB |
 
 > ⚠️ **Không có dataset khảo sát (survey).** Từ "khảo sát" trong `problem-analysis.md` chỉ là **phương pháp
 > dự kiến** cho OpEx phi-điện / ràng buộc lưới điện (nhóm 2, chưa thu thập). Dữ liệu hiện có = **crawl + tải công khai**.
@@ -86,18 +87,20 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 | `is_primary` (E-DQ2) | True **19.178** · False 329 |
 | `op_status` (P8) | OPERATIONAL 16.014 · MAINTENANCE 3.392 · UNKNOWN 59 · OUT_OF_SERVICE 42 |
 | `access` (P8) | PUBLIC 19.418 · UNKNOWN 67 · RESTRICTED 22 |
-| `coord_resolved` (E-DQ1) | True 19.469 · False **38** |
+| `coord_resolved` (E-DQ1 + **E-DQ3**) | True **19.453** · False **54** (= 38 `COORD_PLACEHOLDER` + **16 `COORD_OUTSIDE_ADMIN`**) |
+| `admin_src` (**E-DQ3**) | inside **19.442** · nearest 11 · unresolved 54 — nhãn hành chính phủ **34 tỉnh · 2.691 xã** |
+| `admin_verdict` (**E-DQ3**) | NOT_FLAGGED 18.707 · **COORD_CONFIRMED 549** · UNRESOLVED 197 · NO_COORD 38 · **COORD_BAD 16** |
 | `vehicle_class` (P7) | CAR 19.218 · UNKNOWN 282 · UNVERIFIED 7 |
 | `has_timeseries` | True 19.218 · False 289 |
-| Độ phủ | **65 tỉnh/thành** |
+| Độ phủ | **65** `province_code` (hệ 63 tỉnh **CŨ** — prefix mã evcs, gồm 2 mã không phải tỉnh) → **34** `admin_l1_code` (**E-DQ3**, niên đại 2025-06-16) |
 
-**Công thức cung dùng cho T0/coverage:** `is_operational & access=='PUBLIC' & is_primary & coord_resolved` → **19.015**.
+**Công thức cung dùng cho T0/coverage:** `is_operational & access=='PUBLIC' & is_primary & coord_resolved` → **18.999** trên **12.801 ô** (E-DQ3, 30/07; trước đó 19.015 / 12.811).
 
 ### 3.2 Bảng cầu (demand, khóa `h3_r8` res 8)
 
 | Artifact | Dòng (ô H3) | Cột | Ghi chú |
 | --- | ---: | ---: | --- |
-| `demand/demand_h3.parquet` | **255.480** | 24 | `pop` + **`pop_adj`** + 5 cột `road_*` (**E-DQ7b**) + **`road_access_nb1_m`/`road_access_nb2_m`/`access_tier`** (**E-DQ8a**) + **10 cột POI theo lớp tag** (**E-DQ7c**: `n_fuel` 4.830 · `n_parking_off` 2.147 · `n_parking_street` 149 · `n_mall` 252 · `n_dept_store` 1.133 · `n_supermarket` 1.386 · `n_market` 1.661 · `n_apartment` 5.157 · `n_apartment_complex` **1.370** · `apartment_levels_sum`) + `pop_pixel_implausible` (**E-DQ7f**) + `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` = **97.563.106** (**E-DQ7e**, UNadj, bất biến); Σ`pop_adj` = **96.965.852** (**E-DQ7f** người ma + **E-DQ8b** dời dân ô roadless, −0,612%). ⚠️ `n_poi`/`n_parking` **khai tử** |
+| `demand/demand_h3.parquet` | **255.480** | **31** | `pop` + **`pop_adj`** + 5 cột `road_*` (**E-DQ7b**) + **`road_access_nb1_m`/`road_access_nb2_m`/`access_tier`** (**E-DQ8a**) + **10 cột POI theo lớp tag** (**E-DQ7c**: `n_fuel` 4.830 · `n_parking_off` 2.147 · `n_parking_street` 149 · `n_mall` 252 · `n_dept_store` 1.133 · `n_supermarket` 1.386 · `n_market` 1.661 · `n_apartment` 5.157 · `n_apartment_complex` **1.370** · `apartment_levels_sum`) + `pop_pixel_implausible` (**E-DQ7f**) + `cell_state`/`frac_in_vn` (**E-DQ7a**) + **7 cột nhãn hành chính** (**E-DQ3**: `admin_l1_code`/`province_name`/`commune_code`/`commune_name`/`commune_kind`/`admin_frac`/`n_communes` — **255.298/255.480** ô có nhãn). Σ`pop` = **97.563.106** (**E-DQ7e**, UNadj, bất biến); Σ`pop_adj` = **96.965.852** (**E-DQ7f** người ma + **E-DQ8b** dời dân ô roadless, −0,612%). ⚠️ `n_poi`/`n_parking` **khai tử** |
 | `worldpop/worldpop_pop_h3.parquet` | 104.171 | 2 | chỉ ô có dân; Σ = **97.569.444** (**E-DQ7e**) — nguồn `pop` UN-anchored, KHÔNG đụng bởi 7f |
 | `worldpop/worldpop_pop_report.json` | — | — | 3 cổng hiệu chuẩn (**E-DQ7e**): tổng khớp file UNadj đã băm · Spearman(cũ, mới) = **1,000000** · tỉ số theo pixel là hằng số (std **2,4e-08**) |
 | `worldpop/worldpop_pop_adj_h3.parquet` | 107.942 | 14 | **E-DQ7f**: `pop` (bất biến) + `pop_adj` (đặt lại chỗ theo built-up) + `pop_src`/`pop_pixel_implausible` (139 ô) + chẩn đoán `n_px`/`max_px`/`top3_px_share`/`n_eff`/`pop_per_eff_px`/`pop_lat`/`pop_lon` + `maxa`/`danso`. +3.771 ô nhận (built-up, `pop=0`) |
@@ -152,14 +155,20 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 | Artifact | Dòng | Cột | Vai trò |
 | --- | ---: | ---: | --- |
 | `stations_master_evcs.csv` | **28.625** | 33 | Master evcs khóa `station_code` (gồm 22 cột QA time-series) |
-| `clean_supply.csv` | **19.015** | 14 | **Cung sạch cuối cùng** — input trực tiếp cho MCLP/coverage |
+| `clean_supply.csv` | **19.015** | 14 | ⚠️ **STALE — không dùng.** Export cũ, **không module nào trong `src/` sinh ra nó** (grep `clean_supply` → 0 hit) nên nó **không** chạy lại theo pipeline. Chênh với canonical đúng **16 dòng** = 16 trạm `COORD_OUTSIDE_ADMIN` mà **E-DQ3** loại (30/07). Cung thật: lọc thẳng trên `canonical/stations` bằng công thức §3.1 → **18.999** |
 | `excluded.csv` | 492 | 7 | Dòng bị loại + lý do (xem bên dưới) |
 | `crosssource_dedup_groups.csv` | 618 | 10 | E-DQ2 — nhóm trùng chéo nguồn |
 | `edq1_suspect_stations.csv` | 796 | 17 | E-DQ1 — trạm nghi toạ độ sai |
 | `fix_coords_flagged.csv` | 796 | 9 | E-DQ1 — nhật ký sửa toạ độ |
 | `evcs_timeseries/*.csv` | **18.630.532** | 2 | **19.218 file**, 1 file/trạm (`timestamp`, `n_cars_charging`) |
 
-**Đối soát cung: 19.507 − 492 = 19.015** ✓
+**Đối soát cung: 19.507 − 492 = 19.015** ✓ *(đối soát của `excluded.csv`, đúng tại thời điểm 28/07.)*
+
+> ⚠️ **30/07 — `excluded.csv` cũng chưa cập nhật.** **E-DQ3** loại thêm **16** trạm (`COORD_OUTSIDE_ADMIN`:
+> toạ độ không rơi vào bất kỳ đơn vị hành chính nào, quá dung sai 500 m) ⇒ đối soát đúng hiện nay là
+> **19.507 − 508 = 18.999**. Hai file CSV này là **ảnh chụp**, không phải artefact của pipeline — nguồn
+> chân lý duy nhất cho tập cung là `canonical/stations` + công thức ở §3.1. Nếu còn consumer nào đọc
+> `clean_supply.csv` thì nó đang nạp **16 trạm toạ độ sai** vào MCLP/coverage.
 
 | Lý do loại (`excluded.csv`) | Số dòng |
 | --- | ---: |
@@ -167,6 +176,7 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 | `ACCESS_UNKNOWN` (P8) | 63 |
 | `OUT_OF_SERVICE` (P8) | 42 |
 | `COORD_PLACEHOLDER` (E-DQ1) | 38 |
+| **`COORD_OUTSIDE_ADMIN`** (E-DQ3, 30/07 — **chưa có trong file**) | **16** |
 | `RESTRICTED` (P8) | 20 |
 
 ---

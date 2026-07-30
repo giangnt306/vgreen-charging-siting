@@ -69,7 +69,7 @@ PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop --force-download
 | `apartment_levels_sum` | double | Σ `building:levels` quan sát được (36,1% toà có tag) — **E-DQ7c** |
 
 **Còn thiếu (enrich sau, ngoài phạm vi bộ crawl này):**
-- `admin_l1_code`, `province_name`, `commune_name`, `commune_kind` — cần join ranh giới hành chính.
+- ~~`admin_l1_code`, `province_name`, `commune_name`, `commune_kind` — cần join ranh giới hành chính.~~ → **đã có (E-DQ3, 30/07)**: join ranh giới xã VNSDI (`make admin-grid`), thêm cả `commune_code`/`admin_frac`/`n_communes` + rollup `demand_commune`.
 - `demand_weight = f(pop, road, poi, …)` — công thức trọng số chốt ở **Sprint 2**.
 
 ## Kết quả & kiểm chứng (chạy 2026-07-22)

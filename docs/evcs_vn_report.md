@@ -31,6 +31,7 @@ Dữ liệu thô từ evcs.vn bộc lộ khá nhiều điểm hạn chế, nhi�
 - **Xử lý:** Thiết lập các chốt chặn (Detectors):
   - `COORD_PLACEHOLDER`: Đánh dấu các điểm có cụm ≥5 trạm khác nhau nhưng nằm cách tâm tỉnh thực tế >100km. Ghi nhận **38 trạm** bị loại cứng (đưa tọa độ về NULL).
   - `COORD_ADDR_MISMATCH`: Đánh dấu cảnh báo (**758 trạm**) với trường hợp chênh lệch địa chỉ - tọa độ để giải quyết ở bước hậu kiểm không gian (E-DQ3).
+  - **(E-DQ3, 30/07) Hậu kiểm không gian đã chạy:** point-in-polygon trên ranh giới xã VNSDI phân xử **561/758** ca (**549** xác nhận toạ độ đúng — lỗi nằm ở `province_code`; **12** xác nhận toạ độ sai), còn **197** giữ cảnh báo. Ranh giới xã còn bắt thêm **16 trạm** có toạ độ ngoài mọi đơn vị hành chính (`COORD_OUTSIDE_ADMIN`) mà kiểm tra biên giới quốc gia **không** bắt được (polygon quốc gia bao gồm lãnh hải) → cung công khai khả dụng 19.015 → **18.999**.
 
 ### 2.4. Phân loại trạng thái vận hành và Quyền truy cập (P8)
 - **Vấn đề:** Dữ liệu thô chưa lọc trạng thái, dẫn đến việc các trạm ngừng hoạt động hoặc trạm tư nhân/nội bộ vẫn được tính là khả dụng.
@@ -43,7 +44,7 @@ Sau khi đi qua các luồng làm sạch tự động, tập dữ liệu đầu 
 
 - **Canonical Stations:** **19.507 trạm car-only**.
 - **Canonical Connectors:** **24.415 súng sạc** có cấu hình chuẩn xác.
-- **Lượng Cung Thực Tế:** Lọc lấy nhóm có trạng thái công khai và sẵn sàng hoạt động (Public & Operational, không dính tọa độ ảo), còn lại **19.015 trạm thực sự**.
+- **Lượng Cung Thực Tế:** Lọc lấy nhóm có trạng thái công khai và sẵn sàng hoạt động (Public & Operational, không dính tọa độ ảo), còn lại **18.999 trạm thực sự** trên **12.801 ô H3** *(19.015 trước khi **E-DQ3** hậu kiểm không gian loại thêm 16 trạm có tọa độ nằm ngoài mọi đơn vị hành chính, 30/07)*.
 - **Tích hợp địa lý (Spatial Integration):** Tất cả trạm hợp lệ đã được quy đổi sang lưới H3 res 8 (cạnh ~0.56 km) để kết nối trực tiếp với ma trận Demand Map nhằm chạy hàm mục tiêu Coverage trong mô hình tối ưu.
 
 ---

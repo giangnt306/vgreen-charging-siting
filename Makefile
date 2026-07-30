@@ -1,4 +1,4 @@
-.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical resolve-config official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand poi-recall vnsdi reconcile-pop reallocate-roadless
+.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical resolve-config official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand poi-recall vnsdi reconcile-pop reallocate-roadless admin-stations admin-grid
 
 CITY ?= hanoi
 
@@ -41,6 +41,12 @@ vnsdi:  ## Crawl VNSDI commune polygons + population (2025) -> data/interim/vnsd
 reconcile-pop:  ## Detect+repair dasymetric spike -> worldpop_pop_adj_h3 (needs `make vnsdi`)  [E-DQ7f]
 	PYTHONPATH=src python -m ev_siting.data.worldpop.reconcile_dasymetric
 
+admin-stations:  ## Inspect admin labels + coordinate arbitration on stations (7 gates)  [E-DQ3]
+	PYTHONPATH=src python -m ev_siting.data.admin.enrich_stations --dump
+
+admin-grid:  ## Label demand_h3 with commune/province + build demand_commune rollup  [E-DQ3]
+	PYTHONPATH=src python -m ev_siting.data.admin.enrich_grid
+
 boundary:  ## Extract VN territory + province polygons from the frozen .pbf  [E-DQ7a, unlocks E-DQ3]
 	PYTHONPATH=src python -m ev_siting.data.osm.vn_boundary
 
@@ -53,10 +59,11 @@ poi-recall:  ## Measure OSM POI coverage against EV stations sited at fuel/parki
 reallocate-roadless:  ## Move pop out of cells with no road access -> worldpop_pop_acc_h3  [E-DQ8b]
 	PYTHONPATH=src python -m ev_siting.data.worldpop.reallocate_roadless
 
-demand:  ## Rebuild demand_h3 grid (cells classified/clipped to VN territory)  [E-DQ7a, E-DQ7f, E-DQ8]
+demand:  ## Rebuild demand_h3 grid (cells classified/clipped to VN territory)  [E-DQ7a, E-DQ7f, E-DQ8, E-DQ3]
 	PYTHONPATH=src python -m ev_siting.data.worldpop.reconcile_dasymetric
 	PYTHONPATH=src python -m ev_siting.data.worldpop.reallocate_roadless
 	PYTHONPATH=src python -m ev_siting.data.worldpop.build_demand_h3
+	PYTHONPATH=src python -m ev_siting.data.admin.enrich_grid
 	PYTHONPATH=src python -m ev_siting.data.osm.validate
 
 landuse:  ## Build buildable_h3 land-use filter for CITY (WorldCover + OSM + road)  [P5]
