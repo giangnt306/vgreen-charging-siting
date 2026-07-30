@@ -29,8 +29,8 @@ vgreen-charging-siting/
 │   ├── run_pipeline.sh                     #   driver tuần tự (enum→merge→scrape→split→master→QA)
 │   ├── evcs_enumerate.py                   #   quét POST /search -> danh mục trạm (Playwright/Cloudflare)
 │   ├── merge_catalog.py                    #   gộp cs/bss/other -> evcs_catalog.csv
-│   ├── evcs_scrape.py                      #   Socket.IO 'history' -> load_ts.csv
-│   ├── split_timeseries.py                 #   tách + khử trùng + sort -> evcs_timeseries/<code>.csv
+│   ├── evcs_scrape.py                      #   Socket.IO 'history' -> timeseries_runs/load_ts_<run-id>.csv
+│   ├── split_timeseries.py                 #   merge + khử trùng + sort -> evcs_timeseries/<code>.csv
 │   ├── build_master_evcs.py                #   ★ dựng master + tính cột QA (ghép 1-1 time-series)
 │   ├── validate.py                         #   cổng QA: kiểm toàn vẹn + ghi quality_report.json
 │   └── evcs_probe.py                       #   script dò/thử endpoint evcs.vn (standalone)
@@ -40,8 +40,8 @@ vgreen-charging-siting/
 │   │   ├── catalog/                        #   evcs_catalog.csv (28.625 trạm) = gộp cs/bss/other
 │   │   │                                   #   + evcs_{stations,bss,other}.csv (từng tab)
 │   │   │                                   #   + *_codes.txt + *.ckpt.json (checkpoint resume)
-│   │   ├── load_ts.csv                     #   dump occupancy gốc: station_code,timestamp,n_cars_charging
-│   │   └── load_ts.csv.done                #   marker resume của evcs_scrape.py
+│   │   ├── timeseries_runs/                #   raw run BẤT BIẾN: load_ts_<run-id>.csv + .done/.failed (F2)
+│   │   └── load_ts.csv                     #   dump occupancy legacy (crawl 21-22/07, member frozen trong MANIFEST)
 │   └── interim/                            # đã làm sạch / dẫn xuất
 │       ├── evcs_timeseries/<code>.csv      #   19.218 file/trạm (timestamp epoch-ms, n_cars_charging)
 │       ├── stations_master_evcs.csv        #   ★ BẢNG MASTER (khóa station_code + cột QA)
@@ -59,11 +59,11 @@ theo kiểu **streaming**, không nạp cả file vào pandas.
 ```
   evcs_enumerate ── lưới VN + POST /search (Playwright qua Cloudflare) ──▶ raw/evcs/catalog/evcs_{stations,bss,other}.csv
         │
-  merge_catalog     ──▶ raw/evcs/catalog/evcs_catalog.csv + evcs_all_codes.txt
+  merge_catalog     ──▶ interim/evcs_catalog.csv + evcs_all_codes.txt   (đường ghi theo evcs/paths bản hợp nhất)
         │
-  evcs_scrape       ── Socket.IO 'history' ──▶ raw/evcs/load_ts.csv (~18,6M điểm, chỉ VinFast)
-        │
-  split_timeseries  ──▶ interim/evcs_timeseries/<code>.csv (19.218 file; khử trùng + sort)
+  evcs_scrape       ── Socket.IO 'history' ──▶ raw/evcs/timeseries_runs/load_ts_<run-id>.csv
+                                               │       (bất biến, retry qua .done/.failed — F2/F3/F6)
+  split_timeseries  ──▶ interim/evcs_timeseries/<code>.csv (merge-union + khử trùng + sort, 1 file/mã)
         │
   build_master_evcs ──▶ interim/stations_master_evcs.csv  ★ master + cột QA, 0 orphan
         │
@@ -106,9 +106,9 @@ theo tên file → **ghép 1-1, không orphan**. Cột chính:
 | `province_code` | Tiền tố tỉnh suy từ mã (chỉ trạm VinFast) |
 | `num_connectors` | **Số súng sạc lắp đặt** = `sum(totalEvse)` của `evsePowers` (khớp `stations.num_connectors` SCHEMA_CONTRACT) |
 | `connector_types` | Nhãn tier công suất/dòng điện, `|`-joined, vd `DC-120kW\|AC-3.5kW`. ⚠️ evcs.vn **không lộ chuẩn cắm** (CCS2/Type2) — đây là nhãn công suất, không phải chuẩn cắm |
-| `current_type` | `AC` / `DC` / `MIXED` (suy từ ngưỡng ≤25 kW = AC) |
+| `current_type` | `AC` / `DC` / `MIXED` (suy từ ngưỡng ≤25 kW = AC — **xấp xỉ tier**; canonical ghi đè bằng chuẩn cắm registry khi khớp official, **P7**/Q5) |
 | `max_power_kw`, `total_power_kw` | Công suất súng cao nhất + tổng công suất lắp đặt (`Σ type·totalEvse`) |
-| `num_ports` | = `totalCharging` thô. ⚠️ Thực chất là **số xe đang sạc** (biến động), KHÔNG phải số cổng lắp đặt — dùng `num_connectors` cho cấu hình cung |
+| `n_charging_snapshot` | = `totalCharging` thô (tên cũ `num_ports` — đổi ở **F13**). ⚠️ Thực chất là **số xe đang sạc** (biến động), KHÔNG phải số cổng lắp đặt — dùng `num_connectors` cho cấu hình cung |
 | `verified`, `status`, `working_time`, `is_public` | Cờ verified, trạng thái depot, giờ hoạt động, công khai |
 | `evse_powers` | JSON thô `evsePowers` (giữ nguyên vẹn để audit/dẫn xuất lại) |
 | `has_timeseries` | Có time-series hay không (19.218 = True) |
@@ -141,3 +141,38 @@ theo tên file → **ghép 1-1, không orphan**. Cột chính:
   đã lấy → số query ~ mật độ (nhanh), lý tưởng để backfill cột mới lên tập station_code cũ.
 - Time-series = Socket.IO `emit('subscribe')` + `emit('history',{stationId,hours})`; chỉ trạm VinFast
   (`C.XXX`) có telemetry; bss/other không có. `timestamp` = epoch-ms, `value` = số xe đang sạc.
+
+## Giao thức evcs.vn — đo lại 2026-07-29 (⚠️ 3 thay đổi PHÁ VỠ)
+
+Bản crawl 07-21/22 chạy với giao thức CŨ; ngày 29/07 đo lại thấy server đã đổi và crawler cũ
+**hỏng hoàn toàn** (không phải hỏng dần) — cả ba thay đổi đều **im lặng**: không exception, chỉ ra
+0 dòng hoặc `AttributeError` muộn. Trước MỌI lần crawl mới: chạy probe xác minh
+endpoint/payload/enum còn đúng; phần bootstrap dùng chung giữ ở
+[`session.py`](../../src/ev_siting/data/evcs/session.py).
+
+**Ba thay đổi phá vỡ:**
+
+1. **Endpoint không còn same-origin.** Socket.IO phải mở `io("https://www2.evcs.vn/",
+   {path:"/socket.io", auth:<fn>, …})` — `io('/')` → `websocket error`. Hàm `auth` sinh token
+   `{t:"<epoch>.<chữ ký>"}` phải **mượn lại đối tượng opts của trang** (không tái tạo được từ Python).
+2. **`history_data` đổi format:** `[{timestamp,value}]` → **`[[ts,value]]`**.
+3. **`history` payload:** `{stationId, hours, token:"", detail:false}` — `token=""` vẫn chạy (80/80 trạm);
+   `subscribe` KHÔNG cần cho history (bỏ để tránh nuốt stream `new_data`).
+
+**Enum & tầng lấy mẫu:**
+
+- `hours` là **ENUM {24, 168, 720}** khớp 3 nút UI (24 giờ / 7 ngày / 30 ngày). Ngoài enum → server
+  **im lặng bỏ qua** → timeout. **720 = sâu nhất.**
+- **Tầng lấy mẫu khác nhau theo `hours`**: 168h = theo sự kiện (gap trung vị ~1,5′); 720h = **lưới 5′**
+  (chỉ phát khi đổi giá trị; p90 45′, có gap tới 13 ngày). Timestamp hai tầng **chồng khớp ~0**
+  (2/483.808) ⇒ **không union mù** — tách thư mục theo tầng (`timeseries_runs/` mang run-id theo tầng).
+  Giá trị vẫn là số nguyên thô nên so sánh được giữa hai tầng.
+
+**Ràng buộc phiên & throughput:**
+
+- **Cloudflare chỉ cho MỘT phiên/IP**: mở phiên thứ hai khi phiên đầu đang chạy → kẹt challenge vô hạn
+  (5/5 lần thử). Mọi việc cần trình duyệt phải **tuần tự** (khớp ghi chú "không chạy 2 headful" ở trên).
+- Profile Chromium bền vững (`launch_persistent_context`) cache `cf_clearance`: bootstrap 15s lần đầu
+  → ~1s các lần sau.
+- Throughput: socket **dùng chung** + huỷ-dựng-lại-khi-timeout = 0,37 s/trạm (~2h/19k trạm); socket
+  **riêng mỗi trạm** = 1,24 s/trạm (chậm 3,3×). Cả hai an-toàn-danh-tính (F3).

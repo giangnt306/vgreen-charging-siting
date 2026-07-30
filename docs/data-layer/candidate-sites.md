@@ -1,6 +1,8 @@
 # CANDIDATE SITES & LAND-USE FILTER (P5)
 
-> Cập nhật: **2026-07-24** · Nhánh `data/giang` · Xử lý **[P5](../known-issues.md)** (candidate set + lọc land-use).
+> Cập nhật: **2026-07-24** · cập nhật hợp nhất **2026-07-30** (B3: Q7/Q8 — port `SUBSTATION_PENALTY_SCALE_M`
+> + gate `MAX_POP_NO_ROAD_FRAC` từ nhánh Kỳ; giữ chính sách loại cứng + schema Giang) · Xử lý
+> **[P5](../known-issues.md)** (candidate set + lọc land-use).
 >
 > Điểm chạm interop thứ 3 giữa **Giang → Kỳ** (ngoài demand proxy & GeoJSON kết quả).
 
@@ -88,7 +90,7 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | Đất cấm | OSM | `landuse=military` · `boundary=protected_area` · `leisure=nature_reserve` · `aeroway=aerodrome` · `natural=water`/`reservoir` |
 | Không có đường vào | `demand_h3` | **`access_tier == ISOLATED`** (`ROAD_ACCESS_ISOLATED`) — **E-DQ8a (30/07)** thay `road_access_m ≤ 0`, vốn loại **6.350 ô** trong đó **4.862 ô có đường ở ô KỀ** (tâm 2 ô res 8 cách 0,98 km); nay loại **723 ô**. Neo ngoại vi: **15 trạm đang vận hành** ở ô `ADJACENT`. **E-DQ7b:** nguồn vẫn là cột **lối vào** (gồm `service`/`track`), KHÔNG dùng `road_len_m` (cột cầu) — dùng nhầm sẽ loại 27.828 ô, trong đó 36 ô đã có trạm sạc thật |
 | Ngoài AOI | `aoi.py` | ngoài lõi + buffer 5 km |
-| Toạ độ bẩn (T0) | `stations` | cờ `DUP_COORD` / `COORD_ADDR_MISMATCH` (§7 #1) |
+| Toạ độ bẩn (T0) | `stations` | **`coord_resolved == False`** (E-DQ1 `fix_coords`: placeholder → `h3_r8=NULL`, tự loại khỏi anchor). ⚠️ Bộ cờ cũ `DUP_COORD`/`COORD_ADDR_MISMATCH` là **cờ chết** — không producer nào sinh (**F4**, review 28/07); T0 lọc bằng `is_primary ∧ is_operational ∧ coord_resolved`, không bằng danh sách cờ |
 
 > **`built_up_frac`** (tỷ lệ pixel WorldCover class 50) là chỉ số chủ lực: bắt cả nước, núi, rừng,
 > và "đã có hạ tầng xây dựng" trong một lần quét.
@@ -103,9 +105,14 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | Lối vào phi chính thức | chỉ `service`/`track` (`ROAD_ACCESS_INFORMAL`, E-DQ7b) | **+0,10** |
 | Đường duy nhất là mặt cầu | `ROAD_BRIDGE_ONLY` (E-DQ7b) | **+0,10** |
 | Dân không đường | `pop>0 & road=0` (`POP_NO_ROAD`) | flag chẩn đoán (không phạt) — khối lượng đã dời ở **E-DQ8b** |
-| Xa trạm biến áp | dist tới `power=substation` | +0,5·(d/dmax) — proxy đấu nối lưới |
+| Xa trạm biến áp | dist tới `power=substation` | **+0,5·min(d/50 km, 1)** — proxy đấu nối lưới. Mẫu số **cố định** `SUBSTATION_PENALTY_SCALE_M = 50 km` (**F14**, port nhánh Kỳ 30/07 — bản cũ chuẩn hoá theo `dmax` per-file khiến penalty phụ thuộc phạm vi AOI đang chạy; giá trị `penalty` trong artefact cũ **cần đo lại sau rebuild**) |
 
 Trạm hiện có (T0) đã có điện/mặt bằng → `penalty = 0` (không phạt land-use thêm).
+
+> **Cổng an toàn road-coverage (F14, port nhánh Kỳ 30/07):** `build_buildable_h3` **FAIL** nếu tỷ lệ ô
+> `pop>0` không có đường trong ô vượt **`MAX_POP_NO_ROAD_FRAC = 0,20`** — vượt ngưỡng nghĩa là **input road
+> thiếu coverage** (lỗi dữ liệu), không phải hiện thực địa lý. *(Tỷ lệ trên lưới hợp nhất: cần đo lại sau
+> rebuild.)*
 
 ---
 
@@ -189,7 +196,9 @@ city đã dựng — nên chạy cùng lần rebuild tessellation của `E-DQ8c`
 Ngưỡng đặt trong `data/landuse/paths.py` + `features/paths.py`. `BUILT_UP_MIN = 0,05` chọn theo cảm quan
 rồi **kiểm bằng dữ liệu**: `validate.py` WARN nếu >70% ô `pop>0` bị loại (Hà Nội: 17% → OK). Nếu chạy thành phố
 khác mà tỷ lệ vọt lên → hạ `BUILT_UP_MIN`. `GAPFILL_TOP_Q`, `CROP_DOMINANT`, các trọng số phạt mềm có thể tinh
-chỉnh; đã cô lập thành hằng số để không rải rác trong code.
+chỉnh; đã cô lập thành hằng số để không rải rác trong code. Hai hằng số port từ nhánh Kỳ (30/07, **F14**):
+`SUBSTATION_PENALTY_SCALE_M = 50_000` (mẫu số vật lý cố định của phạt substation) và
+`MAX_POP_NO_ROAD_FRAC = 0,20` (cổng fail-fast road-coverage) — cả hai ở `data/landuse/paths.py`.
 
 ---
 

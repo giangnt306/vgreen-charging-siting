@@ -1,11 +1,13 @@
 # DATA LAYER — Tổng quan tầng dữ liệu (Giang)
 
-> Cập nhật lần cuối: **2026-07-30** · Nhánh `data/giang` · Snapshot raw `snapshot_id = 2026-07-20` (**E-DQ10**).
+> Cập nhật lần cuối: **2026-07-30** · Nhánh `integrate/final` (hợp nhất `data/giang` + port nhánh Kỳ, B3 30/07).
 >
 > **Vai của file này:** kiến trúc · code · pipeline · trạng thái schema · việc còn thiếu.
 > **KHÔNG** giữ ở đây: register vấn đề → [known-issues.md](../known-issues.md) · giải pháp từng vấn đề →
 > [issues/](../issues/README.md) · kiểm kê dòng/cột/dung lượng → [dataset-inventory.md](dataset-inventory.md).
-> Số liệu dưới đây **đo trực tiếp từ artefact** ngày 30/07.
+> Số liệu dưới đây **đo trực tiếp từ artefact nhánh `data/giang`** ngày 30/07. ⚠️ Sau khi rebuild với các
+> phần port từ nhánh Kỳ (F2/F7/F12 · POI fail-closed · `pop_2025` · settlement) phải **đo lại** trước khi
+> trích dẫn — xem [known-issues.md §2.1](../known-issues.md).
 
 ---
 
@@ -75,8 +77,8 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 | `data/provenance/`       | `freeze_snapshot.py` · `manifest.py`                                            | Freeze + verify snapshot raw (**E-DQ10**)                                     |
 | `data/evcs/`             | `evcs_enumerate.py` · `evcs_probe.py` · `evcs_scrape.py`                        | Liệt kê + scrape trạm & time-series từ evcs.vn (Socket.IO)                    |
 |                          | `merge_catalog.py` · `build_master_evcs.py`                                     | Gộp catalog → **master CSV** khoá `station_code` (**P6**)                      |
-|                          | `split_timeseries.py`                                                           | Tách `load_ts.csv` → 1 file/trạm (`evcs_timeseries/`)                         |
-|                          | `transform_canonical.py`                                                        | **Master CSV → canonical parquet** (car-only, H3, join official)              |
+|                          | `split_timeseries.py`                                                           | Merge-union raw run `timeseries_runs/load_ts_<run-id>.csv` → 1 file/trạm (`evcs_timeseries/`) — **F2** |
+|                          | `transform_canonical.py`                                                        | **Master CSV → canonical parquet** (car-only, H3, join official; cổng xref sha256 **F7** · ghi nguyên tử swap-generation **F12** — port nhánh Kỳ 30/07) |
 |                          | `dedup_crosssource.py` · `fix_coords.py` · `resolve_config.py`                   | Identity resolution (**E-DQ2**) · toạ độ (**E-DQ1**) · tầng ASSET (**E-DQ4**) |
 |                          | `export_supply.py`                                                              | Xuất **cung sạch** → `clean_supply.csv` + `excluded.csv` (6 cổng QA, đối soát input) |
 |                          | `validate.py`                                                                   | QA gate (`make crawl-validate`)                                               |
@@ -101,7 +103,7 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 | #  | Bước                   | Lệnh                                                | Output chính                                                      | Số dòng                            |
 | -- | ---------------------- | --------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------- |
 | 0  | Freeze snapshot raw    | `make freeze` / `verify-snapshot`                   | `data/raw/MANIFEST.json`                                          | 23.280 file read-only              |
-| 1  | Crawl evcs.vn (full)   | `make crawl`                                        | `raw/evcs/load_ts.csv` + `stations_master_evcs.csv`                | master **28.625** · TS 19.218 file |
+| 1  | Crawl evcs.vn (full)   | `make crawl`                                        | `raw/evcs/timeseries_runs/load_ts_<run-id>.csv` + `stations_master_evcs.csv` | master **28.625** · TS 19.218 file |
 | 2  | Crawl VinFast official | `make official` (+ `detail`/`parse`)                | `official_stations` 23.247 · `official_connectors` 71.174          | —                                  |
 | 3  | Matcher official       | `python -m …vinfast_official.match_official`         | `official_xref.parquet`                                           | exact **19.427** · fuzzy 13        |
 | 4  | Transform canonical    | `make canonical`                                    | `canonical/stations/` + `canonical/connectors/`                    | **19.507** / **24.415**            |
@@ -167,7 +169,8 @@ Hợp đồng đầy đủ: [schema-contract.md](../schema/schema-contract.md) �
 
 - **Dân số:** `pop` (Σ **97.563.106**, raster UNadj — [E-DQ7e](../issues/e-data-quality/e-dq7e-pop-calibration.md)) ·
   `pop_adj` (Σ **96.965.852** — đặt lại chỗ bởi [E-DQ7f](../issues/e-data-quality/e-dq7f-pop-dasymetric.md) +
-  [E-DQ8b](../issues/e-data-quality/e-dq8b-roadless-reallocation.md)) · `pop_pixel_implausible`.
+  [E-DQ8b](../issues/e-data-quality/e-dq8b-roadless-reallocation.md)) · `pop_pixel_implausible` ·
+  `pop_2025` (R2024B unadjusted — **sensitivity niên đại**, Q6iii port nhánh Kỳ, *đo lại sau rebuild*).
   **Hai cột, hai nhiệm vụ** (hợp đồng D5 của E-DQ7f): `pop` cho phát biểu **TUYỆT ĐỐI** (`coverage_pop`, đối chiếu
   GSO) — bất biến từng bit; `pop_adj` cho consumer **XẾP HẠNG** (MCLP `demand_weight`, T4 gap-fill).
 - **Đường:** `road_access_m` · `road_len_m` · `road_lane_mw_m` · `road_lane_ar_m` · `road_bridge_m`
@@ -187,8 +190,11 @@ Hợp đồng đầy đủ: [schema-contract.md](../schema/schema-contract.md) �
 ### Nguồn phụ trợ (interim)
 
 - `vinfast_official/official_{stations,connectors,admin,xref}.parquet` — registry + xref xác minh.
-- `osm/osm_{demand_components_h3,poi_points,roads_h3}.parquet` · `osm/vn_boundary.parquet`.
-- `worldpop/worldpop_pop_h3.parquet` · `worldpop_pop_adj_h3` · `worldpop_pop_acc_h3`.
+- `osm/osm_{demand_components_h3,poi_points,roads_h3}.parquet` · `osm/vn_boundary.parquet` ·
+  `osm/osm_poi_outside_vn.parquet` (POI bbox-spill bị cắt — **fail-closed**: `osm_poi_points` chỉ chứa
+  `in_vn=True`, port E-DQ11/Kỳ 30/07).
+- `worldpop/worldpop_pop_h3.parquet` · `worldpop_pop_adj_h3` · `worldpop_pop_acc_h3` ·
+  `worldpop_pop_2025_h3` (Q6iii) · `demand/settlement_h3.parquet` (E-DQ12 — DEGURBA/`pop_k1`/`pop_unsupported`).
 - `vnsdi/communes.parquet` — polygon + `DANSO` cấp xã 2025 (**ĐỐI CHỨNG**, không phải nguồn dân số).
 - `admin/cell_commune.parquet` (322.870) · `admin/demand_commune.parquet` (3.321 × 29) · `province_crosswalk.csv`.
 - `landuse/buildable_h3.parquet` · `data/external/opex_electricity_tariff.{csv,json}`.

@@ -5,8 +5,9 @@ Cập nhật cấu trúc: **2026-07-30**.
 
 ```
 docs/
-├── problem-analysis.md     # define bài toán + roadmap 3 sprint
-├── known-issues.md         # REGISTER vấn đề (chú giải · bảng trạng thái · thứ tự xử lý)
+├── de-bai-v2.md            # ĐỀ BÀI HIỆN HÀNH (29/07) — đọc TRƯỚC
+├── problem-analysis.md     # define bài toán + roadmap 3 sprint (định nghĩa bài toán đã bị de-bai-v2 thay)
+├── known-issues.md         # REGISTER vấn đề (chú giải · bảng trạng thái · thứ tự xử lý · ghi chú hợp nhất)
 ├── issues/                 # 1 file / 1 vấn đề, chia 5 thư mục theo nhóm A–E của register
 │   ├── a-demand-target/        # A · Demand Target & Data Science
 │   ├── b-spatial-geometry/     # B · Spatial Geometry & Siting Mechanics
@@ -17,15 +18,18 @@ docs/
 ├── sources/                # tài liệu từng nguồn crawl
 ├── schema/                 # hợp đồng dữ liệu · data dictionary · ERD · review
 ├── reports/                # báo cáo bàn giao (đọc được cho người ngoài team)
-└── sprint-reviews/         # slide/ghi chú mỗi buổi review (thứ 7 cuối sprint)
+├── review/                 # biên bản review trưởng nhóm dữ liệu (nhóm G của register)
+├── lineage/                # bản đồ lineage đo trực tiếp (audit có niên đại)
+└── sprint-reviews/         # slide/ghi chú mỗi buổi review (nhóm F của register)
 ```
 
 ## Cấp dự án (gốc `docs/`)
 
 | File                                       | Nội dung                                                                              |
 | ------------------------------------------ | ------------------------------------------------------------------------------------- |
-| [problem-analysis.md](problem-analysis.md) | Report define bài toán: mục tiêu 3 bên, phân tích dữ liệu, roadmap 3 sprint, output.   |
-| [known-issues.md](known-issues.md)         | **Register vấn đề** (P1–P11 + `E-DQ*`) — trạng thái & thứ tự xử lý. **Nguồn chân lý.** |
+| [de-bai-v2.md](de-bai-v2.md)               | **ĐỀ BÀI HIỆN HÀNH (29/07)** — phát biểu lại sau yêu cầu BO + 3 kết quả âm; hệ nhãn thẩm quyền A1–A4. Thay phần *định nghĩa bài toán* của `problem-analysis.md`. **Đọc file này TRƯỚC.** |
+| [problem-analysis.md](problem-analysis.md) | Report define bài toán (20/07): mục tiêu 3 bên, phân tích dữ liệu, roadmap 3 sprint, output. ⚠️ Phần *định nghĩa bài toán* + DoD coverage **đã bị thay** bởi `de-bai-v2.md`; phần *phân tích nguồn dữ liệu* và *roadmap sprint* còn hiệu lực. |
+| [known-issues.md](known-issues.md)         | **Register vấn đề** (P1–P11 + `E-DQ*` + nhóm `F`/`G` port 30/07) — trạng thái & thứ tự xử lý. **Nguồn chân lý.** |
 
 ## `issues/` — bộ giải pháp, một file mỗi vấn đề
 
@@ -65,6 +69,22 @@ Xem [schema/README.md](schema/README.md) — `schema-contract.md`, `data-diction
 | ---------------------------------------------------------- | --------------------------------------------------------------- |
 | [reports/evcs-data-quality.md](reports/evcs-data-quality.md) | Báo cáo chất lượng & xử lý dữ liệu evcs.vn (dạng đọc cho người ngoài team). |
 
+## `review/` — biên bản review dữ liệu
+
+| File                                                       | Nội dung                                                        |
+| ---------------------------------------------------------- | --------------------------------------------------------------- |
+| [review/2026-07-29-data-lead-review.md](review/2026-07-29-data-lead-review.md) | Review trưởng nhóm dữ liệu 29/07: phán quyết + 16 mục `L` (4 CHẶN đã đóng — nhóm `G` register; 12 còn mở theo dõi tại đây). |
+| [review/2026-07-30-review-plan.md](review/2026-07-30-review-plan.md) | Kế hoạch review 5 phase + đề xuất `HANDOFF.json` một-nguồn-số (chặn họ lỗi doc-drift). |
+
+## `lineage/` — bản đồ lineage
+
+| File                                                       | Nội dung                                                        |
+| ---------------------------------------------------------- | --------------------------------------------------------------- |
+| [lineage/2026-07-30-full-lineage.md](lineage/2026-07-30-full-lineage.md) | Lineage đầy đủ đo trực tiếp (30/07, **trên nhánh Kỳ trước hợp nhất** — audit có niên đại, không sửa số bên trong). |
+
 ## `sprint-reviews/`
 
-Slide / ghi chú mỗi buổi review (thứ 7 cuối sprint).
+Slide / ghi chú mỗi buổi review (thứ 7 cuối sprint). Hai biên bản
+[data-pipeline-review-2026-07-24.md](sprint-reviews/data-pipeline-review-2026-07-24.md) và
+[data-pipeline-review-2026-07-28.md](sprint-reviews/data-pipeline-review-2026-07-28.md) là **nguồn bằng chứng**
+của nhóm `F` trong register.

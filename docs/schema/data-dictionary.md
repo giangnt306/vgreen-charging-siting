@@ -2,6 +2,18 @@
 
 Describe data sources, variable names, types, and meanings here.
 
+## EVCS canonical and candidate-site contract
+
+| Dataset | Canonical path | Keys | Fields whose meaning is easy to misuse |
+| --- | --- | --- | --- |
+| `stations` | `data/interim/canonical/stations/` | `station_id`; source key `station_code` | `lat/lng` are resolved coordinates; retain `lat_raw/lng_raw`, `coord_src` (`evcs`/`official`/`placeholder`), `coord_fix_dist_m`, `coord_resolved` for E-DQ1 audit — unresolved placeholder rows have `h3_r8=NULL`. `current_type` for evcs-only stations is a **25 kW power-tier fallback** (Q5), not plug-standard evidence; use `current_type_asset` for stratification (E-DQ4). Use only `is_primary=True`, `is_operational=True`, `access!=RESTRICTED`, `coord_resolved=True` for incumbent supply. |
+| `connectors` | `data/interim/canonical/connectors/` | `connector_id`; FK `station_id` | `connector_standard` comes from the first-party registry where matched; otherwise `UNKNOWN` (no fallback exists for plug standard). `current_type` falls back to the 25 kW tier for evcs-only rows (Q5). `count_total` is connector count. |
+| `candidate_sites` | `data/processed/candidate_sites.{parquet,geojson}` | `candidate_id`; one per `h3_r8` | Hard exclusions (WATER/WETLAND/`NOT_BUILT_UP`/legal OSM/`ROAD_ACCESS_ISOLATED`) are applied **before** this table — `exclusion_flags` is empty in the delivered set and exists for audit. Soft feasibility lives in `penalty` (per-flag detail in `buildable_h3.penalty_flags`, not exported here). `province_code` is the OLD 63-province code (null on non-station candidates) — admin labels come from `demand_h3` via `h3_r8` (E-DQ3). `is_existing=True` is incumbent / CapEx=0. |
+
+`n_charging_snapshot` in the crawl-shaped master is a point-in-time API value (cars
+charging right now); it is not a connector count and is intentionally not exported
+as `num_ports`.
+
 ## OpEx - Electricity tariff for EV charging stations
 
 **Pipeline:** [`src/ev_siting/data/opex_electricity.py`](../../src/ev_siting/data/opex_electricity.py)
