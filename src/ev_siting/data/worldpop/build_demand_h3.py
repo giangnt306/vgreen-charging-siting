@@ -3,13 +3,15 @@
 
 Đầu vào:
   - data/interim/worldpop/worldpop_pop_h3.parquet         (h3_r8, pop)
+  - data/interim/worldpop/worldpop_pop_2025_h3.parquet    (h3_r8, pop — R2024B 2025,
+                                                           nguồn cột `pop_2025`)
   - data/interim/osm/osm_demand_components_h3.parquet     (h3_r8, n_* POI theo lớp tag
                                                            — E-DQ7c; road_* — E-DQ7b)
   - data/interim/osm/vn_boundary.parquet                  (polygon lãnh thổ — E-DQ7a)
 
 Đầu ra:
   - data/interim/demand/demand_h3.parquet  — **lưới mô hình** (INSIDE + BORDER):
-    h3_r8, pop, road_access_m, road_len_m, road_lane_mw_m, road_lane_ar_m,
+    h3_r8, pop, pop_2025, road_access_m, road_len_m, road_lane_mw_m, road_lane_ar_m,
     road_bridge_m, 10 cột POI theo lớp tag (E-DQ7c), cell_state, frac_in_vn. Cột admin
     (admin_l1_code, province_name, commune_*) enrich sau (E-DQ3); `demand_weight`
     chốt ở Sprint 2.
@@ -41,6 +43,11 @@ lớp tag** để E-DQ7d/P1 fit trọng số bằng 18,6M bản ghi occupancy th
 (lane-mét cao tốc) + `road_lane_ar_m` (lane-mét trunk/primary). Xem
 `osm/road_semantics.py`.
 
+**Q6iii — `pop_2025` là cột SENSITIVITY.** Mặt nạ 2020 gán pop=0 cho 60,3% số ô có
+đường (audit 29/07, Giang đánh dấu P10); `pop_2025` (R2024B, mặt nạ công trình mới) giữ
+SONG SONG để đo độ nhạy mặt nạ raster. Hợp đồng cột theo fillna(0) như mọi cột đo; neo
+xếp hạng vẫn là `pop_adj`.
+
 Chạy:
     PYTHONPATH=src python -m ev_siting.data.worldpop.build_demand_h3
 """
@@ -57,13 +64,14 @@ from ev_siting.data.osm.access_tiers import derive as derive_tiers
 from ev_siting.data.osm.vn_boundary import classify_cells
 from ev_siting.data.provenance.manifest import load_manifest
 from .paths import (DEMAND_H3, DEMAND_H3_CLIPPED, DEMAND_REPORT, POP_ACC_H3,
-                    POP_ADJ_H3, POP_H3, ensure_dirs)
+                    POP_ADJ_H3, POP_H3, POP_H3_2025, ensure_dirs)
 
 # `apartment_levels_sum` là Σ số tầng (số ĐO, có thể lẻ khi thiếu tag) -> cột số thực;
 # mọi cột POI còn lại là số đếm nguyên. `pop_adj` (E-DQ7f + E-DQ8b) là pop ĐÃ đặt lại chỗ
-# — dùng cho consumer XẾP HẠNG; `pop` giữ UN-anchored cho phát biểu tuyệt đối.
+# — dùng cho consumer XẾP HẠNG; `pop` giữ UN-anchored cho phát biểu tuyệt đối;
+# `pop_2025` (Q6iii) là cột sensitivity của mặt nạ raster, KHÔNG dùng để xếp hạng.
 #: cột số có SẴN ở đầu vào (pop + thành phần OSM) — được fillna(0) sau outer join.
-_JOINED_NUM_COLS = ["pop", "pop_adj"] + DERIVED_COLUMNS + ["apartment_levels_sum"]
+_JOINED_NUM_COLS = ["pop", "pop_adj", "pop_2025"] + DERIVED_COLUMNS + ["apartment_levels_sum"]
 #: cột số của bảng ra = cột join + 2 cột vành do E-DQ8a SUY RA sau (không fillna được
 #: vì lúc đó chưa tồn tại — `access_tier` là chuỗi nên không nằm ở đây).
 _NUM_COLS = _JOINED_NUM_COLS + [c for c in TIER_DERIVED if c != "access_tier"]
@@ -182,6 +190,8 @@ def run():
     ensure_dirs()
     if not POP_H3.exists():
         raise SystemExit(f"thiếu {POP_H3} — chạy worldpop_pop.py trước")
+    if not POP_H3_2025.exists():
+        raise SystemExit(f"thiếu {POP_H3_2025} — chạy worldpop_pop.py --vintage 2025 trước")
     if not DEMAND_COMPONENTS.exists():
         raise SystemExit(f"thiếu {DEMAND_COMPONENTS} — chạy osm.build_osm_h3 trước")
 
@@ -198,6 +208,10 @@ def run():
         raise SystemExit(f"{DEMAND_COMPONENTS.name} thiếu {missing} (bản trước E-DQ7c) "
                          f"— chạy lại `make osm`")
     df = pop.merge(osm, on="h3_r8", how="outer")
+    # Q6iii: pop_2025 (R2024B) — outer để giữ cả ô CHỈ có ở mặt nạ 2025 (đúng nhóm ô mà
+    # phép đo độ nhạy nhắm tới); ô ngoài VN sẽ bị clip ở bước E-DQ7a như mọi ô khác.
+    p25 = pd.read_parquet(POP_H3_2025).rename(columns={"pop": "pop_2025"})
+    df = df.merge(p25, on="h3_r8", how="outer")
 
     for c in _JOINED_NUM_COLS:
         df[c] = df.get(c, 0.0).fillna(0.0)
@@ -229,6 +243,7 @@ def run():
     print("  theo trạng thái ô:", by_state)
     print("  tổng (lưới giữ lại):", {
         "pop_M": round(keep["pop"].sum() / 1e6, 3),
+        "pop_2025_M": round(keep["pop_2025"].sum() / 1e6, 3),
         **{c: int(keep[c].sum()) for c in _INT_COLS},
         "apartment_levels_sum": int(keep.apartment_levels_sum.sum()),
         "road_access_km": round(keep.road_access_m.sum() / 1e3),
@@ -263,6 +278,12 @@ def run():
         m = (keep["access_tier"] == t) & (keep["pop"] > 0)
         print(f"    {t:<9} {int(m.sum()):>6,} ô · pop {keep.loc[m, 'pop'].sum():>11,.0f}"
               f" · pop_adj {keep.loc[m, 'pop_adj'].sum():>11,.0f}")
+    # Q6iii — phép đo độ nhạy mặt nạ (audit 29/07): cùng một câu hỏi trên hai niên đại
+    road_no_pop = (keep.road_access_m > 0) & ~(keep["pop"] > 0)
+    road_no_pop25 = (keep.road_access_m > 0) & ~(keep["pop_2025"] > 0)
+    print(f"  Q6iii: ô có đường mà pop(2020)=0: {int(road_no_pop.sum()):,} "
+          f"({100 * road_no_pop.mean():.1f}%) | với pop_2025: {int(road_no_pop25.sum()):,} "
+          f"({100 * road_no_pop25.mean():.1f}%)")
 
     report = {"snapshot_id": (load_manifest() or {}).get("snapshot_id"),
               "checks": [], "stats": {

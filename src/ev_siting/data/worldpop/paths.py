@@ -9,6 +9,7 @@ Run from the repo root::
     PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop
     PYTHONPATH=src python -m ev_siting.data.worldpop.build_demand_h3
 """
+import os
 from pathlib import Path
 
 # worldpop -> data -> ev_siting -> src -> <project root>
@@ -24,10 +25,16 @@ RAW_DIR = DATA / "raw" / "worldpop"
 # thứ hạng ô bất biến" trở lại thành lời hứa.
 POP_TIF = RAW_DIR / "vnm_ppp_2020_UNadj_constrained.tif"
 POP_TIF_UNADJUSTED = RAW_DIR / "vnm_ppp_2020_constrained.tif"
+# R2024B 2025 (constrained, mặt nạ công trình mới) — nguồn của cột SENSITIVITY
+# `pop_2025` (Q6iii): mặt nạ 2020 gán pop=0 cho 60,3% số ô có đường (audit 29/07).
+# Repo Kỳ đã tải sẵn -> nhận fallback sang repo anh em để không tải lại 74 MB;
+# ghi đè bằng env EVCS_WORLDPOP_2025_TIF (xem `resolve_tif`).
+POP_TIF_2025 = RAW_DIR / "vnm_pop_2025_CN_100m_R2024B_v1.tif"
 
 # --- derived (data/interim/worldpop) ---
 INTERIM_DIR = DATA / "interim" / "worldpop"
 POP_H3 = INTERIM_DIR / "worldpop_pop_h3.parquet"        # h3_r8 -> pop
+POP_H3_2025 = INTERIM_DIR / "worldpop_pop_2025_h3.parquet"  # h3_r8 -> pop (R2024B 2025)
 POP_REPORT = INTERIM_DIR / "worldpop_pop_report.json"   # cổng QA hiệu chuẩn (E-DQ7e)
 
 # demand_h3 đầy đủ (pop + thành phần OSM) — đầu ra tích hợp
@@ -37,6 +44,9 @@ DEMAND_H3 = DEMAND_DIR / "demand_h3.parquet"
 # `input = output + clipped`, nhất quán nguyên tắc "flag dòng, không xoá".
 DEMAND_H3_CLIPPED = DEMAND_DIR / "demand_h3_clipped_out.parquet"
 DEMAND_REPORT = DEMAND_DIR / "demand_h3_report.json"
+# settlement (DEGURBA + đĩa k=1 + cờ đất đai) — sinh SAU demand_h3 bởi `settlement.py`;
+# consumer đọc TRỰC TIẾP bảng này, `demand_h3` KHÔNG mang cột settlement.
+SETTLEMENT_H3 = DEMAND_DIR / "settlement_h3.parquet"
 
 H3_RES_R8 = 8
 
@@ -51,6 +61,16 @@ _WORLDPOP_BASE = ("https://data.worldpop.org/GIS/Population/"
                   "Global_2000_2020_Constrained/2020/BSGM/VNM/")
 WORLDPOP_URL = _WORLDPOP_BASE + "vnm_ppp_2020_UNadj_constrained.tif"
 WORLDPOP_URL_UNADJUSTED = _WORLDPOP_BASE + "vnm_ppp_2020_constrained.tif"
+
+# WorldPop R2024B 2025, constrained. CC-BY 4.0.
+WORLDPOP_2025_URL = ("https://data.worldpop.org/GIS/Population/"
+                     "Individual_countries/VNM/vnm_pop_2025_CN_100m_R2024B_v1.tif")
+
+# vintage -> (đường raster, output H3, URL tải)
+POP_SOURCES = {
+    "2020": (POP_TIF, POP_H3, WORLDPOP_URL),
+    "2025": (POP_TIF_2025, POP_H3_2025, WORLDPOP_2025_URL),
+}
 
 # --- hằng số hiệu chuẩn E-DQ7e (đo trên chính hai file đã checksum, 2026-07-29) ---
 #: Tổng dân số của raster UNadj (Σ pixel > 0). Neo vào **file đã băm sha256**, KHÔNG
@@ -96,6 +116,20 @@ POP_BUILTUP_DENSITY_CEIL = 750.0
 #: D5 của 7f: `pop` UN-anchored cho phát biểu tuyệt đối, `pop_adj` cho consumer XẾP HẠNG.
 POP_ACC_H3 = INTERIM_DIR / "worldpop_pop_acc_h3.parquet"
 POP_ACC_REPORT = INTERIM_DIR / "worldpop_pop_acc_report.json"
+
+
+def resolve_tif(vintage: str):
+    """Đường raster cho `vintage`, ưu tiên env rồi repo này rồi repo anh em `evcs-dataset`."""
+    tif = POP_SOURCES[vintage][0]
+    if vintage == "2025":
+        env = os.environ.get("EVCS_WORLDPOP_2025_TIF")
+        if env:
+            return Path(env)
+        if not tif.exists():
+            sib = PROJECT_ROOT.parent / "evcs-dataset" / "data" / "00_raw" / "worldpop" / tif.name
+            if sib.exists():
+                return sib
+    return tif
 
 
 def ensure_dirs():

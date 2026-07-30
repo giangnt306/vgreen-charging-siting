@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""worldpop_pop.py — Dân số WorldPop VN 2020 (~100m) -> pop theo ô H3 res 8.
+"""worldpop_pop.py — Dân số WorldPop VN (~100m) -> pop theo ô H3 res 8.
 
 Tải raster GeoTIFF `vnm_ppp_2020_UNadj_constrained.tif` (Global 2000-2020 Constrained,
 built-settlement aware, ~100m, **UN-adjusted**, CC-BY) rồi đọc theo **cửa sổ (block)**
@@ -17,8 +17,16 @@ canh đúng ba giả định đó, và cả ba đều FAIL được.
 ⚠️ E-DQ7e **không** sửa việc `pop` bị dồn cục **trong** ô (146 ô / 792.118 dân nằm trên
 1–5 pixel) — đó là `E-DQ7f`, một vấn đề khác hẳn: nó **có** xê dịch thứ hạng.
 
+**Hai niên đại (Q6iii).** `--vintage 2020` dựng `pop` UNadj ở trên và đi qua đủ ba cổng
+E-DQ7e; `--vintage 2025` dựng thêm `worldpop_pop_2025_h3` (R2024B, mặt nạ công trình
+mới) cho cột SENSITIVITY `pop_2025` — trọng tài hạ tầng OSM cho thấy mặt nạ 2020 gán
+pop=0 cho **60,3% số ô có đường** (audit 29/07), nên giữ 2025 song song để ĐO độ nhạy
+mặt nạ thay vì chọn mù; neo xếp hạng vẫn là `pop`/`pop_adj` 2020. Bản 2025 không có bản
+unadjusted đối chứng lẫn tổng đã checksum ⇒ các cổng E-DQ7e không áp được cho nó.
+
 Chạy:
-    PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop
+    PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop            # cả hai niên đại
+    PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop --vintage 2025
     PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop --force-download
 """
 import argparse
@@ -30,25 +38,28 @@ import pandas as pd
 import rasterio
 from rasterio.windows import Window
 
-from .paths import (H3_RES_R8, POP_H3, POP_REPORT, POP_TIF, POP_TIF_UNADJUSTED,
-                    POP_TOTAL_EXPECTED, POP_TOTAL_TOL, POP_UNADJ_RATIO,
-                    POP_UNADJ_RATIO_STD_MAX, WORLDPOP_URL, ensure_dirs)
+from .paths import (H3_RES_R8, POP_H3, POP_REPORT, POP_SOURCES, POP_TIF,
+                    POP_TIF_UNADJUSTED, POP_TOTAL_EXPECTED, POP_TOTAL_TOL,
+                    POP_UNADJ_RATIO, POP_UNADJ_RATIO_STD_MAX, WORLDPOP_URL,
+                    ensure_dirs, resolve_tif)
 import h3
 
 ROW_BLOCK = 512   # số hàng đọc mỗi cửa sổ (cân bằng RAM/tốc độ)
 
 
-def download_tif(force=False):
+def download_tif(vintage="2020", force=False):
     import requests
-    if POP_TIF.exists() and POP_TIF.stat().st_size > 0 and not force:
-        print(f"[tif] đã có {POP_TIF.name} ({POP_TIF.stat().st_size/1e6:.0f} MB) — bỏ qua tải")
+    tif, _, url = POP_SOURCES[vintage]
+    have = resolve_tif(vintage)
+    if have.exists() and have.stat().st_size > 0 and not force:
+        print(f"[tif] đã có {have} ({have.stat().st_size/1e6:.0f} MB) — bỏ qua tải")
         return
-    print(f"[tif] tải {WORLDPOP_URL} ...")
-    with requests.get(WORLDPOP_URL, stream=True, timeout=600) as r:
+    print(f"[tif] tải {url} ...")
+    with requests.get(url, stream=True, timeout=600) as r:
         r.raise_for_status()
         total = int(r.headers.get("Content-Length", 0))
         got = 0
-        tmp = POP_TIF.with_suffix(".tif.part")
+        tmp = tif.with_suffix(".tif.part")
         with open(tmp, "wb") as f:
             for chunk in r.iter_content(chunk_size=1 << 20):
                 f.write(chunk)
@@ -56,15 +67,19 @@ def download_tif(force=False):
                 if total:
                     print(f"\r      {got/1e6:5.0f}/{total/1e6:.0f} MB", end="", file=sys.stderr)
         print("", file=sys.stderr)
-        tmp.replace(POP_TIF)
-    print(f"[tif] xong -> {POP_TIF} ({POP_TIF.stat().st_size/1e6:.0f} MB)")
+        # tải đứt nửa chừng phải nổ NGAY tại đây, không để raster cụt lọt vào pipeline
+        if total and got != total:
+            tmp.unlink(missing_ok=True)
+            raise RuntimeError(f"GeoTIFF tải thiếu: got={got:,}, expected={total:,}")
+        tmp.replace(tif)
+    print(f"[tif] xong -> {tif} ({tif.stat().st_size/1e6:.0f} MB)")
 
 
-def aggregate_to_h3():
+def aggregate_to_h3(tif):
     """Đọc raster theo strip, gộp pop về ô H3 res 8. Trả về DataFrame(h3_r8, pop)."""
     agg = {}          # h3_r8 -> pop tích luỹ
     total_pop = 0.0
-    with rasterio.open(POP_TIF) as src:
+    with rasterio.open(tif) as src:
         nodata = src.nodata
         H, W = src.height, src.width
         t = src.transform
@@ -189,12 +204,22 @@ def qa_gates(report, df, total, prev, ratio):
     return all_ok
 
 
-def run(force_download=False):
+def run(vintage="2020", force_download=False):
     ensure_dirs()
-    download_tif(force=force_download)
+    download_tif(vintage, force=force_download)
+    tif = resolve_tif(vintage)
+    if vintage != "2020":
+        # 2025 (R2024B): không có bản unadjusted đối chứng lẫn tổng đã checksum ⇒ các
+        # cổng E-DQ7e không áp được; artefact chỉ nuôi cột sensitivity `pop_2025`.
+        out = POP_SOURCES[vintage][1]
+        print(f"[pop] {vintage}: gộp {tif.name} -> H3 res 8...")
+        df, total = aggregate_to_h3(tif)
+        df.to_parquet(out, index=False)
+        print(f"[pop] -> {out}  ({len(df)} ô, tổng {total/1e6:.2f}M người)")
+        return df
     prev = pd.read_parquet(POP_H3) if POP_H3.exists() else None
     print("[pop] gộp raster -> H3 res 8...")
-    df, total = aggregate_to_h3()
+    df, total = aggregate_to_h3(tif)
 
     print("[pop] so pixel với bản unadjusted (E-DQ7e)...")
     ratio = pixel_ratio_vs_unadjusted()
@@ -219,6 +244,8 @@ def run(force_download=False):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
+    ap.add_argument("--vintage", choices=[*POP_SOURCES, "all"], default="all")
     ap.add_argument("--force-download", action="store_true")
     args = ap.parse_args()
-    run(force_download=args.force_download)
+    for v in (POP_SOURCES if args.vintage == "all" else [args.vintage]):
+        run(vintage=v, force_download=args.force_download)
