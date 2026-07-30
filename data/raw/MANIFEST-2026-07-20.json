@@ -1,0 +1,350 @@
+{
+  "schema": "vgreen.snapshot-manifest/1",
+  "snapshot_id": "2026-07-20",
+  "frozen_at": "2026-07-27T14:12:52.289234+07:00",
+  "hash_algo": "sha256",
+  "content_hashed": true,
+  "project_root": "/home/wanderer210/Documents/AI/vgreen-charging-siting",
+  "sources": [
+    {
+      "id": "evcs",
+      "name": "evcs.vn — catalog trạm sạc công cộng + telemetry occupancy",
+      "retrieval_url": "https://evcs.vn (API bản đồ nội bộ)",
+      "license": "Proprietary (public map API, dùng cho nghiên cứu)",
+      "vintage": "crawl 2026-07-21/22",
+      "temporal_extent": {
+        "time_window_start": "2026-07-13T20:51:56.935000+07:00",
+        "time_window_end": "2026-07-21T00:32:01.302000+07:00"
+      },
+      "members": [
+        {
+          "role": "catalog",
+          "path": "data/raw/evcs/catalog",
+          "kind": "dir",
+          "present": true,
+          "n_files": 11,
+          "total_bytes": 15248868,
+          "tree_sha256": "2a64e8d33da38ed9109a3fa1dac55cfbc6ca76d12dc85b7f9c1d5d906de909b9",
+          "files": [
+            {
+              "path": "evcs_all_codes.txt",
+              "bytes": 304691,
+              "sha256": "bf1c9ae97714f0321a0e706a95a18ce1da03f1ca9d1d0152e28944b228e7c0d0"
+            },
+            {
+              "path": "evcs_bss.csv",
+              "bytes": 1676895,
+              "sha256": "ab54d549db35aa3314b03e954e71b4b0938569726d33e11182b084a0e74c4ae7"
+            },
+            {
+              "path": "evcs_bss.csv.ckpt.json",
+              "bytes": 53667,
+              "sha256": "b6cd14e28c15049a8f5062523afd4b41c6cf190f1b27f2d050bc307d863a5f3b"
+            },
+            {
+              "path": "evcs_bss_codes.txt",
+              "bytes": 100098,
+              "sha256": "bbae1d599900dd66c39acbaffa04a8814991b9feb57fb57456b5e2058a40508f"
+            },
+            {
+              "path": "evcs_catalog.csv",
+              "bytes": 7236349,
+              "sha256": "b330a6ac5bd03be172084c7c5a2bfe40c6cefe0ca8f78ff9c5e0a238302e09f7"
+            },
+            {
+              "path": "evcs_other.csv",
+              "bytes": 14530,
+              "sha256": "52f092b26a51eaa60ab734e110ac56d4cb06420f7bf404c88971e09f398508f0"
+            },
+            {
+              "path": "evcs_other.csv.ckpt.json",
+              "bytes": 295,
+              "sha256": "0dea6b43b8768a2a791acad659a05322dbd475bfdb25f0eb720ef1b9ffe27a11"
+            },
+            {
+              "path": "evcs_other_codes.txt",
+              "bytes": 2538,
+              "sha256": "0c14bc95e7b5c68f59c85207f88ad6006b734e51d62e2a7dd2247c4795f52942"
+            },
+            {
+              "path": "evcs_stations.csv",
+              "bytes": 5593744,
+              "sha256": "5d23d18e9c40c295be855fe3e3cd2da5f62afedce461d6fde3455ab272df97a2"
+            },
+            {
+              "path": "evcs_stations.csv.ckpt.json",
+              "bytes": 64006,
+              "sha256": "4853c263a573a08290e637d68ac05c5db9d454033f64b88217850da429155456"
+            },
+            {
+              "path": "evcs_stations_codes.txt",
+              "bytes": 202055,
+              "sha256": "a0d3d7b92400828b0c354059debc037915d9fd7b81883fc6c1d1b39527f69f3d"
+            }
+          ]
+        },
+        {
+          "role": "occupancy_timeseries",
+          "path": "data/raw/evcs/load_ts.csv",
+          "kind": "file",
+          "present": true,
+          "bytes": 508491412,
+          "modified": "2026-07-21T16:24:28.548248+07:00",
+          "sha256": "2e6bd5f98676a095d007677504aa4f59ff0f54fb5323ebcd03937344e62f8abd"
+        }
+      ]
+    },
+    {
+      "id": "vinfast_official",
+      "name": "vinfastauto.com — store locator (registry xác minh chéo)",
+      "retrieval_url": "https://vinfastauto.com (store locator API)",
+      "license": "Proprietary (public locator, ground-truth đối soát)",
+      "vintage": {
+        "generation": 16,
+        "count": 58577
+      },
+      "members": [
+        {
+          "role": "locators_meta",
+          "path": "data/raw/vinfast_official/locators_meta.json",
+          "kind": "file",
+          "present": true,
+          "bytes": 97,
+          "modified": "2026-07-22T16:12:52.902698+07:00",
+          "sha256": "8e4cac606d3253a2b3b30d619990ff12cece908942c0fed71ca48ac319e3af71"
+        },
+        {
+          "role": "locators_full",
+          "path": "data/raw/vinfast_official/locators_full.json",
+          "kind": "file",
+          "present": true,
+          "bytes": 60940742,
+          "modified": "2026-07-22T16:13:00.641642+07:00",
+          "sha256": "85e00caf12b42d0d2a594ff4d1d9fb2a479f0b914f50b8c6534a169889ba90d3"
+        },
+        {
+          "role": "station_details",
+          "path": "data/raw/vinfast_official/details",
+          "kind": "dir",
+          "present": true,
+          "n_files": 23240,
+          "total_bytes": 165438117,
+          "tree_sha256": "4f4f04973174e53b029ae6002c4923c5ab29822e76235f387ef6daa33d03f49e"
+        }
+      ]
+    },
+    {
+      "id": "osm",
+      "name": "OpenStreetMap — Geofabrik VN dump (roads) + Overpass POI",
+      "retrieval_url": "https://download.geofabrik.de/asia/vietnam-latest.osm.pbf",
+      "license": "ODbL 1.0 (OpenStreetMap contributors)",
+      "spatial_extent": {
+        "bbox_min_lat_min_lon_max_lat_max_lon": [
+          8.0,
+          102.0,
+          23.7,
+          110.0
+        ]
+      },
+      "vintage": {
+        "replication_timestamp": "2026-07-20T20:21:16Z",
+        "replication_sequence": "4852",
+        "replication_base_url": "https://download.geofabrik.de/asia/vietnam-updates"
+      },
+      "members": [
+        {
+          "role": "roads_pbf",
+          "path": "data/raw/osm/vietnam-latest.osm.pbf",
+          "kind": "file",
+          "present": true,
+          "bytes": 325450635,
+          "modified": "2026-07-21T21:25:32.874501+07:00",
+          "sha256": "be18de21c54b3cd5c4598710500b38c4a0fbc6a270b3c06376c1fe42fcc03c4c"
+        },
+        {
+          "role": "poi_overpass",
+          "path": "data/raw/osm/poi",
+          "kind": "dir",
+          "present": true,
+          "n_files": 5,
+          "total_bytes": 7875499,
+          "tree_sha256": "5d45cd312bf19004addb9c3dcae55be77910bea547c9d8ca7b099c8aa6370c55",
+          "files": [
+            {
+              "path": "apartments.json",
+              "bytes": 2554602,
+              "sha256": "d3911d6659e1076d60cf19fc83550eadc9bb9be3b63c5e009ee87d04200bd8e9"
+            },
+            {
+              "path": "fuel.json",
+              "bytes": 2298103,
+              "sha256": "1894bb45c46930b3521027f0165727abb60cc5336096cce8146bab359ff4b341"
+            },
+            {
+              "path": "mall.json",
+              "bytes": 461772,
+              "sha256": "1901eff8968b9a80d1533de046bd4ee3c025330d3b908d97be225a1352807a7f"
+            },
+            {
+              "path": "parking.json",
+              "bytes": 1226460,
+              "sha256": "e90f351225e9d98691e564cf34ee2a453993b4ed9c8bf132a05649220b78b663"
+            },
+            {
+              "path": "retail.json",
+              "bytes": 1334562,
+              "sha256": "6ebe2feb0e83aff15e6eb141306c7230447ea028c74033f19456312e5e05ba09"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "worldpop",
+      "name": "WorldPop — VN mật độ dân số 2020 constrained (~100m)",
+      "retrieval_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_constrained.tif",
+      "license": "CC-BY 4.0",
+      "vintage": "2020 constrained (BSGM), UN-unadjusted",
+      "members": [
+        {
+          "role": "population_raster",
+          "path": "data/raw/worldpop/vnm_ppp_2020_constrained.tif",
+          "kind": "file",
+          "present": true,
+          "bytes": 26519892,
+          "modified": "2026-07-22T08:46:39.277995+07:00",
+          "sha256": "ce1e774cdbfd03a63548afb7228b5d2b03d8b976ea9ac5fdd62617be5d6dcf6f"
+        }
+      ]
+    },
+    {
+      "id": "landuse",
+      "name": "ESA WorldCover 10m + Overpass exclusion (land-use, P5)",
+      "retrieval_url": "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map",
+      "license": "CC-BY 4.0 (WorldCover) / ODbL 1.0 (OSM exclusion)",
+      "vintage": {
+        "worldcover_version": "v200",
+        "worldcover_year": 2021
+      },
+      "members": [
+        {
+          "role": "worldcover_tiles",
+          "path": "data/raw/landuse/worldcover",
+          "kind": "dir",
+          "present": true,
+          "n_files": 17,
+          "total_bytes": 1076425236,
+          "tree_sha256": "50be95c5682a6a1660e58327507744bc5a45f8cbd10bccdac5712ab7707153d3",
+          "files": [
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N06E102_Map.tif",
+              "bytes": 6031993,
+              "sha256": "7b0d1a1a49d2746a7bce160649f5f698b42670eb6e000869c60c9261889d42f6"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N06E105_Map.tif",
+              "bytes": 4951029,
+              "sha256": "41478c888b1b7f580445c3da0f39cb69dbe02d841fcd669de175373b919601cd"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N09E102_Map.tif",
+              "bytes": 36075843,
+              "sha256": "e212faf44afc6c60a6eca287ed078c86bf01c2f55a9eac0b6f09d319520f5c27"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N09E105_Map.tif",
+              "bytes": 92338709,
+              "sha256": "7e9c655b7eefe460f92f0a15122295d33b33c3e1493afd56a463fb973dcc1cbc"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N09E108_Map.tif",
+              "bytes": 14963837,
+              "sha256": "f26ec25b7cebe77540092e62ab9db460a9e7a21009a4d9ae947d4d59ec9c59dc"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N12E102_Map.tif",
+              "bytes": 98862247,
+              "sha256": "9c5e7edf0f388561f1dd17fc8e188d4ecbc1f6ae9dc43b64bb11789761363f1f"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N12E105_Map.tif",
+              "bytes": 93949064,
+              "sha256": "7efaf1fc1a94548a026b3eb9dc92a49c3f42dc85d7eebbe0fbe25a9a10050b4a"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N12E108_Map.tif",
+              "bytes": 44490334,
+              "sha256": "7b83de2f5819999d1c22329606abc0237101eeb6701fcf0e7e2d9e2aeb196edc"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N15E102_Map.tif",
+              "bytes": 118119750,
+              "sha256": "d5aca8e17900f1cfc74f383104aa171fea5857f845e5fba39abdc3440c233e0f"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N15E105_Map.tif",
+              "bytes": 69305227,
+              "sha256": "0d7bd5dba168799d855ed149d3d45ad7f040145fa54e3df3556d94474510eaed"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N15E108_Map.tif",
+              "bytes": 11813732,
+              "sha256": "14f46435b0730cac15cd32f749a0bba7c778f0f243c48ecd452d6e54cf93e029"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N18E102_Map.tif",
+              "bytes": 75906109,
+              "sha256": "91cb1b3ebf3ac5815119e25dad860b96bf6df7616d6863252a9e625247d50eeb"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N18E105_Map.tif",
+              "bytes": 45738052,
+              "sha256": "8232d5b8d3dd26e27c95d33219dab592fb99bf217a536325d1b7e46f8be61325"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N18E108_Map.tif",
+              "bytes": 43115466,
+              "sha256": "6fceb7876a47898297c9ddc7be7957bfc16382fe85489344addacac5b1b723fb"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N21E102_Map.tif",
+              "bytes": 106663209,
+              "sha256": "93d716d61771eb16fb459e44caebaebd4e0af487b050d8484dc6ec60a0e9a43d"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N21E105_Map.tif",
+              "bytes": 102974131,
+              "sha256": "321baa319d64788b726b3bb808da9d987ff5e0c927dbf9bba0a5d4be15b36f92"
+            },
+            {
+              "path": "ESA_WorldCover_10m_2021_v200_N21E108_Map.tif",
+              "bytes": 111126504,
+              "sha256": "bed57ab256b7943852154d10c7b2153fc96f5b8e6a203b6956e81a81e3a2bcfb"
+            }
+          ]
+        },
+        {
+          "role": "osm_exclusion",
+          "path": "data/raw/landuse/osm_exclusion",
+          "kind": "dir",
+          "present": true,
+          "n_files": 2,
+          "total_bytes": 3985846,
+          "tree_sha256": "07c213b69dea678ff06db9bfe66f9380a6b0cd20b177e0f54ec2f1d2e00d0650",
+          "files": [
+            {
+              "path": "exclusion.json",
+              "bytes": 3543670,
+              "sha256": "4aa48895961161214cf677f01649704c5ff7a947f4e0c71e39741b01a9cd3685"
+            },
+            {
+              "path": "substations.json",
+              "bytes": 442176,
+              "sha256": "375909d4f9917863a9d00c90e0ca6f3ded0ad8c0cb142775ee74dbc2316815f1"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

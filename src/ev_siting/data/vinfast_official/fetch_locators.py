@@ -32,8 +32,16 @@ from datetime import datetime, timezone
 import pandas as pd
 import requests
 
-from .paths import (RAW_DIR, META_JSON, BULK_JSON, DETAIL_DIR, INTERIM_DIR,
-                    STATIONS_PARQUET, CONNECTORS_PARQUET, ADMIN_PARQUET, ensure_dirs)
+from .paths import (
+    ADMIN_PARQUET,
+    BULK_JSON,
+    CONNECTORS_PARQUET,
+    DETAIL_DIR,
+    META_JSON,
+    RAW_DIR,
+    STATIONS_PARQUET,
+    ensure_dirs,
+)
 
 CDN_BASE = "https://static-cms-prod.vinfastauto.com/locators"
 SITE_BASE = "https://vinfastauto.com/vn_vi"
@@ -82,6 +90,29 @@ def _to_float(v):
         return None
 
 
+def _redirect(snapshot: str):
+    """Tro moi output sang thu muc snapshot rieng -> khong de len ban da freeze (E-DQ10).
+
+    `data/raw/vinfast_official/` nam trong MANIFEST dong bang; chay `bulk` de len no se
+    lam `verify-snapshot` bao drift CRITICAL. Voi snapshot moi, ghi sang
+    `.../snapshot=<id>/` va `data/interim/vinfast_official/snapshot=<id>/`.
+    """
+    from . import paths as P
+
+    raw = P.RAW_DIR / f"snapshot={snapshot}"
+    interim = P.INTERIM_DIR / f"snapshot={snapshot}"
+    g = globals()
+    g["META_JSON"] = raw / "locators_meta.json"
+    g["BULK_JSON"] = raw / "locators_full.json"
+    g["DETAIL_DIR"] = raw / "details"
+    g["STATIONS_PARQUET"] = interim / "official_stations.parquet"
+    g["CONNECTORS_PARQUET"] = interim / "official_connectors.parquet"
+    g["ADMIN_PARQUET"] = interim / "official_admin.parquet"
+    for d in (raw, interim, g["DETAIL_DIR"]):
+        d.mkdir(parents=True, exist_ok=True)
+    print(f"[snapshot] output -> {raw} | {interim}")
+
+
 def run_bulk():
     ensure_dirs()
     s = requests.Session()
@@ -93,8 +124,22 @@ def run_bulk():
     print(f"[bulk] meta generation={meta.get('generation')} count={meta.get('count')} full={fname}")
 
     payload = _get_json(f"{CDN_BASE}/{fname}", s, timeout=120)
-    items = payload["data"] if isinstance(payload, dict) and "data" in payload else payload
-    items = [x for x in items if isinstance(x, dict)]
+    # Envelope doi 2026-07-29: gen<=16 tra LIST thang; gen 178 tra {data,method,status}.
+    raw_items = payload["data"] if isinstance(payload, dict) and "data" in payload else payload
+    expected = meta.get("count")
+    try:
+        expected = int(expected)
+    except (TypeError, ValueError):
+        raise SystemExit(f"bulk meta.count khong hop le: {meta.get('count')!r}")
+    # Cong DAY DU dem tren raw_items, KHONG dem sau khi loc. Nguon phat ban ghi di dang
+    # (gen 178: data[418] == []); dem sau loc thi 1 record hong chan MOI lan cap nhat
+    # registry bang thong bao "incomplete" sai su that (F18 dung tinh than, sai cho dem).
+    if len(raw_items) != expected:
+        raise SystemExit(f"bulk incomplete: meta.count={expected:,}, nhan={len(raw_items):,}; khong ghi output")
+    items = [x for x in raw_items if isinstance(x, dict)]
+    n_malformed = len(raw_items) - len(items)
+    if n_malformed:
+        print(f"[bulk] CANH BAO: {n_malformed} ban ghi di dang (khong phai object) da bo qua")
     BULK_JSON.write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
     print(f"[bulk] tai {len(items):,} locators (moi category) -> {BULK_JSON.name}")
 
@@ -258,7 +303,10 @@ def main():
     dp.add_argument("--sleep", type=float, default=0.3, help="giay nghi giua request")
     dp.add_argument("--overwrite", action="store_true", help="bo qua .done, crawl lai")
     sub.add_parser("parse", help="raw details -> official_connectors + official_admin parquet")
+    ap.add_argument("--snapshot", help="ghi ra snapshot RIENG (vd 2026-07-29) thay vi de len ban da freeze")
     args = ap.parse_args()
+    if getattr(args, "snapshot", None):
+        _redirect(args.snapshot)
 
     if args.cmd == "bulk":
         run_bulk()

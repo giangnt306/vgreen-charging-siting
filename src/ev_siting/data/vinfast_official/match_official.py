@@ -30,6 +30,7 @@ Chay:
     PYTHONPATH=src python -m ev_siting.data.vinfast_official.match_official --radius 300 --name-sim 80
 """
 import argparse
+import hashlib
 import json
 import re
 import unicodedata
@@ -40,8 +41,7 @@ import pandas as pd
 from rapidfuzz import fuzz
 from sklearn.neighbors import BallTree
 
-from .paths import (STATIONS_PARQUET, CONNECTORS_PARQUET, ADMIN_PARQUET,
-                    XREF_PARQUET, XREF_REPORT, MASTER_CSV)
+from .paths import ADMIN_PARQUET, CONNECTORS_PARQUET, MASTER_CSV, STATIONS_PARQUET, XREF_PARQUET, XREF_REPORT
 
 # --- tham so matcher (default hop ly, override qua CLI) ---
 RADIUS_M = 250.0        # ban kinh tim official gan nhat cho tang spatial
@@ -57,6 +57,14 @@ VN_BBOX = (8.0, 23.6, 102.0, 110.0)   # lat_min, lat_max, lng_min, lng_max
 # ---------------------------------------------------------------------------
 def _now_iso():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _sha256(path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
 
 
 def strip_accents(s: str) -> str:
@@ -123,6 +131,9 @@ def load_official():
 def match(ev: pd.DataFrame, off: pd.DataFrame,
           radius_m=RADIUS_M, name_sim_min=NAME_SIM_MIN, near_m=NEAR_M):
     """Tra ve DataFrame 1 dong/station_code voi cot match/provenance."""
+    off = off.copy()
+    if "_name_norm" not in off.columns:
+        off["_name_norm"] = off["name"].map(strip_accents)
     off_by_code = off.set_index("store_id")
     off_codes = set(off_by_code.index)
 
@@ -133,7 +144,8 @@ def match(ev: pd.DataFrame, off: pd.DataFrame,
 
     # --- Tang 2: spatial_fuzzy cho phan chua match code + toa do hop le ---
     off_geo = off[off.apply(lambda r: coord_ok(r["lat"], r["lng"]), axis=1)].reset_index(drop=True)
-    tree = BallTree(np.radians(off_geo[["lat", "lng"]].to_numpy()), metric="haversine")
+    tree = (BallTree(np.radians(off_geo[["lat", "lng"]].to_numpy()), metric="haversine")
+            if not off_geo.empty else None)
     rad = radius_m / EARTH_R
 
     ev["_name_norm"] = ev["name"].map(strip_accents)
@@ -142,7 +154,7 @@ def match(ev: pd.DataFrame, off: pd.DataFrame,
 
     spat_store = {}    # idx evcs -> store_id official
     spat_dist = {}
-    if need_spatial.any():
+    if need_spatial.any() and tree is not None:
         q = ev.loc[need_spatial]
         qrad = np.radians(q[["lat", "lng"]].to_numpy())
         ind, dist = tree.query_radius(qrad, r=rad, return_distance=True, sort_results=True)
@@ -178,6 +190,11 @@ def match(ev: pd.DataFrame, off: pd.DataFrame,
         name_sim = (float(fuzz.token_set_ratio(r["_name_norm"], o["_name_norm"]))
                     if o is not None else np.nan)
 
+        # Exact code chua du toa do van la match identity, nhung KHONG duoc goi la
+        # spatially verified. Tach method de consumer/coi review khong lam mo no.
+        if method == "exact_code" and pd.isna(dist_m):
+            method = "exact_code_no_coord"
+
         rows.append({
             "station_code": code,
             "official_matched": store is not None,
@@ -187,6 +204,8 @@ def match(ev: pd.DataFrame, off: pd.DataFrame,
             "match_name_sim": round(name_sim, 1) if pd.notna(name_sim) else np.nan,
             "official_charging_status": o["charging_status"] if o is not None else None,
             "official_access_type": o["access_type"] if o is not None else None,
+            "official_lat": float(o["lat"]) if o is not None and coord_ok(o["lat"], o["lng"]) else None,
+            "official_lng": float(o["lng"]) if o is not None and coord_ok(o["lat"], o["lng"]) else None,
             "official_status": bool(o["status"]) if o is not None else None,
             "official_charging_publish": bool(o["charging_publish"]) if o is not None else None,
             "official_n_connectors": (int(o["official_n_connectors"])
@@ -247,7 +266,9 @@ def enrich(xref: pd.DataFrame, ev: pd.DataFrame) -> pd.DataFrame:
 
         # --- verified: co corroboration first-party khong ---
         if method == "exact_code":
-            v = (pd.isna(dist) or dist <= VERIFY_DIST_M)     # toa do dong thuan (hoac thieu 1 phia)
+            v = pd.notna(dist) and dist <= VERIFY_DIST_M
+        elif method == "exact_code_no_coord":
+            v = False                                        # code-only, khong co corroboration toa do
         elif method == "spatial_fuzzy":
             v = pd.notna(sim) and sim >= NAME_SIM_MIN and pd.notna(dist) and dist <= RADIUS_M
         else:
@@ -256,6 +277,8 @@ def enrich(xref: pd.DataFrame, ev: pd.DataFrame) -> pd.DataFrame:
         # --- verification score (chi ap dung cho tram ky vong co trong official) ---
         if method == "exact_code":
             verif = 1.0 if v else 0.6
+        elif method == "exact_code_no_coord":
+            verif = 0.6
         elif method == "spatial_fuzzy":
             verif = 0.5 + 0.4 * (min(sim, 100) / 100) if pd.notna(sim) else 0.5
         else:
@@ -296,6 +319,9 @@ def run(radius_m=RADIUS_M, name_sim_min=NAME_SIM_MIN, near_m=NEAR_M):
     xref = match(ev, off, radius_m, name_sim_min, near_m)
     xref = enrich(xref, ev)
     xref["matched_at"] = _now_iso()
+    # Canonical gate so sanh hash nay voi master hien tai: xref cu khong duoc
+    # silently tro thanh fallback sau mot lan crawl/build master moi.
+    xref["source_master_sha256"] = _sha256(MASTER_CSV)
 
     XREF_PARQUET.parent.mkdir(parents=True, exist_ok=True)
     xref.to_parquet(XREF_PARQUET, index=False)

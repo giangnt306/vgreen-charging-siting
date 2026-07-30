@@ -21,8 +21,6 @@ Thoát mã: 0 = OK; 1 = drift/thiếu khi --verify; 2 = lỗi cấu hình.
 """
 import argparse
 import json
-import os
-import stat
 import sys
 
 from . import manifest as M
@@ -55,6 +53,21 @@ def do_freeze(snapshot_id: str, content: bool, lock: bool) -> int:
     man = M.build_manifest(snapshot_id, content=content)
 
     M.MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+    # LƯU BẢN CŨ TRƯỚC KHI GHI ĐÈ. Đóng băng lần sau mà xoá mất manifest lần trước thì mọi
+    # bàn giao dựa trên snapshot cũ thành **mồ côi** — không còn checksum nào để đối chiếu.
+    # Đó đúng là F10 (bàn giao 21/07 hash ≠ MANIFEST, không truy được nó dựng từ đâu).
+    if M.MANIFEST_PATH.exists():
+        try:
+            old = json.loads(M.MANIFEST_PATH.read_text(encoding="utf-8"))
+            old_id = old.get("snapshot_id")
+        except (OSError, ValueError):
+            old_id = None
+        if old_id and old_id != snapshot_id:
+            keep = M.MANIFEST_PATH.with_name(f"MANIFEST-{old_id}.json")
+            if not keep.exists():
+                keep.write_text(json.dumps(old, ensure_ascii=False, indent=2), encoding="utf-8")
+                print(f"[freeze] lưu manifest cũ -> {keep.name}")
+
     M.MANIFEST_PATH.write_text(
         json.dumps(man, ensure_ascii=False, indent=2), encoding="utf-8")
 
