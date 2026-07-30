@@ -5,9 +5,9 @@
 > **Vai của file này:** kiến trúc · code · pipeline · trạng thái schema · việc còn thiếu.
 > **KHÔNG** giữ ở đây: register vấn đề → [known-issues.md](../known-issues.md) · giải pháp từng vấn đề →
 > [issues/](../issues/README.md) · kiểm kê dòng/cột/dung lượng → [dataset-inventory.md](dataset-inventory.md).
-> Số liệu dưới đây **đo trực tiếp từ artefact nhánh `data/giang`** ngày 30/07. ⚠️ Sau khi rebuild với các
-> phần port từ nhánh Kỳ (F2/F7/F12 · POI fail-closed · `pop_2025` · settlement) phải **đo lại** trước khi
-> trích dẫn — xem [known-issues.md §2.1](../known-issues.md).
+> Số liệu dưới đây **đo trực tiếp từ artefact nhánh `integrate/final` ngày 2026-07-30**, sau REBUILD toàn
+> pipeline từ raw (snapshot re-freeze 2026-07-30, `verify-snapshot` PASS, pytest 161/161) — đã gồm các phần
+> port từ nhánh Kỳ (F2/F7/F12 · POI fail-closed · `pop_2025` · settlement). Xem [known-issues.md §2.1](../known-issues.md).
 
 ---
 
@@ -17,12 +17,12 @@
   first-party) · **OSM** (POI + đường) · **WorldPop** (dân số) · **VNSDI** (ranh giới + dân số cấp xã) ·
   **ESA WorldCover** (land-cover), cộng **EVN** (biểu giá điện, `data/external/`).
 - Ghép về **2 nhóm output**:
-  - **Cung (canonical):** `stations` (**19.507 × 61 cột**) + `connectors` (**24.415 × 11**), khoá `station_id`,
+  - **Cung (canonical):** `stations` (**19.805 × 61 cột**) + `connectors` (**24.787 × 11**), khoá `station_id`,
     parquet Hive-partitioned theo `province_code`.
-  - **Cầu (demand):** `demand_h3` (**255.480 ô × 31 cột**, H3 res 8) + tầng hành chính `cell_commune`
-    (**322.870** cặp) → rollup `demand_commune` (**3.321 xã / 34 tỉnh**).
+  - **Cầu (demand):** `demand_h3` (**314.934 ô × 32 cột**, H3 res 8) + tầng hành chính `cell_commune`
+    (**395.276** cặp) → rollup `demand_commune` (**3.321 xã / 34 tỉnh**).
 - **Tập cung dùng cho T0/coverage** = `is_operational & access=='PUBLIC' & is_primary & coord_resolved`
-  → **18.999** trạm trên **12.801 ô**.
+  → **19.086** trạm trên **12.744 ô** (đo 2026-07-30, `export_supply_report.json`).
 - Trạng thái: cấu trúc **PASS QA** (PK unique · 0 orphan FK · `num_connectors == Σ count_total`) và **14/17** issue
   nhóm E đã đóng. **Chưa xong:** `demand_weight` (**E-DQ7d**, Kỳ) · coverage/gap · load PostGIS · GeoJSON.
 
@@ -33,16 +33,16 @@
 ```mermaid
 flowchart TD
     subgraph SUPPLY["CUNG — trạm sạc"]
-        E1[evcs.vn<br/>enumerate → scrape] --> E2[stations_master_evcs.csv<br/>28.625 dòng · khóa station_code]
+        E1[evcs.vn<br/>enumerate → scrape] --> E2[stations_master_evcs.csv<br/>28.923 dòng · khóa station_code]
         E2 --> E3[transform_canonical<br/>+ dedup · fix_coords · resolve_config]
         VF[vinfastauto.com<br/>fetch_locators bulk/detail/parse] --> XR[match_official<br/>exact_code + spatial_fuzzy]
         XR --> E3
-        E3 --> CAN[canonical/stations 19.507<br/>+ connectors 24.415<br/>khóa station_id · Hive-partitioned]
+        E3 --> CAN[canonical/stations 19.805<br/>+ connectors 24.787<br/>khóa station_id · Hive-partitioned]
     end
     subgraph DEMAND["CẦU — demand proxy"]
         WP[WorldPop 2020 UNadj .tif] --> WPH[worldpop_pop_h3.parquet]
         OSM[OSM Overpass + Geofabrik .pbf] --> OSMH[osm_demand_components_h3.parquet]
-        WPH --> DH[demand_h3.parquet<br/>255.480 ô H3 res 8]
+        WPH --> DH[demand_h3.parquet<br/>314.934 ô H3 res 8]
         OSMH --> DH
         VN[vn_boundary từ .pbf<br/>admin_level=2] --> DH
     end
@@ -102,19 +102,19 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 
 | #  | Bước                   | Lệnh                                                | Output chính                                                      | Số dòng                            |
 | -- | ---------------------- | --------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------- |
-| 0  | Freeze snapshot raw    | `make freeze` / `verify-snapshot`                   | `data/raw/MANIFEST.json`                                          | 23.280 file read-only              |
-| 1  | Crawl evcs.vn (full)   | `make crawl`                                        | `raw/evcs/timeseries_runs/load_ts_<run-id>.csv` + `stations_master_evcs.csv` | master **28.625** · TS 19.218 file |
-| 2  | Crawl VinFast official | `make official` (+ `detail`/`parse`)                | `official_stations` 23.247 · `official_connectors` 71.174          | —                                  |
-| 3  | Matcher official       | `python -m …vinfast_official.match_official`         | `official_xref.parquet`                                           | exact **19.427** · fuzzy 13        |
-| 4  | Transform canonical    | `make canonical`                                    | `canonical/stations/` + `canonical/connectors/`                    | **19.507** / **24.415**            |
-| 5  | Biên giới VN           | `make boundary`                                     | `osm/vn_boundary.parquet`                                         | 1 polygon adm2 + 40 adm4           |
-| 6  | OSM POI + road         | `make osm`                                          | `osm_demand_components_h3.parquet`                                | 262.054 ô                          |
+| 0  | Freeze snapshot raw    | `make freeze` / `verify-snapshot`                   | `data/raw/MANIFEST.json`                                          | 23.326 file read-only (snapshot 2026-07-30) |
+| 1  | Crawl evcs.vn (full)   | `make crawl`                                        | `raw/evcs/timeseries_runs/load_ts_<run-id>.csv` + `stations_master_evcs.csv` | master **28.923** · TS 19.218 file |
+| 2  | Crawl VinFast official | `make official` (+ `detail`/`parse`)                | `official_stations` 22.983 (car-only) · `official_connectors` 71.174 | —                                  |
+| 3  | Matcher official       | `python -m …vinfast_official.match_official`         | `official_xref.parquet`                                           | exact_code **19.706** · spatial_fuzzy **3.744** · none 5.473 |
+| 4  | Transform canonical    | `make canonical`                                    | `canonical/stations/` + `canonical/connectors/`                    | **19.805** / **24.787**            |
+| 5  | Biên giới VN           | `make boundary`                                     | `osm/vn_boundary.parquet`                                         | adm2 MultiPolygon (4 phần) + 40 adm4 |
+| 6  | OSM POI + road         | `make osm`                                          | `osm_demand_components_h3.parquet`                                | 255.054 ô                          |
 | 7  | Crawl VNSDI cấp xã     | `make vnsdi`                                        | `vnsdi/communes.parquet` (+ `DANSO`)                              | **3.321 xã / 34 tỉnh**             |
-| 8  | Hiệu chỉnh `pop`       | `make reconcile-pop` · `reallocate-roadless`         | `worldpop_pop_adj_h3` · `worldpop_pop_acc_h3`                     | `pop_adj` Σ **96.965.852**         |
-| 9  | WorldPop → demand      | `make demand`                                       | **`demand_h3.parquet`**                                           | **255.480** ô × 31 cột             |
-| 10 | Tầng hành chính        | `make admin-stations` · `make admin-grid`            | `admin/{cell_commune,demand_commune}.parquet` + enrich 2 bảng lõi  | 322.870 cặp → **3.321 xã**         |
-| 11 | Land-use + candidate   | `make landuse[-national]` · `candidates[-national]`  | `landuse/buildable_h3` · `processed/candidate_sites.*`             | MVP HN 1.672 candidate             |
-| 12 | Xuất cung sạch         | `make export-supply`                                | `clean_supply.csv` + `excluded.csv` + `export_supply_report.json`  | **18.999** + **508** = 19.507      |
+| 8  | Hiệu chỉnh `pop`       | `make reconcile-pop` · `reallocate-roadless`         | `worldpop_pop_adj_h3` · `worldpop_pop_acc_h3`                     | `pop_adj` Σ **97.083.046** (trôi −0,499%) |
+| 9  | WorldPop → demand      | `make demand`                                       | **`demand_h3.parquet`**                                           | **314.934** ô × 32 cột             |
+| 10 | Tầng hành chính        | `make admin-stations` · `make admin-grid`            | `admin/{cell_commune,demand_commune}.parquet` + enrich 2 bảng lõi  | 395.276 cặp → **3.321 xã**         |
+| 11 | Land-use + candidate   | `make landuse[-national]` · `candidates[-national]`  | `landuse/buildable_h3` · `processed/candidate_sites.*`             | buildable 59.926/314.934 ô · **16.659** candidate toàn quốc |
+| 12 | Xuất cung sạch         | `make export-supply`                                | `clean_supply.csv` + `excluded.csv` + `export_supply_report.json`  | **19.086** + **719** = 19.805      |
 | 13 | OpEx điện              | `make opex-electricity`                             | `data/external/opex_electricity_tariff.{csv,json}`                | —                                  |
 
 **Thứ tự tái lập tối thiểu (cung):** `freeze` → `crawl` → `official` → `match_official` → `canonical` → `admin-stations`.
@@ -127,50 +127,52 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 Hợp đồng đầy đủ: [schema-contract.md](../schema/schema-contract.md) · từ điển trường:
 [data-dictionary.md](../schema/data-dictionary.md) · kiểm kê mọi bảng: [dataset-inventory.md](dataset-inventory.md).
 
-### 🟢 `stations` — 61 cột, 19.507 dòng
+### 🟢 `stations` — 61 cột, 19.805 dòng
 
 - **Khoá:** `station_id` (`vn-…`, unique) · `station_code` (evcs.vn, unique).
 - **Trùng chéo nguồn ([E-DQ2](../issues/e-data-quality/e-dq2-crosssource-dedup.md)):** `physical_id` · `is_primary`
-  (**19.178** primary / 329 duplicate) · `dup_group_id` · `dup_method` · `dup_dist_m` · `n_dup_members`.
+  (**19.654** primary / 151 duplicate) · `dup_group_id` · `dup_method` · `dup_dist_m` · `n_dup_members`.
   Cung/coverage/T0 **chỉ** dùng `is_primary`.
 - **Vị trí ([E-DQ1](../issues/e-data-quality/e-dq1-coord-placeholder.md)):** `lat`/`lng` + `lat_raw`/`lng_raw` · `h3_r8` ·
-  `coord_src` · `coord_resolved` (True **19.453** / False **54** = 38 `COORD_PLACEHOLDER` + 16 `COORD_OUTSIDE_ADMIN`).
+  `coord_src` · `coord_resolved` (True **19.749** / False **56** = 38 `COORD_PLACEHOLDER` + 18 `COORD_OUTSIDE_ADMIN`).
 - **Cấu hình — HAI TẦNG, đi cạnh nhau ([E-DQ4](../issues/e-data-quality/e-dq4-asset-vs-live-config.md)).** `evsePowers` là mảng
   trạng thái **SỐNG** (EVSE tắt thì rời khỏi mảng) nên tầng LIVE **không phải** công suất lắp đặt:
   - **LIVE (đang báo cáo):** `current_type` (AC/DC/**MIXED**) · `max_power_kw` · `total_power_kw` ·
-    `num_connectors` · `connector_types`. `num_connectors = 0` (**282**) là giá trị LIVE **đúng**.
+    `num_connectors` · `connector_types`. `num_connectors = 0` (**283**) là giá trị LIVE **đúng**.
   - **ASSET (lắp đặt):** `n_guns_installed` · `max_power_kw_asset` · **`site_power_kw`** (Σ theo **tủ**
-    `physical_reference` — dùng cho công suất điểm) · `nameplate_power_kw` (Σ theo **súng**, phóng đại **1,82×**) ·
-    **`current_type_asset`** (cột phân tầng ĐÚNG) · `config_src` · `config_resolved` (0,9929) · `n_guns_imputed`.
-  - Súng **BÁO CÁO → LẮP ĐẶT**: 62.924 → **69.174** (tập cung 61.372 → **67.427, +9,9%**).
-- **Phương tiện ([P7](../issues/c-master-data/p7-vehicle-class.md)):** `vehicle_class` ∈ {`CAR` 19.218 · `UNVERIFIED` 7 · `UNKNOWN` 282}.
-- **Trạng thái/access ([P8](../issues/c-master-data/p8-status-access.md)):** `op_status` ∈ {`OPERATIONAL` 16.014 · `MAINTENANCE`
-  3.392 · `UNKNOWN` 59 · `OUT_OF_SERVICE` 42} · `access` ∈ {`PUBLIC` 19.418 · `UNKNOWN` 67 · `RESTRICTED` 22} ·
-  `is_operational` (loại cứng 42 `OUT_OF_SERVICE`). Resolve **official-first**; `status`/`is_public` giữ làm nguồn thô.
+    `physical_reference` — dùng cho công suất điểm) · `nameplate_power_kw` (Σ theo **súng**, phóng đại **1,81×**) ·
+    **`current_type_asset`** (cột phân tầng ĐÚNG) · `config_src` · `config_resolved` (0,987) · `n_guns_imputed`.
+  - Súng **BÁO CÁO → LẮP ĐẶT**: 63.689 → **69.964** (tập cung 60.500 → **66.443, +9,8%**).
+- **Phương tiện ([P7](../issues/c-master-data/p7-vehicle-class.md)):** `vehicle_class` ∈ {`CAR` 19.304 · `UNVERIFIED` 218 · `UNKNOWN` 283}.
+- **Trạng thái/access ([P8](../issues/c-master-data/p8-status-access.md)):** `op_status` ∈ {`OPERATIONAL` 15.827 · `MAINTENANCE`
+  3.488 · `UNKNOWN` 58 · `OUT_OF_SERVICE` 432} · `access` ∈ {`PUBLIC` 19.717 · `UNKNOWN` 66 · `RESTRICTED` 22} ·
+  `is_operational` (loại cứng 432 `OUT_OF_SERVICE`). Resolve **official-first**; `status`/`is_public` giữ làm nguồn thô.
 - **Hành chính ([E-DQ3](../issues/e-data-quality/e-dq3-admin-enrichment.md)):** `admin_l1_code`/`province_name`/`commune_code`/
-  `commune_name`/`commune_kind` từ **ranh giới xã VNSDI** niên đại **2025-06-16** — **19.453/19.507** có nhãn
-  (34 tỉnh · 2.691 xã); provenance `admin_src` ∈ {`inside` 19.442 · `nearest` 11 · `unresolved` 54} +
+  `commune_name`/`commune_kind` từ **ranh giới xã VNSDI** niên đại **2025-06-16** — **19.749/19.805** có nhãn
+  (34 tỉnh · 2.700 xã); provenance `admin_src` ∈ {`inside` 19.736 · `nearest` 13 · `unresolved` 56} +
   `admin_dist_m` + `admin_verdict`.
   ⚠️ **`province_code` (hệ 63 tỉnh CŨ) KHÔNG phải `admin_l1_code`** (hệ 34) — giữ cả hai, crosswalk ở
   `data/interim/admin/province_crosswalk.csv`.
-- **Provenance/verify:** `verified` (19.432 True) · `provenance` · `official_matched` · `match_method` ·
+- **Provenance/verify:** `verified` (19.711 True) · `provenance` · `official_matched` · `match_method` ·
   `official_store_id` · `match_dist_m` · `match_name_sim` · `official_charging_status` · `official_access_type`.
-- **Chất lượng:** `confidence` (TB 0,995) · `freshness` · `quality_flags` (list các cờ của E-DQ*/P8).
+- **Chất lượng:** `confidence` (TB 0,994) · `freshness` · `quality_flags` (list các cờ của E-DQ*/P8).
 
-### 🟢 `connectors` — 11 cột, 24.415 dòng
+### 🟢 `connectors` — 11 cột, 24.787 dòng
 
 - `connector_id` · `station_id` (FK, **0 orphan**) · `power_kw` · `current_type` · `connector_standard`
   (**CCS2/TYPE2/UNKNOWN** — P7) · `vehicle_class` · `connector_label` · `count_total` · `count_available`.
   **0 null.** `num_connectors == Σ count_total` ✓.
-- **P7:** `connector_standard` lấy từ registry chính thức, đã sửa **1.588 connector 20-22 kW** bị power tier gán
-  nhầm AC → **DC CCS2**.
+- **P7:** `connector_standard` lấy từ registry chính thức, sửa lớp **connector 20-22 kW** bị power tier gán
+  nhầm AC → **DC CCS2** (đo 2026-07-30: **1.591** connector 20-22 kW mang DC CCS2; 24 connector AC còn lại là hợp lệ).
 
-### 🟢 `demand_h3` — 31 cột, 255.480 ô (khoá `h3_r8`)
+### 🟢 `demand_h3` — 32 cột, 314.934 ô (khoá `h3_r8` · INSIDE 311.447 / BORDER 3.487)
 
 - **Dân số:** `pop` (Σ **97.563.106**, raster UNadj — [E-DQ7e](../issues/e-data-quality/e-dq7e-pop-calibration.md)) ·
-  `pop_adj` (Σ **96.965.852** — đặt lại chỗ bởi [E-DQ7f](../issues/e-data-quality/e-dq7f-pop-dasymetric.md) +
+  `pop_adj` (Σ **96.941.979** trong lưới; artefact `worldpop_pop_adj_h3` Σ 97.083.046 — đặt lại chỗ bởi
+  [E-DQ7f](../issues/e-data-quality/e-dq7f-pop-dasymetric.md) +
   [E-DQ8b](../issues/e-data-quality/e-dq8b-roadless-reallocation.md)) · `pop_pixel_implausible` ·
-  `pop_2025` (R2024B unadjusted — **sensitivity niên đại**, Q6iii port nhánh Kỳ, *đo lại sau rebuild*).
+  `pop_2025` (R2024B unadjusted — **sensitivity niên đại**, Q6iii port nhánh Kỳ; đo 2026-07-30: Σ **101.299.971**
+  trong lưới, artefact `worldpop_pop_2025_h3` 303.319 ô Σ 101.300.081).
   **Hai cột, hai nhiệm vụ** (hợp đồng D5 của E-DQ7f): `pop` cho phát biểu **TUYỆT ĐỐI** (`coverage_pop`, đối chiếu
   GSO) — bất biến từng bit; `pop_adj` cho consumer **XẾP HẠNG** (MCLP `demand_weight`, T4 gap-fill).
 - **Đường:** `road_access_m` · `road_len_m` · `road_lane_mw_m` · `road_lane_ar_m` · `road_bridge_m`
@@ -181,11 +183,11 @@ Hợp đồng đầy đủ: [schema-contract.md](../schema/schema-contract.md) �
   `n_apartment_complex` · `apartment_levels_sum`. ⚠️ `n_poi`/`n_parking` **khai tử**.
 - **Lãnh thổ + hành chính:** `cell_state` · `frac_in_vn` ([E-DQ7a](../issues/e-data-quality/e-dq7a-poi-outside-vn.md)) ·
   `admin_l1_code` · `province_name` · `commune_code` · `commune_name` · `commune_kind` · `admin_frac` ·
-  `n_communes` (**255.298/255.480** ô có nhãn — E-DQ3).
+  `n_communes` (**314.608/314.934** ô có nhãn — E-DQ3).
 - ⚠️ **Còn thiếu:** `demand_weight` (E-DQ7d, Kỳ) · `demand_servable`
-  ([E-DQ8c](../issues/e-data-quality/e-dq8c-servable-denominator.md)). 61% ô `pop = 0` (lưới toàn quốc).
+  ([E-DQ8c](../issues/e-data-quality/e-dq8c-servable-denominator.md)). 66,9% ô `pop = 0` (lưới toàn quốc).
 - ⚠️ **Nhãn ô ≠ đơn vị phân bổ.** Nhãn xã là **argmax** trọng số diện tích; phân bổ khối lượng phải đi qua
-  `cell_commune` (Σw = 1 mỗi ô) — **40,0%** dân số nằm ở ô vắt ≥ 2 xã.
+  `cell_commune` (Σw = 1 mỗi ô) — **39,8%** dân số nằm ở ô vắt ≥ 2 xã.
 
 ### Nguồn phụ trợ (interim)
 
@@ -196,7 +198,7 @@ Hợp đồng đầy đủ: [schema-contract.md](../schema/schema-contract.md) �
 - `worldpop/worldpop_pop_h3.parquet` · `worldpop_pop_adj_h3` · `worldpop_pop_acc_h3` ·
   `worldpop_pop_2025_h3` (Q6iii) · `demand/settlement_h3.parquet` (E-DQ12 — DEGURBA/`pop_k1`/`pop_unsupported`).
 - `vnsdi/communes.parquet` — polygon + `DANSO` cấp xã 2025 (**ĐỐI CHỨNG**, không phải nguồn dân số).
-- `admin/cell_commune.parquet` (322.870) · `admin/demand_commune.parquet` (3.321 × 29) · `province_crosswalk.csv`.
+- `admin/cell_commune.parquet` (395.276) · `admin/demand_commune.parquet` (3.321 × 30) · `province_crosswalk.csv`.
 - `landuse/buildable_h3.parquet` · `data/external/opex_electricity_tariff.{csv,json}`.
 
 ---
@@ -234,8 +236,9 @@ Hợp đồng đầy đủ: [schema-contract.md](../schema/schema-contract.md) �
 - **`.pbf` 318 MB không load hết vào RAM** → stream bằng **osmium** theo way, cộng dồn theo H3.
 - **Hai khoá khác nhau** (`station_code` evcs vs `station_id` canonical) — giữ cả hai để truy vết.
 - **Hai hệ mã tỉnh** cùng tồn tại (63 CŨ vs 34) — xem §5.
-- **Lưới `demand_h3` KHÔNG phải tessellation** — nó là **hợp của các ô CÓ đặc trưng**, nên 76 ô chứa 83 trạm vận
-  hành không có dòng ở bất kỳ bảng lưới nào. Chưa sửa: [E-DQ8c](../issues/e-data-quality/e-dq8c-servable-denominator.md).
+- **Lưới `demand_h3` KHÔNG phải tessellation** — nó là **hợp của các ô CÓ đặc trưng**, nên vẫn có trạm vận hành
+  không có dòng ở bất kỳ bảng lưới nào (đo 2026-07-30 trên `integrate/final`: 22 ô chứa 22 trạm; trước rebuild:
+  76 ô / 83 trạm). Chưa sửa: [E-DQ8c](../issues/e-data-quality/e-dq8c-servable-denominator.md).
 - **CSV không có producer thì sẽ lệch — chỉ là câu hỏi bao giờ.** `clean_supply.csv`/`excluded.csv` từng là ảnh
   chụp thủ công, không module nào sinh ra, nên đứng yên ở bản 28/07 và lệch đúng 16 dòng sau E-DQ3. Đã sửa 30/07
   bằng `export_supply.py` (`make export-supply`, 6 cổng QA). Nguồn chân lý **vẫn là** `canonical/stations` +
@@ -258,8 +261,9 @@ Hợp đồng đầy đủ: [schema-contract.md](../schema/schema-contract.md) �
   **covariate dòng chảy** dẫn từ `.pbf` đã freeze. **Cấm** feature dẫn từ cung (số súng đơn độc cho ρ = 0,773 — leakage).
 - [ ] **`occ_h3` + `features/demand_validation.py`** (**Giang** — target & harness của E-DQ7d): occupancy trung bình
   **có trọng số thời gian** (ρ(n_polls, occ) = 0,501), khử nhiễu công suất, cờ censoring (65,8% chạm trần súng),
-  freeze vào MANIFEST; harness chấm điểm **bất kỳ** proxy nào trên **12.801 ô cung** (was 12.811 — E-DQ3 loại 16
-  trạm; hai lần chạy trên hai mẫu số khác nhau **không so được**) + 12 cổng QA.
+  freeze vào MANIFEST; harness chấm điểm **bất kỳ** proxy nào trên **12.744 ô cung** (đo 2026-07-30 trên
+  `integrate/final`; was 12.801 trước rebuild, 12.811 trước E-DQ3 — hai lần chạy trên hai mẫu số khác nhau
+  **không so được**) + 12 cổng QA.
 - [ ] **`demand_servable` + `coverage_pop`** — [E-DQ8c](../issues/e-data-quality/e-dq8c-servable-denominator.md): 225 ô / 42.576
   người không phục vụ được phải **trừ khỏi mẫu số và công bố số bị trừ**; kèm cổng `grid_contains_all_supply_cells`.
 - [ ] **Coverage/gap** theo **R = 3 km (baseline)**, quét {1,5 · 2 · 3 · 5} km (bỏ ngưỡng `has_station_5km` cố định).

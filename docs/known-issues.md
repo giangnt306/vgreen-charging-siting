@@ -92,9 +92,27 @@
 | **[L6](review/2026-07-29-data-lead-review.md)** | G | Canonical sửa bằng swap thư mục thủ công → `make canonical` không ra bản đã giao (F20 tái diễn) *(hợp nhất 30/07: E-DQ1 chạy trong `transform_canonical` + ghi nguyên tử F12 — xem §2.1)* | 🔴 | FIX | Kỳ | **2026-07-29** | ☑ |
 | **[L10](review/2026-07-29-data-lead-review.md)** | G | 298 trạm trong snapshot sinh bởi code không có trong repo → `evcs_enumerate --seed-from-official` + sidecar seed | 🔴 | FIX | Kỳ | **2026-07-29** | ☑ |
 
-> ⚠️ **Trạng thái nhóm `F`/`G` đo trên nhánh Kỳ trước hợp nhất** (28–29/07). Sau khi hợp code 30/07, các mục
-> có dấu *(port 30/07)* đã được mang sang tường minh; các mục còn lại phải **tái kiểm trên `integrate/final`**
-> (bước B5) trước khi trích dẫn dấu ☑. **12 mục `L` còn mở** (L2/L3/L5/L7–L9/L11–L16) theo dõi tại
+> ✅ **Tái kiểm 2026-07-30 trên `integrate/final` (bước B5 — XONG).** Con số nhóm `F`/`G` gốc đo trên nhánh Kỳ
+> (28–29/07); sau hợp code 30/07 đã tái kiểm bằng **rebuild toàn chuỗi từ raw** (snapshot re-freeze 2026-07-30,
+> `verify-snapshot` HASHES=1 PASS, các QA-gate report đều PASS) + **pytest 161/161 PASS** — dấu ☑ nhóm `F`/`G`
+> nay trích dẫn được trên nhánh hợp nhất. Bằng chứng theo dòng:
+> `F2`/`F3`/`F6` → `tests/test_timeseries_integrity.py`; `F7`/`F8`/`F12` (+ `L1` guard dedup, `L6` swap
+> nguyên tử, E-DQ1) → `tests/test_f7_f12_integrity.py`; `F9`/`F13`/`F16` → `tests/test_f8_f9_f13_f14_f16.py`;
+> `F5` → `tests/test_covered0.py`; `F18` → guard `meta.count` fail-fast trong `vinfast_official/fetch_locators.py`;
+> `F10`/`F20` → chính lần rebuild (artefact tái lập từ HEAD, hash khớp MANIFEST); `F15`/`F19` → fix docs/schema
+> đã nằm trong cây hợp nhất; `L4` → `tests/test_vn_boundary.py`; `L10` → `tests/test_seed_discovery.py`.
+> **Ngoại lệ — dấu ☑ KHÔNG đến từ test gốc phía Kỳ, ghi trung thực:**
+>
+> - **F4:** đóng theo **phương án Giang (B3)** — module `coord_quality` phía Kỳ không port; test gốc thay bằng
+>   `tests/test_covered0.py::test_t0_gates_on_coord_resolved` + 2 test E-DQ1 trong `tests/test_f7_f12_integrity.py`.
+> - **F14:** đóng theo **phương án Giang (B3)** — `penalty_flags` phía Kỳ không port; test gốc thay bằng
+>   `tests/test_access_tiers.py` (chính sách ISOLATED, E-DQ8a); phần port (`SUBSTATION_PENALTY_SCALE_M`,
+>   gate `MAX_POP_NO_ROAD_FRAC`) nằm trong `build_buildable_h3.py`, PASS trong `make landuse` 30/07 —
+>   **không có test riêng mang tên F14**.
+> - **F11**/**F17:** fix nằm **trong repo Kỳ** (`evcs_new_supply`/`_tos_firewall` không tồn tại trên
+>   `integrate/final`) — dấu ☑ giữ theo biên bản 28/07 phía Kỳ, **không tái kiểm được từ repo này**.
+>
+> **12 mục `L` còn mở** (L2/L3/L5/L7–L9/L11–L16) theo dõi tại
 > [review/2026-07-29-data-lead-review.md](review/2026-07-29-data-lead-review.md) — chưa thăng cấp thành dòng register.
 
 ### 2.1 Ghi chú hợp nhất nhánh (2026-07-30) — một sự thật mỗi lớp
@@ -104,8 +122,10 @@ mỗi lớp; phương án thắng chốt ở phiên B3 (30/07):
 
 1. **Lớp ranh giới VN — `E-DQ7a` (Giang) thắng; `E-DQ11` + `L4` (Kỳ) gộp vào.** Hai lần fix độc lập cùng
    một lỗi bbox-spill 54,2%: Kỳ cắt bằng đa giác 34 tỉnh (`ev_siting/vn_boundary.py`, gói `data/ref/vn_admin`
-   — lưới 314.904 ô); Giang trích relation `admin_level=2` (49915) **từ chính `.pbf` đã freeze**
-   (`osm/vn_boundary.py`, giữ `cell_state`/`frac_in_vn` — lưới 255.480 ô). Phương án Giang thắng vì lớp gác
+   — lưới 314.904 ô trên nhánh Kỳ); Giang trích relation `admin_level=2` (49915) **từ chính `.pbf` đã freeze**
+   (`osm/vn_boundary.py`, giữ `cell_state`/`frac_in_vn` — lưới 255.480 ô trên nhánh Giang trước hợp nhất).
+   *(Đo 2026-07-30 trên `demand_h3` rebuild `integrate/final`: lưới hợp nhất = **314.934 ô** — INSIDE
+   311.447 / BORDER 3.487.)* Phương án Giang thắng vì lớp gác
    nằm **trong MANIFEST bằng xây dựng** (đóng luôn `L4` mà không cần gói ngoài; gói `vn_admin` vẫn là member
    frozen nhưng không còn là lớp gác) và vì `frac_in_vn` cho phép chia tỉ lệ ô biên. **Port từ Kỳ:** chính
    sách **fail-closed** POI — `osm_poi_points.parquet` chỉ chứa `in_vn=True`, phần ngoài tách

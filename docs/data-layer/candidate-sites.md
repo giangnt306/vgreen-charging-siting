@@ -88,7 +88,7 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | Nước + ngập nước | WorldCover | `frac_water + frac_wetland ≥ 0,70` (`WETLAND`) |
 | Núi/rừng/đất trống | WorldCover | `built_up_frac < 0,05` (`NOT_BUILT_UP`) |
 | Đất cấm | OSM | `landuse=military` · `boundary=protected_area` · `leisure=nature_reserve` · `aeroway=aerodrome` · `natural=water`/`reservoir` |
-| Không có đường vào | `demand_h3` | **`access_tier == ISOLATED`** (`ROAD_ACCESS_ISOLATED`) — **E-DQ8a (30/07)** thay `road_access_m ≤ 0`, vốn loại **6.350 ô** trong đó **4.862 ô có đường ở ô KỀ** (tâm 2 ô res 8 cách 0,98 km); nay loại **723 ô**. Neo ngoại vi: **15 trạm đang vận hành** ở ô `ADJACENT`. **E-DQ7b:** nguồn vẫn là cột **lối vào** (gồm `service`/`track`), KHÔNG dùng `road_len_m` (cột cầu) — dùng nhầm sẽ loại 27.828 ô, trong đó 36 ô đã có trạm sạc thật |
+| Không có đường vào | `demand_h3` | **`access_tier == ISOLATED`** (`ROAD_ACCESS_ISOLATED`) — **E-DQ8a (30/07)** thay `road_access_m ≤ 0`, vốn loại **6.350 ô** trong đó **4.862 ô có đường ở ô KỀ** (tâm 2 ô res 8 cách 0,98 km); nay loại **723 ô** trên lưới trước hợp nhất *(đo 2026-07-30 trên lưới hợp nhất 314.934 ô sau rebuild: **7.874 ô** `ISOLATED`)*. Neo ngoại vi: **15 trạm đang vận hành** ở ô `ADJACENT`. **E-DQ7b:** nguồn vẫn là cột **lối vào** (gồm `service`/`track`), KHÔNG dùng `road_len_m` (cột cầu) — dùng nhầm sẽ loại 27.828 ô, trong đó 36 ô đã có trạm sạc thật |
 | Ngoài AOI | `aoi.py` | ngoài lõi + buffer 5 km |
 | Toạ độ bẩn (T0) | `stations` | **`coord_resolved == False`** (E-DQ1 `fix_coords`: placeholder → `h3_r8=NULL`, tự loại khỏi anchor). ⚠️ Bộ cờ cũ `DUP_COORD`/`COORD_ADDR_MISMATCH` là **cờ chết** — không producer nào sinh (**F4**, review 28/07); T0 lọc bằng `is_primary ∧ is_operational ∧ coord_resolved`, không bằng danh sách cờ |
 
@@ -105,14 +105,14 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | Lối vào phi chính thức | chỉ `service`/`track` (`ROAD_ACCESS_INFORMAL`, E-DQ7b) | **+0,10** |
 | Đường duy nhất là mặt cầu | `ROAD_BRIDGE_ONLY` (E-DQ7b) | **+0,10** |
 | Dân không đường | `pop>0 & road=0` (`POP_NO_ROAD`) | flag chẩn đoán (không phạt) — khối lượng đã dời ở **E-DQ8b** |
-| Xa trạm biến áp | dist tới `power=substation` | **+0,5·min(d/50 km, 1)** — proxy đấu nối lưới. Mẫu số **cố định** `SUBSTATION_PENALTY_SCALE_M = 50 km` (**F14**, port nhánh Kỳ 30/07 — bản cũ chuẩn hoá theo `dmax` per-file khiến penalty phụ thuộc phạm vi AOI đang chạy; giá trị `penalty` trong artefact cũ **cần đo lại sau rebuild**) |
+| Xa trạm biến áp | dist tới `power=substation` | **+0,5·min(d/50 km, 1)** — proxy đấu nối lưới. Mẫu số **cố định** `SUBSTATION_PENALTY_SCALE_M = 50 km` (**F14**, port nhánh Kỳ 30/07 — bản cũ chuẩn hoá theo `dmax` per-file khiến penalty phụ thuộc phạm vi AOI đang chạy; đo 2026-07-30 trên artefact rebuild `buildable_h3` — mẫu số cố định: `penalty` ô buildable median **0,24** · max **0,925**; `dist_substation_m` median ~5,2 km, chỉ **24** ô buildable chạm bão hoà `d ≥ 50 km`) |
 
 Trạm hiện có (T0) đã có điện/mặt bằng → `penalty = 0` (không phạt land-use thêm).
 
 > **Cổng an toàn road-coverage (F14, port nhánh Kỳ 30/07):** `build_buildable_h3` **FAIL** nếu tỷ lệ ô
 > `pop>0` không có đường trong ô vượt **`MAX_POP_NO_ROAD_FRAC = 0,20`** — vượt ngưỡng nghĩa là **input road
-> thiếu coverage** (lỗi dữ liệu), không phải hiện thực địa lý. *(Tỷ lệ trên lưới hợp nhất: cần đo lại sau
-> rebuild.)*
+> thiếu coverage** (lỗi dữ liệu), không phải hiện thực địa lý. *(Đo 2026-07-30 trên lưới hợp nhất 314.934 ô:
+> **6.350/104.161** ô `pop>0` không có đường trong ô = **6,1%** < 0,20 → gate PASS.)*
 
 ---
 
@@ -183,8 +183,9 @@ city đã dựng — nên chạy cùng lần rebuild tessellation của `E-DQ8c`
 - **buildable_h3:** 2.471/3.141 = **79% buildable**. Loại cứng: NOT_BUILT_UP 596 · WATER_OSM 71 · WATER 63 ·
   WETLAND 25 · NO_ROAD_ACCESS 8 · MILITARY 7. Chỉ **17%** ô `pop>0` bị loại → ngưỡng `BUILT_UP_MIN=0,05` hợp lý.
   *(Cập nhật 30/07 sau **E-DQ8a** — Hà Nội: **2.529/3.141 = 81%**; `NO_ROAD_ACCESS` 8 ô → `ROAD_ACCESS_ISOLATED`
-  **0 ô**, thay bằng phạt mềm `NEEDS_ACCESS_ROAD` 8 ô. National: 59.768 → **59.927** buildable. `candidate_sites`
-  Hà Nội **1.707 — không đổi**: bậc lối vào chạm nông thôn, không chạm lõi đô thị.)*
+  **0 ô**, thay bằng phạt mềm `NEEDS_ACCESS_ROAD` 8 ô. National: 59.768 → **59.927** buildable — *(đo 2026-07-30
+  trên `integrate/final` sau rebuild hợp nhất: **59.926** buildable trên lưới **314.934 ô**, đo lại từ artefact)*.
+  `candidate_sites` Hà Nội **1.707 — không đổi**: bậc lối vào chạm nông thôn, không chạm lõi đô thị.)*
 - **candidate_sites:** **1.672** candidate — T0 1.411 · T1 96 · T2 54 · **T4 111**. CapEx: low 1.411 · mid 148 · high 113.
 - **QA gate:** upper-bound coverage 1,00 · freedom 1.672 (≥100) · size 1.672 (≤3.000) · anti-degenerate 1,00 ·
   grid_radius 3,0 → **5/5 PASS**.
@@ -207,12 +208,15 @@ chỉnh; đã cô lập thành hằng số để không rải rác trong code. H
 Ngoài MVP 1 thành phố, pipeline chạy được **toàn Việt Nam** trên **lưới `demand_h3` quốc gia** — dùng
 `--national` ở mọi bước, hoặc `make landuse-national && make candidates-national`.
 
-> ⚠️ **Số dưới đây đo trên lưới 268.404 ô (lần chạy 24/07).** Lưới hiện hành là **255.480 ô** (`E-DQ7a` clip biên
-> giới · `E-DQ8b` thêm ô nhận dân) và bậc lối vào đã đổi từ `road_access_m ≤ 0` sang `access_tier == ISOLATED`
-> (`E-DQ8a`, loại cứng 6.350 → **723 ô**) ⇒ **phải chạy lại national** trước khi trích dẫn con số buildable.
+> ⚠️ **Khối "Kết quả toàn quốc (2026-07-24)" bên dưới đo trên lưới 268.404 ô — giữ làm lịch sử.** Lưới sau
+> `E-DQ7a` clip biên giới · `E-DQ8b` thêm ô nhận dân là 255.480 ô; lưới **hợp nhất hiện hành** (rebuild 30/07)
+> là **314.934 ô**, và bậc lối vào đã đổi từ `road_access_m ≤ 0` sang `access_tier == ISOLATED` (`E-DQ8a`).
+> **National đã chạy lại trong rebuild 2026-07-30** — số hiện hành ở khối "Kết quả toàn quốc — rebuild
+> 2026-07-30" bên dưới.
 
 > **Một tập candidate duy nhất toàn quốc (không per-tỉnh).** *(Cập nhật 30/07 — **rào chặn dữ liệu đã gỡ**:
-> `E-DQ3` gán `admin_l1_code`/`commune_code` cho **255.298/255.480** ô `demand_h3`, nên cắt theo tỉnh giờ là
+> `E-DQ3` gán `admin_l1_code`/`commune_code` cho **255.298/255.480** ô `demand_h3` *(đo 2026-07-30 trên lưới
+> hợp nhất: **314.608/314.934**)*, nên cắt theo tỉnh giờ là
 > một phép lọc.)* Việc **có nên** phân rã MCLP theo tỉnh hay không vẫn là **quyết định của tầng model** (Kỳ) —
 > phân rã theo địa giới làm mất coverage vắt qua ranh giới tỉnh, đúng cùng loại lỗi rìa mà `buffer_km` của AOI
 > sinh ra để tránh.
@@ -243,7 +247,20 @@ Mọi ngưỡng scope-aware **override được** qua CLI (`--max-candidates`, `
 - **QA gate: 5/5 PASS** — upper-bound coverage **0,913** (chỉ nhỉnh trên ngưỡng 0,90) · freedom 16.793 (≥4.000) ·
   size 16.793 (≤80.000) · anti-degenerate 1,00 · grid_radius 3,0. Chạy buildable+candidate ~11 s (đã vector hoá).
 
-> **Phát hiện đáng chú ý:** upper-bound coverage toàn quốc chỉ **91,3%** — nghĩa là ~**9% dân số** *không thể*
+**Kết quả toàn quốc — rebuild 2026-07-30 (đo trực tiếp từ artefact trên `integrate/final`):**
+
+- **WorldCover:** `landuse_h3` **1.419.043 ô đất** — không đổi (cùng snapshot raster, stride 8).
+- **OSM exclusion:** **720 ô** bị cấm (MILITARY 313 · PROTECTED 246 · AIRPORT 162) + **2.432 trạm biến áp**.
+- **buildable_h3:** lưới hợp nhất **314.934 ô** → **59.926 buildable (19,0%)**. Loại cứng (đếm theo cờ):
+  `NOT_BUILT_UP` 253.338 · `WATER` 9.459 · `ROAD_ACCESS_ISOLATED` 7.874 · `WETLAND` 7.286 · `MILITARY` 313 ·
+  `PROTECTED` 246 · `AIRPORT` 162. **46,5% ô `pop>0` bị loại** (dưới gate 70%). Bậc lối vào: `DIRECT` 247.685 ·
+  `ADJACENT` 48.575 · `NEAR` 10.800 · `ISOLATED` 7.874. Cổng `MAX_POP_NO_ROAD_FRAC`: **6,1%** < 0,20 → PASS.
+- **candidate_sites:** **16.659 candidate** — T0 12.769 · T1 2.104 · T2 866 · T4 920. CapEx: low 12.769 ·
+  mid 2.823 · high 1.067. `h3_r8` unique **16.659/16.659** (bất biến ≤1/ô giữ vững).
+- **QA gate: 5/5 PASS** (`candidate_sites_qa.json`) — upper-bound coverage **0,9105** · freedom 16.659
+  (≥4.000, p_hint 800) · size 16.659 (≤80.000) · anti-degenerate 1,00 · grid_radius 3,0.
+
+> **Phát hiện đáng chú ý:** upper-bound coverage toàn quốc chỉ **91,3%** *(đo 2026-07-30 sau rebuild: **91,05%**)* — nghĩa là ~**9% dân số** *không thể*
 > được phủ bởi tập candidate hiện tại vì họ ở ô nông thôn thưa bị `NOT_BUILT_UP` loại và không có anchor
 > buildable trong 3 km. Đây là ràng buộc thật của cách tiếp cận land-use (không đặt trạm ở làng quá thưa),
 > không phải lỗi. Nếu muốn phủ nhóm này cần hạ `BUILT_UP_MIN` hoặc thêm chiến lược anchor nông thôn (roadmap).
