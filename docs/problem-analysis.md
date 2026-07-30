@@ -205,7 +205,7 @@ Trong phạm vi internship, frontend = **map demo** do **Giang** đảm nhiệm,
 > **+0,06**, trong khi trần đo được của target là **0,865** — nút thắt là **tập feature**, không phải trọng
 > số. Vì vậy occupancy trước mắt dùng để **kiểm chứng** `demand_weight` (12 cổng QA), chưa dùng để huấn
 > luyện nó. **E-DQ7d là mục 🔴 chặn duy nhất còn mở**, đã **bàn giao Kỳ (29/07)**; target `occ_h3` + harness
-> vẫn thuộc tầng dữ liệu (Giang). Chi tiết: [known-issues.md — E-DQ7d](known-issues.md#e-dq7d--proxy-cầu-chưa-kiểm-chứng-ngoại-vi-bước-7).
+> vẫn thuộc tầng dữ liệu (Giang). Chi tiết: [E-DQ7d](issues/e-data-quality/e-dq7d-demand-proxy-validation.md).
 
 
 - Phạm vi internship là **model MCLP end-to-end (Kỳ) + toàn bộ data layer & map demo (Giang)**; hạ tầng production (API đầy đủ, auth, CI/CD, monitoring) là hướng mở rộng sau. *(Cần chốt lại với mentor.)*

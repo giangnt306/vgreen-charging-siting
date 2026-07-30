@@ -1,4 +1,4 @@
-.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical resolve-config official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand poi-recall vnsdi reconcile-pop reallocate-roadless admin-stations admin-grid
+.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical resolve-config official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand poi-recall vnsdi reconcile-pop reallocate-roadless admin-stations admin-grid export-supply export-supply-check
 
 CITY ?= hanoi
 
@@ -30,6 +30,12 @@ canonical:  ## Transform master CSV -> canonical parquet (stations/connectors, c
 
 resolve-config:  ## Inspect installed-config resolution (ASSET vs LIVE layer, 8 gates)  [E-DQ4]
 	PYTHONPATH=src python -m ev_siting.data.evcs.resolve_config --dump
+
+export-supply:  ## Regenerate clean_supply.csv + excluded.csv from canonical (6 gates)
+	PYTHONPATH=src python -m ev_siting.data.evcs.export_supply
+
+export-supply-check:  ## Score the export gates without writing the CSVs
+	PYTHONPATH=src python -m ev_siting.data.evcs.export_supply --check
 
 official:  ## Fetch official VinFast source registry (verified cross-ref) -> data/interim/vinfast_official/
 	PYTHONPATH=src python -m ev_siting.data.vinfast_official.fetch_locators bulk

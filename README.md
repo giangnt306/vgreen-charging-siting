@@ -17,9 +17,11 @@ ev-charging-siting/
 │   ├── README.md              # mục lục tài liệu
 │   ├── problem-analysis.md    # report define bài toán + roadmap
 │   ├── known-issues.md        # register vấn đề P1–P11 + E-DQ (nguồn chân lý)
+│   ├── issues/                # 1 file / 1 vấn đề — chẩn đoán, cách xử lý, QA gate
 │   ├── sources/               # tài liệu từng nguồn crawl (evcs/osm/vinfast/worldpop)
-│   ├── data-layer/            # overview tầng dữ liệu + candidate sites
+│   ├── data-layer/            # overview tầng dữ liệu + kiểm kê + candidate sites
 │   ├── schema/                # SCHEMA_CONTRACT + data-dictionary + ERD + schema-review
+│   ├── reports/               # báo cáo bàn giao (evcs data quality)
 │   └── sprint-reviews/        # slide/ghi chú mỗi buổi review
 │
 ├── data/                      # (gitignored — trừ .gitkeep)
@@ -28,9 +30,10 @@ ev-charging-siting/
 │   ├── interim/               # data đã làm sạch (Giang)
 │   └── processed/             # model-ready: demand proxy, candidate sites
 │
-├── db/                        # tầng cơ sở dữ liệu (Giang)
-│   ├── migrations/            # SQL tạo bảng station→port→connector + GIST index
-│   └── seeds/                 # script load data vào PostGIS
+├── config/                    # params.yaml (bán kính, mức ngân sách, trọng số)
+│   └── db/                    # tầng cơ sở dữ liệu (Giang)
+│       ├── migrations/        # SQL tạo bảng station→port→connector + GIST index
+│       └── seeds/             # script load data vào PostGIS
 │
 ├── notebooks/                 # EDA/thử nghiệm — đánh số + tên người
 │   ├── 01-giang-eda-stations.ipynb
@@ -49,6 +52,5 @@ ev-charging-siting/
 │   └── figures/               # hình cho report
 │
 ├── tests/                     # unit test cho src/
-├── config/                    # params.yaml (bán kính, mức ngân sách, trọng số)
 └── .github/workflows/         # CI (lint + test)
 ```

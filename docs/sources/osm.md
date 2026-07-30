@@ -107,7 +107,7 @@ nghĩa lớp = chạy lại `build_osm_h3` (vài giây), **không** phải crawl
 > apartments**, tức feature xếp hạng theo mật độ toà nhà chứ không theo cầu sạc.
 > `n_parking` thì gộp **149 chỗ đỗ ven đường** (không đặt được trụ) với bãi đỗ, và đếm cả
 > `access=private`. Trọng số giữa các lớp **cố ý chưa gán** — `E-DQ7d`/`P1` fit bằng
-> 18,6M bản ghi occupancy (xem [known-issues.md — E-DQ7c](../known-issues.md#e-dq7c--poi-thiếu--lẫn-đơn-vị-bước-6)).
+> 18,6M bản ghi occupancy (xem [known-issues.md — E-DQ7c](../issues/e-data-quality/e-dq7c-poi-taxonomy.md)).
 >
 > ⚠️ **Cập nhật 29/07 — đừng đọc câu trên thành "cứ fit là xong".** Audit `E-DQ7d` đã fit đúng như vậy
 > (NNLS không âm, spatial CV 64 tỉnh, 11.628 ô cung) và chỉ được **ρ = 0,329**, trong khi **đảo ngẫu nhiên
@@ -115,7 +115,7 @@ nghĩa lớp = chạy lại `build_osm_h3` (vài giây), **không** phải crawl
 > **điều kiện cần** (không fit được "TTTM" trên một cột 84,8% là chung cư) nhưng **không đủ**: chúng mô tả
 > cư dân và cửa hàng, còn occupancy do **xe đang di chuyển** quyết định. Phải thêm covariate **dòng chảy**
 > (betweenness, nút giao cao tốc, `highway=services|rest_area`) — xem
-> [known-issues.md — E-DQ7d](../known-issues.md#e-dq7d--proxy-cầu-chưa-kiểm-chứng-ngoại-vi-bước-7).
+> [known-issues.md — E-DQ7d](../issues/e-data-quality/e-dq7d-demand-proxy-validation.md).
 
 > ⚠️ **Đừng đọc `n_fuel`/`n_parking_off` như "số cây xăng/bãi đỗ".** Recall OSM đo bằng
 > nguồn độc lập (`poi_recall.py`) chỉ **35,9%** và **8,6%**. Cái đáng lo không phải mức

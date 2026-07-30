@@ -72,13 +72,14 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 
 | Artifact | Format | Dòng | Cột | Khóa |
 | --- | --- | ---: | ---: | --- |
-| `canonical/stations/` | Parquet Hive (65 partition `province_code`) | **19.507** | **49** | `station_id` (unique), `station_code` (unique) |
+| `canonical/stations/` | Parquet Hive (65 partition `province_code`) | **19.507** | **61** | `station_id` (unique), `station_code` (unique) |
 | `canonical/connectors/` | Parquet Hive (64 partition) | **24.415** | **11** | `connector_id`; FK `station_id` — **0 orphan** |
 | `canonical/stations_no_connectors.csv` | CSV | 282 | 16 | Trạm không có connector (`vehicle_class=UNKNOWN`) |
 
-> **Lệch so với [overview.md §4](overview.md#4-schema-trạng-thái-thực-tế):** doc ghi `stations` **44 cột** (inspect 23/07),
-> file hiện **49** — thêm đúng 5 cột E-DQ1 (`lat_raw`, `lng_raw`, `coord_src`, `coord_fix_dist_m`, `coord_resolved`).
-> `connectors` doc ghi 10 cột, file **11** (kèm `province_code` là partition key). Cần đồng bộ lại doc/schema-contract.
+> **Đã đồng bộ 30/07** — [overview.md §4](overview.md#4-schema-trạng-thái-thực-tế-đo-2026-07-30) nay ghi đúng
+> `stations` **61 cột** / `connectors` **11 cột** (kèm `province_code` là partition key). Lịch sử số cột của
+> `stations`: 34 (bản gửi collaborator) → 44 (23/07) → 49 (+5 cột **E-DQ1**) → **61** (+8 cột ASSET của
+> **E-DQ4** + 8 cột nhãn/provenance hành chính của **E-DQ3**).
 
 **Phân bố cờ trên `stations` (19.507 dòng):**
 
@@ -155,20 +156,26 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 | Artifact | Dòng | Cột | Vai trò |
 | --- | ---: | ---: | --- |
 | `stations_master_evcs.csv` | **28.625** | 33 | Master evcs khóa `station_code` (gồm 22 cột QA time-series) |
-| `clean_supply.csv` | **19.015** | 14 | ⚠️ **STALE — không dùng.** Export cũ, **không module nào trong `src/` sinh ra nó** (grep `clean_supply` → 0 hit) nên nó **không** chạy lại theo pipeline. Chênh với canonical đúng **16 dòng** = 16 trạm `COORD_OUTSIDE_ADMIN` mà **E-DQ3** loại (30/07). Cung thật: lọc thẳng trên `canonical/stations` bằng công thức §3.1 → **18.999** |
-| `excluded.csv` | 492 | 7 | Dòng bị loại + lý do (xem bên dưới) |
+| `clean_supply.csv` | **18.999** | 14 | **Cung sạch (T0/coverage)** — sinh bởi `export_supply.py` (`make export-supply`), **không** phải ảnh chụp thủ công nữa (30/07) |
+| `excluded.csv` | **508** | 7 | Dòng bị loại + **đúng một** lý do/dòng (xem bên dưới) |
+| `export_supply_report.json` | — | — | Lineage của 2 file trên: `generated_at`, mẫu số, 6 cổng QA |
 | `crosssource_dedup_groups.csv` | 618 | 10 | E-DQ2 — nhóm trùng chéo nguồn |
 | `edq1_suspect_stations.csv` | 796 | 17 | E-DQ1 — trạm nghi toạ độ sai |
 | `fix_coords_flagged.csv` | 796 | 9 | E-DQ1 — nhật ký sửa toạ độ |
 | `evcs_timeseries/*.csv` | **18.630.532** | 2 | **19.218 file**, 1 file/trạm (`timestamp`, `n_cars_charging`) |
 
-**Đối soát cung: 19.507 − 492 = 19.015** ✓ *(đối soát của `excluded.csv`, đúng tại thời điểm 28/07.)*
+**Đối soát cung: 19.507 − 508 = 18.999** ✓ — nay là **cổng QA ① `reconciles_input`** của
+`export_supply.py`, không còn là phép cộng làm bằng tay trong doc.
 
-> ⚠️ **30/07 — `excluded.csv` cũng chưa cập nhật.** **E-DQ3** loại thêm **16** trạm (`COORD_OUTSIDE_ADMIN`:
-> toạ độ không rơi vào bất kỳ đơn vị hành chính nào, quá dung sai 500 m) ⇒ đối soát đúng hiện nay là
-> **19.507 − 508 = 18.999**. Hai file CSV này là **ảnh chụp**, không phải artefact của pipeline — nguồn
-> chân lý duy nhất cho tập cung là `canonical/stations` + công thức ở §3.1. Nếu còn consumer nào đọc
-> `clean_supply.csv` thì nó đang nạp **16 trạm toạ độ sai** vào MCLP/coverage.
+> ✅ **30/07 — hai file đã có producer.** Trước đó chúng là **ảnh chụp không ai sinh ra**
+> (`grep clean_supply src/` → 0 hit) nên đứng yên ở bản 28/07 trong khi canonical đi tiếp, và đã lệch đúng
+> **16 dòng** = 16 trạm `COORD_OUTSIDE_ADMIN` mà **E-DQ3** loại. Nay `make export-supply` sinh lại cả hai từ
+> `canonical/stations` + công thức §3.1, kèm **6 cổng QA** và `export_supply_report.json` cho lineage.
+> Nguồn chân lý **vẫn là** `canonical/stations` — hai CSV chỉ là bản xuất cho người đọc / công cụ ngoài.
+>
+> ⚠️ **Một thay đổi định dạng có ý:** `connector_types` bản cũ ghi `['A' 'B']` (`str` của ndarray —
+> **thiếu dấu phẩy**, không `literal_eval` được, chỉ lộ ở 3.747 dòng nhiều loại súng); bản mới ghi
+> `['A', 'B']`. Consumer nào đang split theo dấu cách thì phải sửa.
 
 | Lý do loại (`excluded.csv`) | Số dòng |
 | --- | ---: |
@@ -176,7 +183,7 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 | `ACCESS_UNKNOWN` (P8) | 63 |
 | `OUT_OF_SERVICE` (P8) | 42 |
 | `COORD_PLACEHOLDER` (E-DQ1) | 38 |
-| **`COORD_OUTSIDE_ADMIN`** (E-DQ3, 30/07 — **chưa có trong file**) | **16** |
+| **`COORD_OUTSIDE_ADMIN`** (E-DQ3, 30/07) | **16** |
 | `RESTRICTED` (P8) | 20 |
 
 ---

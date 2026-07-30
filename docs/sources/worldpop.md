@@ -19,7 +19,7 @@
 - ⚠️ Cơ chế **constrained** còn một hệ quả: nó dồn dân của cả xã vào vài pixel ở
   **139 ô** (`E-DQ7f`, ✅ đã xử lý bằng `pop_adj` — đối chiếu VNSDI DANSO cho thấy 63% là dồn THỪA) —
   xem [§ Hạn chế đã đo](#hạn-chế-đã-đo-e-dq7e--e-dq7f).
-- URL neo trong [`paths.py`](../src/ev_siting/data/worldpop/paths.py) (`WORLDPOP_URL`; bản cũ giữ ở
+- URL neo trong [`paths.py`](../../src/ev_siting/data/worldpop/paths.py) (`WORLDPOP_URL`; bản cũ giữ ở
   `WORLDPOP_URL_UNADJUSTED`).
 
 ## Cấu trúc & pipeline
@@ -80,7 +80,8 @@ PYTHONPATH=src python -m ev_siting.data.worldpop.worldpop_pop --force-download
   **cả hai** khuyết tật mà `E-DQ7e`/`E-DQ7f` sau đó tìm ra — một cái lệch mức (+2,11%), một cái sai
   **vị trí trong ô** mà tổng quốc gia **vẫn đúng nguyên**. Cùng bài học với `poi_coords_in_vn` ở
   E-DQ7a. Nay thay bằng **3 cổng có thể FAIL** (§ dưới).
-- **demand_h3:** **268.404 ô** (union pop ∪ đường ∪ POI); 97.819 ô có **cả** dân & đường.
+- **demand_h3:** **268.404 ô** (union pop ∪ đường ∪ POI) *lúc đo 24/07*; 97.819 ô có **cả** dân & đường.
+  ⚠️ Lưới hiện tại là **255.480 ô**: `E-DQ7a` clip biên giới (−14.369 ô), `E-DQ8b` thêm lại ô nhận dân.
 - Spot-check lõi đô thị (0,83 km²/ô ở VN): HCMC Q1 ≈ 27.600 người, Hà Nội Hoàn Kiếm ≈ 31.200,
   Đà Nẵng ≈ 15.800 — đúng bậc độ dày dân.
 - Không có giá trị âm ở mọi cột.
@@ -117,8 +118,8 @@ nguyên (nhất quán "flag dòng, không xoá"). Kết quả ghi ở `worldpop_
 
 Hai khuyết tật **độc lập**, cùng nằm ở cột `pop`, phát hiện 29/07 — **cả hai đã xử lý cùng ngày**.
 Chi tiết + bằng chứng đầy đủ:
-[known-issues.md — E-DQ7e](../known-issues.md#e-dq7e--pop-chưa-hiệu-chuẩn-tuyệt-đối-bước-8) ·
-[E-DQ7f](../known-issues.md#e-dq7f--pop-phân-bổ-sai-chỗ-trong-ô-dasymetric-spike-bước-9).
+[known-issues.md — E-DQ7e](../issues/e-data-quality/e-dq7e-pop-calibration.md) ·
+[E-DQ7f](../issues/e-data-quality/e-dq7f-pop-dasymetric.md).
 
 > ⚠️ Con số 7f dưới đây **đo lại trên artefact UNadj** (bản trước ghi 146/792k/đỉnh 29.337 là tính trên raster
 > **unadjusted** trước khi 7e đổi nguồn cùng ngày — sai đối tượng).
@@ -131,7 +132,7 @@ Chi tiết + bằng chứng đầy đủ:
 | Thứ hạng ô | **bất biến từng bit** (đơn điệu) | **có xê dịch** — 16/139 ô trong top-500 `pop` (dùng `pop_adj` → **0**) |
 | Chặn gì | chỉ phát biểu tuyệt đối (`coverage_pop`, đối chiếu GSO) | T4 gap-fill national (42 ô `buildable`); `POP_NO_ROAD` giả (5 ô) |
 | **KHÔNG** chặn | `E-DQ7d` (đơn điệu) | `E-DQ7d` — chỉ chạm **14/12.811** ô cung |
-| Hướng sửa | ✅ đổi `WORLDPOP_URL` sang file **UNadj** + MANIFEST + 3 cổng QA | ✅ [`reconcile_dasymetric.py`](../src/ev_siting/data/worldpop/reconcile_dasymetric.py): giữ `pop` bất biến + thêm `pop_adj` (RETOTAL→0,859·DANSO / REPLACE, rải theo built-up) + cờ `pop_pixel_implausible` + 7 cổng QA; nguồn kiểm chứng **VNSDI DANSO** ([`data/vnsdi/`](../src/ev_siting/data/vnsdi/)) |
+| Hướng sửa | ✅ đổi `WORLDPOP_URL` sang file **UNadj** + MANIFEST + 3 cổng QA | ✅ [`reconcile_dasymetric.py`](../../src/ev_siting/data/worldpop/reconcile_dasymetric.py): giữ `pop` bất biến + thêm `pop_adj` (RETOTAL→0,859·DANSO / REPLACE, rải theo built-up) + cờ `pop_pixel_implausible` + 7 cổng QA; nguồn kiểm chứng **VNSDI DANSO** ([`data/vnsdi/`](../../src/ev_siting/data/vnsdi/)) |
 
 ⚠️ **Đừng winsorize theo mật độ.** Ngưỡng ">48.000 người/km²" bắt **61 ô lõi TP.HCM CÓ THẬT** (liền
 khối, ~100 pixel/ô, 500–800 người/pixel) và **0/139** ô hỏng — **giao hai tập = 0**. Cắt ngọn sẽ san

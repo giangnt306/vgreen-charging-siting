@@ -70,7 +70,8 @@
 **61.648 ô (40,0% dân số)** vắt qua ≥ 2 xã (tối đa 6). Cộng khối lượng phải đi qua bảng phân bổ có trọng số
 `data/interim/admin/cell_commune.parquet` (Σw = 1 mỗi ô) — hoặc dùng thẳng rollup `admin/demand_commune.parquet`.
 
-**Clip lãnh thổ (E-DQ7a, 28/07):** bảng chỉ chứa ô **thuộc lãnh thổ VN** (268.404 → **254.035** ô) với 2 cột kèm theo:
+**Clip lãnh thổ (E-DQ7a, 28/07):** bảng chỉ chứa ô **thuộc lãnh thổ VN** (268.404 → **254.035** ô; sau `E-DQ8b`
+thêm ô built-up nhận dân → **255.480** ô, số hiện hành) với 2 cột kèm theo:
 
 | Cột | Kiểu | Vai trò |
 | --- | --- | --- |
@@ -116,7 +117,7 @@
 | `pop_adj` | double | pop **đã đặt lại chỗ** theo built-up WorldCover trong ranh giới xã (RETOTAL hạ về 0,859·DANSO khi WorldPop>1,5×DANSO; REPLACE giữ tổng, chỉ đổi chỗ). Dùng cho consumer **XẾP HẠNG** (MCLP `demand_weight`, T4 gap-fill). Σ quốc gia thấp hơn `pop` **0,499%** (người ma gỡ khỏi đảo). |
 | `pop_pixel_implausible` | bool | cờ ô dồn cục (139 ô). T4 gap-fill LOẠI ô này nếu không có đường trục/POI xác nhận. |
 
-> Chi tiết + 7 cổng QA: [known-issues.md — E-DQ7f](../known-issues.md#e-dq7f--pop-phân-bổ-sai-chỗ-trong-ô-dasymetric-spike-bước-9).
+> Chi tiết + 7 cổng QA: [known-issues.md — E-DQ7f](../issues/e-data-quality/e-dq7f-pop-dasymetric.md).
 > Ô đảo Hòn Nghệ `8865a30cd5f…`: `pop` 28.731 → `pop_adj` 493 (xã chỉ 2.546 dân); ô bị cờ trong top-500 quốc
 > gia: **16 → 0** theo `pop_adj`.
 

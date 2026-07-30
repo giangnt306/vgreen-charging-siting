@@ -195,8 +195,12 @@ chỉnh; đã cô lập thành hằng số để không rải rác trong code.
 
 ## 11. Chạy toàn quốc (national)
 
-Ngoài MVP 1 thành phố, pipeline chạy được **toàn Việt Nam** trên **lưới `demand_h3` quốc gia
-(268.404 ô res 8)** — dùng `--national` ở mọi bước, hoặc `make landuse-national && make candidates-national`.
+Ngoài MVP 1 thành phố, pipeline chạy được **toàn Việt Nam** trên **lưới `demand_h3` quốc gia** — dùng
+`--national` ở mọi bước, hoặc `make landuse-national && make candidates-national`.
+
+> ⚠️ **Số dưới đây đo trên lưới 268.404 ô (lần chạy 24/07).** Lưới hiện hành là **255.480 ô** (`E-DQ7a` clip biên
+> giới · `E-DQ8b` thêm ô nhận dân) và bậc lối vào đã đổi từ `road_access_m ≤ 0` sang `access_tier == ISOLATED`
+> (`E-DQ8a`, loại cứng 6.350 → **723 ô**) ⇒ **phải chạy lại national** trước khi trích dẫn con số buildable.
 
 > **Một tập candidate duy nhất toàn quốc (không per-tỉnh).** *(Cập nhật 30/07 — **rào chặn dữ liệu đã gỡ**:
 > `E-DQ3` gán `admin_l1_code`/`commune_code` cho **255.298/255.480** ô `demand_h3`, nên cắt theo tỉnh giờ là

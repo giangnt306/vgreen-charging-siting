@@ -50,7 +50,7 @@ vgreen-charging-siting/
 └── db/                                     # nạp PostGIS (schema_postgis.sql + load_to_postgres.py)
 ```
 
-Mọi script neo đường dẫn qua [`paths.py`](../src/ev_siting/data/evcs/paths.py) (`PROJECT_ROOT` suy
+Mọi script neo đường dẫn qua [`paths.py`](../../src/ev_siting/data/evcs/paths.py) (`PROJECT_ROOT` suy
 từ vị trí file) nên chạy đúng bất kể thư mục hiện hành. RAM hạn chế → các bước xử lý `load_ts.csv`
 theo kiểu **streaming**, không nạp cả file vào pandas.
 

@@ -4,7 +4,7 @@ Describe data sources, variable names, types, and meanings here.
 
 ## OpEx - Electricity tariff for EV charging stations
 
-**Pipeline:** [`src/ev_siting/data/opex_electricity.py`](../src/ev_siting/data/opex_electricity.py)
+**Pipeline:** [`src/ev_siting/data/opex_electricity.py`](../../src/ev_siting/data/opex_electricity.py)
 · run with `make opex-electricity` (or `PYTHONPATH=src python -m ev_siting.data.opex_electricity`).
 
 **Outputs** (to `data/external/`, gitignored — regenerate any time):

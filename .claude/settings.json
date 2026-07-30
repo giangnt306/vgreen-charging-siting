@@ -195,7 +195,15 @@
       "Bash(PYTHONPATH=src python -m ev_siting.data.admin.enrich_stations --dump)",
       "Bash(time PYTHONPATH=src python -m ev_siting.data.admin.enrich_grid)",
       "Bash(PYTHONPATH=src python -m ev_siting.data.admin.enrich_grid)",
-      "Bash(PYTHONPATH=src python -m pytest tests/test_admin.py -q)"
+      "Bash(PYTHONPATH=src python -m pytest tests/test_admin.py -q)",
+      "Bash(awk 'NR>=495 && /^#### /{print NR\": \"$0}' known-issues.md)",
+      "Bash(grep -n \"^#\\\\{1,4\\\\} \")",
+      "Bash(python3 \"/tmp/claude-1000/-home-wanderer210-Documents-AI-vgreen-charging-siting/92a463b4-7fb0-4f5b-a908-ab04e034a135/scratchpad/split_issues.py\")",
+      "Bash(rm docs/issues/*.md)",
+      "Bash(python3 \"/tmp/claude-1000/-home-wanderer210-Documents-AI-vgreen-charging-siting/92a463b4-7fb0-4f5b-a908-ab04e034a135/scratchpad/regroup_issues.py\")",
+      "Bash(PYTHONPATH=src python -m ev_siting.data.evcs.export_supply --check)",
+      "Bash(PYTHONPATH=src python -m ev_siting.data.evcs.export_supply)",
+      "Bash(make export-supply-check *)"
     ]
   }
 }
