@@ -25,7 +25,8 @@ PBF_PATH = RAW_DIR / "vietnam-latest.osm.pbf"       # Geofabrik dump (nguồn ro
 
 # --- cleaned / derived (data/interim/osm) ---
 INTERIM_DIR = DATA / "interim" / "osm"
-POI_POINTS = INTERIM_DIR / "osm_poi_points.parquet"     # 1 dòng/POI (h3 + in_vn + lớp/khử trùng)
+POI_POINTS = INTERIM_DIR / "osm_poi_points.parquet"     # 1 dòng/POI trong VN (h3 + lớp/khử trùng)
+POI_OUTSIDE_VN = INTERIM_DIR / "osm_poi_outside_vn.parquet"  # POI bbox-spill bị cắt (E-DQ7a, để audit)
 POI_H3 = INTERIM_DIR / "osm_poi_h3.parquet"             # bảng LỚP POI theo ô H3 (E-DQ7c)
 ROADS_H3 = INTERIM_DIR / "osm_roads_h3.parquet"         # bảng LỚP road theo ô H3 (E-DQ7b)
 DEMAND_COMPONENTS = INTERIM_DIR / "osm_demand_components_h3.parquet"  # cột SUY RA từ 2 bảng lớp

@@ -6,9 +6,11 @@
   - data/interim/osm/osm_roads_h3.parquet  (roads_pbf.py)
 
 Sinh:
-  - osm_poi_points.parquet          : 1 dòng/POI + `in_vn` (E-DQ7a) + `poi_class`/
-                                      `poi_access`/`poi_physical_id`/`is_poi_primary`/
+  - osm_poi_points.parquet          : 1 dòng/POI **trong lãnh thổ VN** (E-DQ7a,
+                                      fail-closed) + `poi_class`/`poi_access`/
+                                      `poi_physical_id`/`is_poi_primary`/
                                       `complex_id`/`levels` (E-DQ7c)
+  - osm_poi_outside_vn.parquet      : POI bbox-spill bị cắt (TH/LA/KH/CN) — để audit
   - osm_poi_h3.parquet              : **bảng LỚP** POI theo ô (E-DQ7c)
   - osm_demand_components_h3.parquet : theo ô H3 res 8, cột vô hướng SUY RA từ hai
                                       bảng lớp (POI + road)
@@ -25,13 +27,16 @@ apartments, tức feature là "mật độ toà chung cư", không phải "đi�
   2. **một đối tượng OSM = một lớp** (13 đối tượng từng nằm ở 2 nhóm, 4/5 tổ hợp cùng
      dồn vào `n_poi` ⇒ đếm đôi);
   3. **khử trùng node↔way** về `poi_physical_id` (giữ dòng + cờ `is_poi_primary`, nhất
-     quán E-DQ1/E-DQ2/E-DQ7a — không xoá);
+     quán E-DQ1/E-DQ2 — không xoá);
   4. gộp toà chung cư về **khu** (`complex_id`, 150 m) vì 60,8% toà nằm trong cụm ≥5;
   5. `n_poi` và `n_parking` **khai tử** → 10 cột tách rời để E-DQ7d fit trọng số.
 
-**E-DQ7a — clip lãnh thổ ở mức ĐIỂM.** `overpass_poi.py` crawl bằng `VN_BBOX` thô nên
-54,2% POI thu về nằm ở Campuchia/Lào/Thái/TQ. Ở đây gắn cờ `in_vn` cho TỪNG ĐIỂM (giữ
-dòng, không xoá) và **chỉ đếm điểm `in_vn=True`**. Xem `vn_boundary.py`.
+**E-DQ7a — clip lãnh thổ ở mức ĐIỂM, artefact FAIL-CLOSED.** `overpass_poi.py` crawl
+bằng `VN_BBOX` thô nên 54,2% POI thu về nằm ở Campuchia/Lào/Thái/TQ. Ở đây gắn cờ
+`in_vn` cho TỪNG ĐIỂM và **chỉ đếm điểm `in_vn=True`**; file `POI_POINTS` **chỉ ghi
+dòng trong VN** để mọi consumer hạ nguồn sạch theo mà không cần nhớ lọc, phần bị cắt
+ghi ra `POI_OUTSIDE_VN` (raw JSON vẫn bất biến, không mất dữ liệu). Khử trùng E-DQ7c
+chạy TRƯỚC khi tách nên cặp node↔way vắt biên vẫn được ghép. Xem `vn_boundary.py`.
 
 Chạy:
     PYTHONPATH=src python -m ev_siting.data.osm.build_osm_h3
@@ -41,8 +46,8 @@ import json
 import pandas as pd
 
 from . import poi_semantics as ps
-from .paths import (DEMAND_COMPONENTS, H3_RES_R8, H3_RES_R9, POI_H3, POI_POINTS,
-                    POI_RAW_DIR, ROADS_H3, ensure_dirs)
+from .paths import (DEMAND_COMPONENTS, H3_RES_R8, H3_RES_R9, POI_H3,
+                    POI_OUTSIDE_VN, POI_POINTS, POI_RAW_DIR, ROADS_H3, ensure_dirs)
 from .road_semantics import DERIVED_COLUMNS as ROAD_DERIVED
 from .road_semantics import TIER_COLUMNS, derive as derive_roads
 from .vn_boundary import points_in_vn
@@ -96,7 +101,7 @@ def _resolve_physical(df):
     chủ yếu là bãi đỗ liền kề có thật.
 
     Bản chính là **area** (way/relation) vì nó mang hình học; node là bản mô tả điểm.
-    Giữ mọi dòng, chỉ gắn cờ — nhất quán E-DQ1/E-DQ2/E-DQ7a.
+    Giữ mọi dòng, chỉ gắn cờ — nhất quán E-DQ1/E-DQ2.
     """
     df = df.copy().reset_index(drop=True)
     lat, lng = df["lat"].tolist(), df["lng"].tolist()
@@ -216,11 +221,17 @@ def run():
     ensure_dirs()
     print("[h3] đọc POI raw + phân lớp + khử trùng (E-DQ7c) + clip lãnh thổ (E-DQ7a)...")
     poi_df, stats = load_poi_points()
-    poi_df.to_parquet(POI_POINTS, index=False)
-    n_out = int((~poi_df["in_vn"]).sum()) if len(poi_df) else 0
-    print(f"[h3] {len(poi_df)} POI -> {POI_POINTS}")
-    print(f"[h3] E-DQ7a: {len(poi_df) - n_out} trong VN · {n_out} ngoài VN "
-          f"({n_out / max(len(poi_df), 1):.1%}, giữ dòng + cờ in_vn, không đếm)")
+    # E-DQ7a — FAIL-CLOSED: file chính CHỈ chứa dòng trong VN; phần bbox-spill tách
+    # sang POI_OUTSIDE_VN để audit. Tách SAU khử trùng nên cặp node↔way vắt biên vẫn
+    # đã được ghép; cờ `in_vn` giữ lại (toàn True) cho cổng validate.
+    outside = poi_df[~poi_df["in_vn"]].reset_index(drop=True) if len(poi_df) else poi_df
+    poi_vn = poi_df[poi_df["in_vn"]].reset_index(drop=True) if len(poi_df) else poi_df
+    poi_vn.to_parquet(POI_POINTS, index=False)
+    outside.to_parquet(POI_OUTSIDE_VN, index=False)
+    n_out = len(outside)
+    print(f"[h3] {len(poi_df)} POI -> giữ {len(poi_vn)} trong VN -> {POI_POINTS}")
+    print(f"[h3] E-DQ7a: cắt {n_out} ngoài VN "
+          f"({n_out / max(len(poi_df), 1):.1%}, fail-closed) -> {POI_OUTSIDE_VN}")
     print(f"[h3] E-DQ7c: {stats['n_object_dup_merged']} đối tượng ở >1 nhóm crawl gộp về "
           f"1 lớp · {stats['n_physical_dup']} bản trùng node/way "
           f"({stats['n_physical_dup_in_vn']} trong VN) — giữ dòng, không đếm")
