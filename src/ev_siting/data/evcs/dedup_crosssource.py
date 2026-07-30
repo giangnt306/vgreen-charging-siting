@@ -13,10 +13,16 @@ BA TANG (giam dan do chac chan):
   T1 official_store : >1 dong evcs cung tro ve mot `official_store_id`
                       (mot exact_code + cac spatial_fuzzy roi vao cung store) ->
                       trung KHONG CAN NGUONG (dinh danh first-party trung khop).
-  T2 coord_name     : con lai, cap tram cach nhau < NEAR_M met VA ten giong
-                      (>=NAME_SIM_MIN). Ten BAT BUOC: cung 1 tram vat ly o 2 feed
-                      thi TEN trung; toa do trung ma ten khac = tram khac nhau
-                      dung chung toa do placeholder (E-DQ1), KHONG phai trung.
+  T2 coord_ident    : con lai, cap tram cach nhau < NEAR_M met VA cung DINH DANH.
+                      "Cung dinh danh" = tap token cua ben nay LA TAP CON cua ben kia
+                      (`_same_identity`), KHONG phai `token_set_ratio >= nguong`.
+                      Ly do doi (2026-07-29): `name` cua evcs NHUNG CA DIA CHI, nen
+                      ty le mo do do giong DIA CHI chu khong phai danh tinh tram --
+                      "Ho Van Nam,To 7 Ap Tan Doi" vs "Le Thi My Kim,To 7 Ap Tan Doi"
+                      dat 89,9 (gop nham hai chu khac nhau). Sau khi bo phan dia chi
+                      va doi sang TAP CON, cap do con 50 va bi chan, trong khi
+                      "Vincom Plaza Tra Vinh" vs "Vincom Plaza Tra Vinh mat phia truoc"
+                      van gop (mot ben la ben kia + tu bo nghia).
   GUARD blob        : cac tram noi nhau qua canh < NEAR_M tao "blob"; blob >=
                       PLACEHOLDER_STACK_MIN thanh vien = cum toa do dang ngo
                       (vd chuoi "Tư nhân" toa do ramp tang deu, hoac stack trung
@@ -35,19 +41,21 @@ nhom trung ra CSV; KHONG ghi de canonical (viec do o transform_canonical).
 """
 import argparse
 import json
+import re
 
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import BallTree
 
-from ..vinfast_official.match_official import strip_accents, EARTH_R
-from rapidfuzz import fuzz
-
-from .paths import STATIONS_DIR, INTERIM_DIR, PROJECT_ROOT
+from ..vinfast_official.match_official import EARTH_R, strip_accents
+from .paths import INTERIM_DIR, PROJECT_ROOT, STATIONS_DIR
 
 # --- tham so (default hop ly, khop match_official de nhat quan nguong) ---
 NEAR_M = 50.0               # ban kinh coi la CO THE cung 1 diem vat ly
-NAME_SIM_MIN = 82.0         # nguong token_set_ratio de xac nhan trung (khop matcher)
+IDENT_MIN_TOKENS = 2        # dinh danh ngan hon 2 token thi khong du phan biet
+# Token mang CHU SO la thong tin phan biet manh: "Van Hien 1" / "Van Hien 2" va
+# "Nha Khoa Hai Van 1" / "... 2" la HAI tram that, du tap token gan nhu trung.
+_SERIAL_RE = re.compile(r"[a-z]*\d+[a-z]*")
 PLACEHOLDER_STACK_MIN = 5   # blob proximity >= n thanh vien => cum ngo (E-DQ1), khong merge
 VN_BBOX = (8.0, 23.6, 102.0, 110.0)
 
@@ -106,6 +114,67 @@ def _pick_survivor(group: pd.DataFrame) -> str:
     return g.iloc[0]["station_id"]
 
 
+def _distinct_store(df: pd.DataFrame, i, j) -> bool:
+    """True khi registry first-party noi DOC LAP rang day la hai cua hang khac nhau.
+
+    CAI BAY DA DINH MOT LAN (do 2026-07-29, sua cung ngay): phien ban dau chi hoi
+    "hai `official_store_id` co khac nhau khong". Nhung matcher `exact_code` gan
+    `official_store_id = station_code`, va dieu do dung cho **19.605/19.635 dong
+    (99,85%)**; `station_code` lai la PK unique. Nen dieu kien do rut gon thanh
+    "hai dong khac nhau" -- LUON dung -- va tang T2 chet hoan toan (merge
+    coord_name tut 318 -> 8, duplicate 329 -> 30, trong do bo sot 97 cap TEN TRUNG
+    KHIT nhu "Vincom Plaza Tra Vinh" x2). So do "2.625 cap deu khac store_id,
+    0 cap trung" khong phai bang chung -- no chi la he qua cua phep lap thua.
+
+    Store_id CHI mang thong tin khi no KHAC `station_code` cua chinh dong do, tuc
+    khi dong ay duoc gan vao registry bang bang chung khac (spatial_fuzzy). Khi ca
+    hai ben chi echo lai PK cua chinh minh thi registry KHONG noi gi -> khong chan.
+    """
+    if "official_store_id" not in df.columns:
+        return False
+    a, b = df.at[i, "official_store_id"], df.at[j, "official_store_id"]
+    if pd.isna(a) or pd.isna(b):
+        return False
+    a, b = str(a).strip(), str(b).strip()
+    if not (a and b) or a == b:
+        return False
+    ci, cj = str(df.at[i, "station_code"]).strip(), str(df.at[j, "station_code"]).strip()
+    return a != ci or b != cj     # it nhat mot ben la quy chieu DOC LAP voi PK
+
+
+def _identity(name, address) -> str:
+    """Phan DINH DANH cua ten: `name` da bo chuoi dia chi nhung trong chinh no.
+
+    evcs.vn ghi `name` dang "<ten>,<dia chi>" nen so ten tho la so DIA CHI. Cot
+    `address` co san -> tru no ra thi con lai phan thuc su phan biet tram.
+    """
+    n = strip_accents(name if isinstance(name, str) else "")
+    a = strip_accents(address if isinstance(address, str) else "")
+    if len(a) >= 8:
+        k = n.find(a)
+        if k >= 0:
+            n = (n[:k] + " " + n[k + len(a):]).strip()
+    return re.sub(r"\s+", " ", n)
+
+
+def _same_identity(a: str, b: str) -> bool:
+    """True khi hai dinh danh la CUNG mot tram: mot ben la TAP CON cua ben kia.
+
+    Tap con (khong phai ty le mo) vi cap trung that luon co dang "X" vs "X + tu bo
+    nghia" ("NQ", "mat tien", "mat phia truoc"), con cap KHAC nhau thi moi ben deu
+    co tu ma ben kia khong co ("Nguyen Van Tai" vs "Nguyen Vu" -- token_set_ratio
+    cho 90,3 vi no cham theo GIAO cua hai tap, tap con thi chan dung).
+    Kem dieu kien token chu so phai khop (xem `_SERIAL_RE`).
+    """
+    ta, tb = frozenset(a.split()), frozenset(b.split())
+    if min(len(ta), len(tb)) < IDENT_MIN_TOKENS:
+        return False
+    if not (ta <= tb or tb <= ta):
+        return False
+    sa, sb = frozenset(_SERIAL_RE.findall(a)), frozenset(_SERIAL_RE.findall(b))
+    return not (sa and sb and sa != sb)
+
+
 def assign_physical_id(stations: pd.DataFrame) -> pd.DataFrame:
     """Gan `physical_id`/`is_primary`/`dup_*` + co CROSS_SOURCE_DUP / DUP_COORD_PLACEHOLDER.
 
@@ -116,8 +185,11 @@ def assign_physical_id(stations: pd.DataFrame) -> pd.DataFrame:
     ids = df["station_id"].tolist()
     uf = _UnionFind(ids)
     method_of = {}          # station_id -> ly do bi keo vao nhom (uu tien official_store)
+    n_blocked_by_store = [0]  # dem cap bi GUARD store_id chan lai (bao cao QA)
 
-    name_norm = df["name"].map(strip_accents)
+    addr = df["address"] if "address" in df.columns else pd.Series("", index=df.index)
+    ident = [_identity(n, a) for n, a in zip(df["name"], addr)]
+    ident = pd.Series(ident, index=df.index)
     good = df.apply(lambda r: _coord_ok(r["lat"], r["lng"]), axis=1)
 
     # --- T1: cung official_store_id -> union khong can nguong ---
@@ -161,13 +233,16 @@ def assign_physical_id(stations: pd.DataFrame) -> pd.DataFrame:
             if blob_size.get(prox.find(i), 1) >= PLACEHOLDER_STACK_MIN:
                 suspect.loc[i] = True
 
-        # (iii) merge coord_name CHI trong blob nho + ten trung (khong bac cau qua cum ngo)
+        # (iii) merge coord_ident CHI trong blob nho + CUNG DINH DANH (khong bac cau qua cum ngo)
         for i, j, d_m in pairs:
             if suspect.loc[i] or suspect.loc[j]:
                 continue
-            sim = fuzz.token_set_ratio(name_norm[i], name_norm[j]) \
-                if name_norm[i] and name_norm[j] else 0
-            if sim >= NAME_SIM_MIN:
+            # GUARD first-party: chan khi registry noi DOC LAP day la hai cua hang khac
+            # nhau. Xem `_distinct_store` -- dieu kien nay phai KHONG rut gon ve "khac PK".
+            if _distinct_store(df, i, j):
+                n_blocked_by_store[0] += 1
+                continue
+            if _same_identity(ident[i], ident[j]):
                 uf.union(df.at[i, "station_id"], df.at[j, "station_id"])
                 for k in (i, j):
                     method_of.setdefault(df.at[k, "station_id"], "coord_name")
@@ -209,6 +284,7 @@ def assign_physical_id(stations: pd.DataFrame) -> pd.DataFrame:
         dup_dist.append(d)
         new_flags.append(fl)
 
+    df.attrs["n_blocked_by_store"] = int(n_blocked_by_store[0])
     df["physical_id"] = physical_id
     df["is_primary"] = is_primary
     df["dup_group_id"] = group_id
@@ -216,7 +292,9 @@ def assign_physical_id(stations: pd.DataFrame) -> pd.DataFrame:
     df["dup_dist_m"] = dup_dist
     df["n_dup_members"] = n_members
     df["quality_flags"] = new_flags
-    return df.drop(columns=["_root"])
+    out = df.drop(columns=["_root"])
+    out.attrs["n_blocked_by_store"] = int(n_blocked_by_store[0])   # .drop() co the mat attrs
+    return out
 
 
 def dedup_report(df: pd.DataFrame) -> dict:
@@ -254,13 +332,21 @@ def dedup_report(df: pd.DataFrame) -> dict:
         "dup_by_method": dup["dup_method"].value_counts().to_dict(),
         "largest_group": int(df["n_dup_members"].max()) if n else 0,
         "n_suspect_coord_deferred_edq1": int(suspect.sum()),
+        # GUARD first-party: cap <NEAR_M bi chan vi registry gan chung vao HAI store
+        # khac nhau bang bang chung DOC LAP voi PK. Con so nay phai NHO -- neu no xap xi
+        # tong so cap <NEAR_M thi guard da rut gon ve "khac station_code" (loi 29/07).
+        "n_pairs_blocked_by_official_store": int(df.attrs.get("n_blocked_by_store", 0)),
         "gates": gates,
         "all_gates_pass": bool(all(gates.values())),
     }
 
 
 def _load_canonical_stations() -> pd.DataFrame:
-    cols = ["station_id", "station_code", "lat", "lng", "name", "official_store_id",
+    # `address` LA COT BAT BUOC: `_identity` tru no khoi `name` de so danh tinh thay vi so
+    # dia chi. Thieu no thi cong cu inspect nay chay duong yeu hon producer va bao con so
+    # KHAC voi `transform_canonical` (do: 118 vs 161 duplicate) — dung kieu "cong cu kiem
+    # tra tra loi cau hoi khac voi cai dang chay" ma F4/E-DQ11 da dinh.
+    cols = ["station_id", "station_code", "lat", "lng", "name", "address", "official_store_id",
             "match_method", "official_matched", "confidence", "has_timeseries",
             "quality_flags"]
     df = pd.read_parquet(STATIONS_DIR, columns=[c for c in cols])

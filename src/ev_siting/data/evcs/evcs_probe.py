@@ -17,8 +17,9 @@ Ghi chú:
   Nếu server không có màn hình, dùng xvfb-run hoặc thử headless=True.
 - Script thử cả b=0 và b=1 để xem 'b' chọn dữ liệu gì (live vs lịch sử 7 ngày).
 """
-import sys
 import json
+import sys
+
 from playwright.sync_api import sync_playwright
 
 # Mã trạm mẫu -> URL trang tương ứng (để nạp trang, lấy cf_clearance).
