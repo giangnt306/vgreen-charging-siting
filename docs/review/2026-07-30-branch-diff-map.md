@@ -409,3 +409,40 @@ Quy ước cột "lấy từ": `giang` / `ky` = lấy nguyên bản một bên; 
 | Q13 | Notebooks WT | **Không đưa vào** | Suite 00–09 + nbtools + run_notebooks + explore_data + notebooks/README.md ở lại working tree Kỳ (bảo toàn qua stash/backup, không commit vào integrate/final); gỡ Makefile targets notebooks/notebooks-check |
 
 Hai quyết định B2 tự chốt (đã ghi ở trên): raster 2025 = unadjusted R2024B của Kỳ; `.claude/settings.json` xóa (token VNSDI sống — cần rotate).
+
+---
+
+## Bước 4 — Thực thi (2026-07-30, nhánh integrate/final)
+
+14 commit từ nền `data/giang` (3a836cc), tổng +7 840/−829 trên 67 file. Xem `git log 3a836cc..integrate/final` — mỗi commit một nhóm logic, message ghi nguồn gốc và mã quyết định B3 tương ứng. Working tree chưa commit của Kỳ bảo toàn tại `stash@{0}` (khôi phục: `git checkout devky/review-dataset && git stash pop`) + patch dự phòng trong scratchpad phiên làm việc.
+
+## Bước 5 — Kiểm chứng
+
+- `uv run pytest`: **158 passed, 3 skipped, 0 failed** (24,7s). Trước khi dựng `make boundary` là 145 passed/16 skipped; sau khi dựng `vn_boundary.parquet` từ PBF freeze, 13 test biên giới chạy thật và pass (kể cả 2 case đảo + trần T0≤4). 3 skip còn lại đều cần `make vnsdi` (crawl + token, không chạy cục bộ được).
+- Notebook: không áp dụng — suite notebooks không vào integrate/final (B3-Q13).
+
+### Đã bỏ đi và vì sao
+
+| Bỏ | Vì |
+|---|---|
+| coord_quality.py + test_coord_quality.py + cờ COORD_LOW_TRUST | B3-Q3 chỉ-Giang; nhánh sửa-theo-official là nhánh chết (0/19.427) |
+| admin_join.py + test_admin_join.py nguyên bản | B3-Q4 VNSDI; ý định test port sang tests/test_admin_enrich.py (API Giang) |
+| src/ev_siting/vn_boundary.py + sửa aoi.py + test một-bản-đồ | B3-Q1; thiết kế hai-bản-đồ (lãnh thổ adm2 ≠ nhãn admin VNSDI) có chủ đích |
+| Cờ pop_covered/osm_covered (hợp đồng NaN) | B3-Q6ii chọn fillna(0) |
+| penalty_flags + phạt mềm buildable | B3-Q7/Q8 theo Giang (loại cứng; schema province_code + exclusion_flags) |
+| Suite notebooks 00–09 + nbtools + run_notebooks + notebooks/README | B3-Q13 — ở lại stash trên devky |
+| .github/workflows/ci.yml | B3-Q11 giữ không-CI; README đã hết tham chiếu |
+| .claude/settings.json, LICENSE, config/params.yaml | Xóa theo Kỳ; settings.json chứa TOKEN VNSDI SỐNG |
+| Entry vn_admin trong manifest.py (MANIFEST.json vẫn giữ bản ghi) | Module sinh nó bị khai tử theo Q1/Q4; bản ghi giữ làm bằng chứng |
+| Hậu bước Makefile admin-join/coord-quality | Enrich chạy inline trong transform_canonical (Giang) |
+
+### Nợ lại
+
+1. **Token VNSDI phải rotate** — đã xóa file trên integrate/final nhưng còn nguyên trong lịch sử `data/giang`; báo Giang chuyển allowlist sang `.claude/settings.local.json`.
+2. `make verify-snapshot` FAIL cục bộ: thiếu `data/raw/worldpop/vnm_ppp_2020_UNadj_constrained.tif` + `data/raw/vnsdi/` trên máy này — cần copy raw từ máy Giang, verify rồi re-freeze (`merge_note` trong MANIFEST đã ghi).
+3. export_handoff.py chưa có test riêng.
+4. 3 test VNSDI đang skip (`make vnsdi`).
+5. Pipeline rebuild đầy đủ (osm → demand → settlement → landuse → candidates → covered0) chưa chạy trên nhánh hợp nhất; các con số docs đánh dấu "(cần đo lại sau rebuild)" (buildable 28.075/59.927, penalty substation, Σ pop_2025, gate F14); số cụm settlement sẽ xê dịch nhẹ do lưới nền là clip Giang.
+6. Dấu ☑ nhóm F trong register đo trên nhánh Kỳ — tái kiểm khi rebuild.
+7. `crawl-validate` giờ FAIL (không chỉ WARN) khi manifest không đối chiếu được — hành vi cố ý (F-fix của Kỳ), lưu ý môi trường chưa freeze.
+8. `make export-handoff` fail-fast nếu TS_DIR ≠ tầng 168h và không truyền `TELEMETRY=` — cố ý (FX-05).
