@@ -35,6 +35,7 @@ from ev_siting.data.evcs.paths import STATIONS_DIR
 from ev_siting.data.landuse.paths import BUILDABLE_H3
 from ev_siting.data.osm.paths import POI_POINTS
 from ev_siting.data.worldpop.paths import DEMAND_H3
+from ev_siting.vn_boundary import mask_points_in_vn
 
 from .paths import (
     CAND_MAX,
@@ -91,8 +92,18 @@ def _load_stations(aoi):
 
 
 def _load_poi(aoi):
-    """T1/T2: POI anchor trong AOI."""
-    df = pd.read_parquet(POI_POINTS, columns=["osm_type", "osm_id", "category", "lat", "lng", "h3_r8"])
+    """T1/T2: POI anchor trong AOI.
+
+    E-DQ11 — hàng rào thứ hai. `POI_POINTS` đã được `build_osm_h3` cắt theo đa giác lãnh
+    thổ, nhưng đây là chỗ lỗi thành sản phẩm: trước khi cắt, **24,5% `candidate_sites` nằm
+    ngoài VN** (T1 fuel 67,5%, T1 parking 73,2%) vì AOI quốc gia = lưới `demand_h3` cũng
+    đã nhiễm. Lọc lại theo cờ `in_vn` cho rẻ và fail-closed nếu ai đó ghi đè file bằng bản
+    chưa cắt."""
+    cols = ["osm_type", "osm_id", "category", "lat", "lng", "h3_r8"]
+    df = pd.read_parquet(POI_POINTS)
+    if "in_vn" in df.columns:
+        df = df[df["in_vn"]]
+    df = df[cols]
     df = df[df["category"].isin(_POI_TIER)].copy()
     df = df[_in_aoi(aoi, df)].copy()
     df["tier"] = df["category"].map(lambda c: _POI_TIER[c][0])
@@ -105,9 +116,18 @@ def _load_poi(aoi):
 def _gapfill(aoi, buildable, occupied_cells, gapfill_q=GAPFILL_TOP_Q):
     """T4: ô demand cao, buildable, chưa có anchor -> centroid (SYNTHETIC)."""
     empty = pd.DataFrame(columns=["lat", "lng", "h3_r8", "tier", "anchor_type", "source_ref", "is_existing"])
-    dem = pd.read_parquet(DEMAND_H3)[["h3_r8", "pop", "n_poi", "road_len_mt_m"]]
-    b = buildable[buildable["buildable"]][["h3_r8"]]
-    cand = b.merge(dem, on="h3_r8", how="left").fillna(0.0)
+    cols = ["h3_r8", "pop", "n_poi", "road_len_mt_m"]
+    dem = pd.read_parquet(DEMAND_H3)
+    # `pop_unsupported` (settlement.py): ESA WorldCover thấy ô là mặt nước hoặc gần như
+    # không có công trình, trong khi WorldPop gán hàng nghìn người — cục artefact của mặt
+    # nạ BSGM. T4 là điểm ĐỀ XUẤT XÂY sinh từ `pop`, nên nếu không chặn thì artefact biến
+    # thẳng thành khuyến nghị: đo 29/07 có **250 điểm T4** rơi vào ô như vậy (bộ lọc
+    # buildable chỉ bắt được 757/4.365 — phần lớn ô rừng núi vẫn "buildable").
+    if "pop_unsupported" in dem.columns:
+        n0 = len(dem)
+        dem = dem[~dem["pop_unsupported"].fillna(False)]
+        print(f"[cand] T4: bỏ {n0 - len(dem):,} ô `pop_unsupported` khỏi nguồn demand")
+    cand = buildable[buildable["buildable"]][["h3_r8"]].merge(dem[cols], on="h3_r8", how="left").fillna(0.0)
     cand = cand[~cand["h3_r8"].isin(occupied_cells)]
     if cand.empty:
         return empty
@@ -119,6 +139,10 @@ def _gapfill(aoi, buildable, occupied_cells, gapfill_q=GAPFILL_TOP_Q):
     cand["lat"] = latlng.map(lambda x: x[0])
     cand["lng"] = latlng.map(lambda x: x[1])
     cand = cand[_in_aoi(aoi, cand)].copy()
+    # E-DQ11: `demand_h3` giữ ô **chạm** biên giới (để không mất dân/đường vành biên), nên
+    # tâm của một ô hợp lệ vẫn có thể rơi sang Campuchia. Điểm T4 là toạ độ ĐỀ XUẤT XÂY —
+    # nó phải nằm trên đất VN. Đo: 7/5.733 điểm gap-fill dính lỗi này.
+    cand = cand[mask_points_in_vn(cand["lat"], cand["lng"])].copy()
     if cand.empty:
         return empty
     # điểm demand thô để chọn ô đáng gap-fill (pop chủ đạo + đường trục + POI).

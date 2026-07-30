@@ -51,8 +51,10 @@ fi
 echo "======== STEP 2: merge catalog $(date) ========"
 $M.merge_catalog
 
-echo "======== STEP 3: history 168h over ALL codes -> $TS_RAW $(date) ========"
-$M.evcs_scrape --codes-file "$MERGED_CODES" --hours 168 --out "$TS_RAW"
+# hours là ENUM server {24,168,720} (3 nút UI "24 giờ/7 ngày/30 ngày"); ngoài enum -> timeout 100%.
+# 720 = cửa sổ sâu nhất lấy được -> mỗi lần chạy tự lấp mọi gap ngắn hơn 30 ngày.
+echo "======== STEP 3: history ${EVCS_HOURS:-720}h over ALL codes -> $TS_RAW $(date) ========"
+$M.evcs_scrape --codes-file "$MERGED_CODES" --hours "${EVCS_HOURS:-720}" --out "$TS_RAW"
 
 echo "======== STEP 4: merge $TS_RAW -> data/interim/evcs_timeseries/ $(date) ========"
 $M.split_timeseries --input "$TS_RAW"

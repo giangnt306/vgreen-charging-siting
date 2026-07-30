@@ -1,27 +1,33 @@
 #!/usr/bin/env python3
 """
-evcs_scrape.py — Lấy time-series "số ô tô sạc" (24h/7 ngày) từ evcs.vn.
+evcs_scrape.py — Lấy time-series "số ô tô sạc" từ evcs.vn (mặc định 30 ngày).
 
-CƠ CHẾ THẬT (giải mã từ scripts.js của trang trạm):
+CƠ CHẾ THẬT (đo lại trực tiếp 2026-07-29 — site đã đổi so với bản crawl 07-21/22):
   - /update (POST) chỉ là ping analytics -> luôn 204, BỎ QUA.
-  - Dữ liệu chart đi qua Socket.IO:
-        socket = io('/')
-        socket.emit('subscribe', stationId)
-        socket.emit('history', { stationId, hours })   # hours = 24 | 168
-        socket.on('history_data', data)  # data = [{timestamp, value}]  value = số xe
-  - Trang bị Cloudflare -> phải mở bằng trình duyệt thật (Playwright) để có cf_clearance,
-    rồi tái dùng chính socket same-origin của trang => tự qua Cloudflare.
+  - Dữ liệu chart đi qua Socket.IO, nhưng KHÔNG còn same-origin:
+        socket = io('https://www2.evcs.vn/', {path:'/socket.io', auth:<fn>, ...})
+        socket.emit('history', { stationId, hours, token:'', detail:false })
+        socket.on('history_data', data)   # data = [[timestamp, value], ...]
+  - `hours` là ENUM {24, 168, 720} khớp 3 nút UI "24 giờ / 7 ngày / 30 ngày".
+    Giá trị ngoài enum (72/336/576/1440…) server im lặng bỏ qua -> timeout.
+  - `subscribe` KHÔNG cần cho history (đo: 20/20 trạm OK khi bỏ) — bỏ đi để socket
+    dùng chung không phải nuốt luồng `new_data` realtime của mọi trạm đã hỏi.
+  - Handshake có `auth` callback sinh token ký; không tái tạo được từ Python nên
+    ta mượn lại đối tượng opts của chính trang (xem `session.py`).
 
-Cài đặt:
-    pip install playwright
-    playwright install chromium
+BA THAY ĐỔI PHÁ VỠ so với code cũ (nếu thấy 0 dòng/`AttributeError` thì là đây):
+  host `io('/')` -> `www2.evcs.vn` · thiếu `auth` -> handshake bị từ chối ·
+  payload `[{timestamp,value}]` -> `[[ts,value]]`.
+
+CÔ LẬP DANH TÍNH (F3): payload history_data KHÔNG mang stationId, nên không thể
+hậu kiểm bằng nội dung. Thay vì 1 socket/trạm (đo: 1,24 s/trạm ≈ 6,6 h) ta dùng
+socket dùng chung + **một request in-flight tại một thời điểm** + **vứt và dựng
+lại socket ngay khi timeout** (đo: 0,37 s/trạm ≈ 2,0 h). Reply muộn của trạm A vì
+thế rơi vào socket đã đóng, không thể resolve request của trạm B.
 
 Chạy:
-    # 1) Lấy history cho vài mã trạm cụ thể:
-    python evcs_scrape.py --codes C.HNO16154 C.HCM1339 --hours 168
-
-    # 2) Enumerate toàn bộ mã trạm từ sitemap rồi lấy history:
-    python evcs_scrape.py --from-sitemap --hours 168
+    python -m ev_siting.data.evcs.evcs_scrape --codes C.HNO16154 --hours 720
+    python -m ev_siting.data.evcs.evcs_scrape --codes-file data/interim/evcs_all_codes.txt
 
 Output (F2): mặc định ghi RAW RUN BẤT BIẾN `data/raw/evcs/timeseries_runs/load_ts_<run-id>.csv`
 (kèm `<run>.done` để resume và `<run>.failed` để audit/retry). Không bao giờ ghi đè run cũ;
@@ -33,57 +39,34 @@ import csv
 import os
 import re
 import sys
+import time
 from datetime import datetime
 
 from playwright.sync_api import sync_playwright
 
 from .paths import TIMESERIES_RUNS_DIR
+from .session import BOOTSTRAP_PAGES, open_session, renew_session, reset_socket
 
 BASE = "https://evcs.vn"
-# Trang trạm để nạp socket.io + qua Cloudflare. Nhiều URL dự phòng: URL này chết thì thử URL kế.
-BOOTSTRAP_PAGES = [
-    f"{BASE}/tram-sac-vinfast-nguyen-van-chenh-thon-dao-xuyen-xa-bat-trang-c.hno16154.html",
-    f"{BASE}/tram-sac-vinfast-c.hcm0014.html",
-]
 BOOTSTRAP_PAGE = BOOTSTRAP_PAGES[0]  # tương thích ngược
+HOURS_ALLOWED = (24, 168, 720)  # enum server chấp nhận; ngoài enum -> im lặng timeout
 
-# JS chạy TRONG trang. Mỗi trạm có socket riêng (F3): payload history_data không
-# mang correlation id/stationId, nên socket dùng chung có thể gán reply muộn của A
-# sang promise B sau một timeout.
-FETCH_JS = """
-async ([stationIds, hours]) => {
-  const out = {};
-  for (const sid of stationIds) {
-    const socket = io('/', { transports:['websocket','polling'], reconnection:false, timeout:10000 });
-    try {
-      await new Promise((resolve, reject) => {
-        const onError = (err) => { clearTimeout(timer); reject(err); };
-        const timer = setTimeout(() => reject(new Error('socket timeout')), 10000);
-        socket.once('connect', () => { clearTimeout(timer); socket.off('connect_error', onError); resolve(); });
-        socket.once('connect_error', onError);
-      });
-      out[sid] = await new Promise((resolve) => {
-        let settled = false;
-        const done = (data) => finish(data);
-        const timer = setTimeout(() => finish(null), 8000);
-        const finish = (value) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          socket.off('history_data', done);
-          resolve(value);
-        };
-        socket.once('history_data', done);
-        socket.emit('subscribe', sid);
-        socket.emit('history', { stationId: sid, hours });
-      });
-    } catch (_) {
-      out[sid] = null;
-    } finally {
-      socket.disconnect();
-    }
-  }
-  return out;
+# JS chạy TRONG trang: hỏi history cho MỘT trạm trên socket dùng chung của trang.
+# Một request in-flight tại một thời điểm; timeout được báo về Python để nơi đó
+# vứt socket (xem `session.reset_socket`) trước khi hỏi trạm kế -> cô lập danh tính.
+ASK_JS = """
+async ([sid, hours, timeoutMs]) => {
+  const s = window.__page_socket;
+  if (!s || !s.connected) return { status: 'socket_down' };
+  const t0 = performance.now();
+  const r = await new Promise((resolve) => {
+    const h = (d) => { clearTimeout(timer); resolve({ status: 'ok', data: d }); };
+    const timer = setTimeout(() => { s.off('history_data', h); resolve({ status: 'timeout' }); }, timeoutMs);
+    s.once('history_data', h);
+    s.emit('history', { stationId: sid, hours, token: '', detail: false });
+  });
+  r.ms = performance.now() - t0;
+  return r;
 }
 """
 
@@ -151,29 +134,52 @@ def get_or_cache_sitemap_codes(ctx, codes_path):
     return codes
 
 
-def bootstrap(page, ctx, tries=4):
-    """Nạp trang qua Cloudflare + đảm bảo io() sẵn sàng (retry nếu socket.io chưa nạp)."""
-    # domcontentloaded (KHÔNG networkidle): trang giữ 1 kết nối Socket.IO thường trực
-    # nên mạng không bao giờ "idle" -> networkidle sẽ treo tới hết timeout.
-    for attempt in range(tries):
-        url = BOOTSTRAP_PAGES[attempt % len(BOOTSTRAP_PAGES)]  # xoay vòng URL dự phòng
-        try:
-            page.goto(url, wait_until="domcontentloaded", timeout=60000)
-            for _ in range(45):
-                if any(c["name"] == "cf_clearance" for c in ctx.cookies()):
-                    break
-                page.wait_for_timeout(1000)
-            ok = any(c["name"] == "cf_clearance" for c in ctx.cookies())
-            print("    cf_clearance:", "OK" if ok else "CHƯA CÓ")
-            page.wait_for_function("typeof io !== 'undefined'", timeout=20000)
-            return
-        except Exception as e:
-            print(f"    ! bootstrap thử {attempt + 1}/{tries} ({url}) lỗi ({str(e)[:60]}); nạp lại...")
-            page.wait_for_timeout(3000)
-    raise RuntimeError("bootstrap thất bại: io() không sẵn sàng sau nhiều lần thử")
+def normalize_series(data):
+    """`history_data` -> [(timestamp, value)]. Trả (rows, n_bỏ_qua).
+
+    Chấp nhận CẢ HAI định dạng: `[[ts, value], …]` (từ 2026-07-29) và
+    `[{timestamp, value}, …]` (bản cũ, để đọc lại được run 07-21/22). Điểm không
+    parse được KHÔNG bị nuốt im lặng mà được đếm — nếu server đổi schema lần nữa,
+    `run()` sẽ dừng thay vì ghi hàng triệu dòng null.
+    """
+    if not isinstance(data, list):
+        return None, 0
+    rows, n_bad = [], 0
+    for pt in data:
+        if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+            rows.append((pt[0], pt[1]))
+        elif isinstance(pt, dict) and "timestamp" in pt:
+            rows.append((pt.get("timestamp"), pt.get("value")))
+        else:
+            n_bad += 1
+    return rows, n_bad
 
 
-def run(codes, hours, out_path, from_sitemap, resume=True, overwrite=False):
+def ask_station(page, ctx, sid, hours, timeout_ms=20000):
+    """Hỏi history 1 trạm. Trả (rows|None, ghi_chú).
+
+    Mọi nhánh hỏng (timeout / socket chết / evaluate lỗi) đều **dựng lại socket**
+    trước khi trả về, nên request kế tiếp không bao giờ nhận reply muộn của trạm này.
+    """
+    try:
+        r = page.evaluate(ASK_JS, [sid, hours, timeout_ms])
+    except Exception as e:
+        reset_socket(page, verbose=False) or renew_session(ctx, page, verbose=False)
+        return None, f"evaluate: {str(e)[:60]}"
+    if r.get("status") != "ok":
+        note = r.get("status")
+        if not reset_socket(page, verbose=False):
+            renew_session(ctx, page, verbose=False)
+        return None, note
+    rows, n_bad = normalize_series(r.get("data"))
+    if rows is None:
+        return None, f"payload lạ: {type(r.get('data')).__name__}"
+    return rows, ("ok" if not n_bad else f"ok ({n_bad} điểm không parse được)")
+
+
+def run(codes, hours, out_path, from_sitemap, resume=True, overwrite=False, sleep=0.05, headless=False):
+    if hours not in HOURS_ALLOWED:
+        raise SystemExit(f"--hours={hours} không nằm trong enum server chấp nhận {HOURS_ALLOWED} -> sẽ timeout 100%.")
     done_path = out_path + ".done"  # 1 mã/dòng: các trạm đã crawl xong
     failed_path = out_path + ".failed"  # timeout/socket error: giữ lại để retry/audit
     codes_path = out_path + ".codes"  # cache danh sách mã từ sitemap
@@ -189,81 +195,65 @@ def run(codes, hours, out_path, from_sitemap, resume=True, overwrite=False):
     done_f = open(done_path, "w" if overwrite else "a", encoding="utf-8")
     failed_f = open(failed_path, "w" if overwrite else "a", encoding="utf-8")
 
-    total_written = 0
+    total_written = n_ok = n_fail = n_empty = 0
+    t_start = time.time()
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False)  # True + xvfb nếu chạy server
-            ctx = browser.new_context(
-                locale="vi-VN",
-                user_agent=("Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0"),
-            )
-            # Ẩn navigator.webdriver (bẫy bot trong isHeadlessBrowser)
-            ctx.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>false})")
-            page = ctx.new_page()
-
-            print(f"[1] Nạp trang bootstrap (qua Cloudflare): {BOOTSTRAP_PAGE}")
-            bootstrap(page, ctx)
+            print(f"[1] Mở phiên evcs.vn (Cloudflare + socket {BOOTSTRAP_PAGE.split('/')[2]})", flush=True)
+            ctx, page = open_session(p, headless=headless)
 
             if from_sitemap:
                 codes = get_or_cache_sitemap_codes(ctx, codes_path)
 
             pending = [c for c in codes if c not in done]
-            print(f"[3] Lấy history (hours={hours}): {len(done)} đã xong, {len(pending)}/{len(codes)} còn lại.")
+            print(
+                f"[2] Lấy history (hours={hours}): {len(done)} đã xong, {len(pending)}/{len(codes)} còn lại.",
+                flush=True,
+            )
 
-            BATCH = 50  # emit theo lô để tránh giữ 1 promise quá lâu
-            for i in range(0, len(pending), BATCH):
-                batch = pending[i : i + BATCH]
-                try:
-                    result = page.evaluate(FETCH_JS, [batch, hours])
-                except Exception as e:  # socket/nav hỏng -> nạp lại 1 lần
-                    print(f"    ! batch lỗi ({e}); nạp lại trang & thử lại...", file=sys.stderr)
-                    try:
-                        bootstrap(page, ctx)
-                        result = page.evaluate(FETCH_JS, [batch, hours])
-                    except Exception as e2:
-                        print(f"    !! bỏ qua batch (retry lỗi: {e2})", file=sys.stderr)
-                        failed_f.write("\n".join(batch) + "\n")
-                        continue
-                # F6: timeout từng station không được biến thành `.done`. Thử lại
-                # ngay một pass; chỉ lỗi còn lại mới đi vào `.failed` để lần chạy sau retry.
-                retry_codes = [sid for sid in batch if result.get(sid) is None]
-                if retry_codes:
-                    print(f"    ! retry history cho {len(retry_codes)} trạm timeout...")
-                    try:
-                        retried = page.evaluate(FETCH_JS, [retry_codes, hours])
-                        for sid, series in retried.items():
-                            if series is not None:
-                                result[sid] = series
-                    except Exception as e:
-                        print(f"    ! retry history lỗi ({e})", file=sys.stderr)
-                for sid, series in result.items():
-                    if series is None:
+            for i, sid in enumerate(pending, 1):
+                rows, note = ask_station(page, ctx, sid, hours)
+                if rows is None:  # F6: hỏng KHÔNG được tính là `.done`
+                    rows, note2 = ask_station(page, ctx, sid, hours)  # một pass retry ngay
+                    if rows is None:
                         failed_f.write(sid + "\n")
+                        n_fail += 1
+                        if n_fail <= 20 or n_fail % 100 == 0:
+                            print(f"    ! {sid} thất bại ({note} / {note2})", file=sys.stderr, flush=True)
                         continue
-                    for pt in series or []:
-                        writer.writerow(
-                            {
-                                "station_code": sid,
-                                "timestamp": pt.get("timestamp"),
-                                "n_cars_charging": pt.get("value"),
-                            }
-                        )
-                        total_written += 1
-                    done_f.write(sid + "\n")  # chỉ response hợp lệ mới được resume bỏ qua
-                out_f.flush()
-                done_f.flush()
-                failed_f.flush()
-                print(f"    ...{min(i + BATCH, len(pending))}/{len(pending)}  (+{total_written} điểm tích luỹ)")
+                for ts, val in rows:
+                    writer.writerow({"station_code": sid, "timestamp": ts, "n_cars_charging": val})
+                total_written += len(rows)
+                n_ok += 1
+                n_empty += 1 if not rows else 0
+                done_f.write(sid + "\n")  # chỉ response hợp lệ mới được resume bỏ qua
 
-            browser.close()
+                if i % 200 == 0 or i == len(pending):
+                    out_f.flush()
+                    done_f.flush()
+                    failed_f.flush()
+                    el = time.time() - t_start
+                    eta = el / i * (len(pending) - i)
+                    print(
+                        f"    ...{i}/{len(pending)}  ok={n_ok} fail={n_fail} rỗng={n_empty}  "
+                        f"{total_written:,} điểm  |  {el / 60:.1f}' trôi, ETA {eta / 60:.0f}'",
+                        flush=True,
+                    )
+                if sleep:
+                    time.sleep(sleep)
+
+            ctx.close()
     finally:
         out_f.close()
         done_f.close()
         failed_f.close()
     remaining_failed = reconcile_failed(failed_path, load_done(done_path))
     if remaining_failed:
-        print(f"[4] Còn {len(remaining_failed)} trạm failed -> {failed_path} (sẽ retry khi resume)")
-    print(f"[4] Xong. Đã ghi thêm {total_written} điểm -> {out_path}")
+        print(f"[3] Còn {len(remaining_failed)} trạm failed -> {failed_path} (sẽ retry khi resume)")
+    print(
+        f"[3] Xong sau {(time.time() - t_start) / 60:.1f}'. ok={n_ok} fail={n_fail} rỗng={n_empty}; "
+        f"ghi thêm {total_written:,} điểm -> {out_path}"
+    )
 
 
 if __name__ == "__main__":
@@ -275,10 +265,13 @@ if __name__ == "__main__":
         action="store_true",
         help="[HỎNG] sitemap không chứa mã trạm — dùng evcs_enumerate.py + --codes-file",
     )
-    ap.add_argument("--hours", type=int, default=168, help="24 (1 ngày) hoặc 168 (7 ngày)")
+    ap.add_argument("--hours", type=int, default=720, help="ENUM server: 24 (1 ngày) | 168 (7 ngày) | 720 (30 ngày)")
     ap.add_argument("--out", help="raw run CSV; mặc định tạo run mới trong data/raw/evcs/timeseries_runs/")
     ap.add_argument("--no-resume", action="store_true", help="Bỏ qua file .done, crawl lại từ đầu")
     ap.add_argument("--overwrite", action="store_true", help="Crawl mới: ghi đè CSV và file .done của --out")
+    ap.add_argument("--limit", type=int, help="Chỉ crawl N mã đầu (pilot/kiểm thử)")
+    ap.add_argument("--sleep", type=float, default=0.05, help="Nghỉ giữa 2 trạm (giây) — lịch sự với nguồn")
+    ap.add_argument("--headless", action="store_true", help="Chạy ẩn (profile đã có cf_clearance thì được)")
     args = ap.parse_args()
     if args.out is None:
         TIMESERIES_RUNS_DIR.mkdir(parents=True, exist_ok=True)
@@ -290,4 +283,15 @@ if __name__ == "__main__":
             codes += [ln.strip() for ln in f if ln.strip()]
     if not codes and not args.from_sitemap:
         codes = ["C.HNO16154"]
-    run(codes, args.hours, args.out, args.from_sitemap, resume=not args.no_resume, overwrite=args.overwrite)
+    if args.limit:
+        codes = codes[: args.limit]
+    run(
+        codes,
+        args.hours,
+        args.out,
+        args.from_sitemap,
+        resume=not args.no_resume,
+        overwrite=args.overwrite,
+        sleep=args.sleep,
+        headless=args.headless,
+    )

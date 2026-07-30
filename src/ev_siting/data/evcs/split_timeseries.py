@@ -61,8 +61,12 @@ def flush(code, rows, ts_dir=TS_DIR):
             "overlap": n_overlap, "bad_existing": n_bad_existing}
 
 
-def main(input_path=LOAD_TS):
-    os.makedirs(TS_DIR, exist_ok=True)
+def main(input_path=LOAD_TS, ts_dir=TS_DIR):
+    """`ts_dir` tach duoc vi tu 2026-07-29 nguon co HAI TANG LAY MAU khac han nhau:
+    hours=168 tra su kien (gap trung vi ~1,5') con hours=720 tra luoi 5'. Union hai tang
+    vao cung thu muc tao chuoi mat do KHONG DONG NHAT -> moi thong ke theo cua so bi lech
+    ma khong con cach nao truy nguyen diem nao thuoc tang nao. Nen moi tang mot thu muc."""
+    os.makedirs(ts_dir, exist_ok=True)
     prev = None
     buf = {}                      # timestamp(int) -> n_cars_charging(str), last-wins
     n_lines = n_files = n_dup = n_bad = n_overlap = n_bad_existing = 0
@@ -79,7 +83,7 @@ def main(input_path=LOAD_TS):
             code, ts, n = row[0], row[1], row[2]
             if code != prev:
                 if prev is not None:
-                    stats = flush(prev, buf)
+                    stats = flush(prev, buf, ts_dir)
                     n_files += 1
                     n_overlap += stats["overlap"]
                     n_bad_existing += stats["bad_existing"]
@@ -97,13 +101,13 @@ def main(input_path=LOAD_TS):
             if n_lines % 2_000_000 == 0:
                 print(f"    ...{n_lines:,} dòng, {n_files:,} trạm, dup gộp={n_dup:,}", flush=True)
         if prev is not None:
-            stats = flush(prev, buf)
+            stats = flush(prev, buf, ts_dir)
             n_files += 1
             n_overlap += stats["overlap"]
             n_bad_existing += stats["bad_existing"]
 
     print(f"    Xong: {n_lines:,} dòng -> {n_files:,} file trong "
-          f"{os.path.relpath(TS_DIR, PROJECT_ROOT)}/", flush=True)
+          f"{os.path.relpath(ts_dir, PROJECT_ROOT)}/", flush=True)
     print(f"    Timestamp trùng đã gộp : {n_dup:,}", flush=True)
     print(f"    Timestamp trùng với canonical cũ (raw mới thắng): {n_overlap:,}", flush=True)
     print(f"    Dòng hỏng bỏ qua       : {n_bad:,}", flush=True)
@@ -116,5 +120,7 @@ if __name__ == "__main__":
 
     ap = argparse.ArgumentParser(description="Merge một raw EVCS time-series run vào canonical theo station_code")
     ap.add_argument("--input", default=str(LOAD_TS), help="raw run CSV cần merge")
+    ap.add_argument("--ts-dir", default=str(TS_DIR),
+                    help="thư mục canonical đích (tách riêng mỗi TẦNG LẤY MẪU: 168h=sự kiện, 720h=lưới 5')")
     args = ap.parse_args()
-    main(args.input)
+    main(args.input, args.ts_dir)

@@ -20,8 +20,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from .paths import CATALOG_CSV, CONNECTORS_DIR, LOAD_TS, PROJECT_ROOT, STATIONS_DIR
 from ..provenance import manifest as snapshot_manifest
+from .paths import CATALOG_CSV, CONNECTORS_DIR, LOAD_TS, PROJECT_ROOT, STATIONS_DIR
 
 REQUIRED_STATION_COLS = {
     "station_id", "station_code", "op_status", "access", "is_operational",

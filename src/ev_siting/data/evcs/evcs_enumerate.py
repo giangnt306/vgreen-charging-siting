@@ -93,7 +93,53 @@ FIELDS = [
     "n_battery",
     "n_battery_avail",
 ]
+# Che do --seed-from-official ghi them 1 cot: `is_new` = ma nay CHUA co trong catalog
+# da biet luc seed. Giu rieng thay vi nhet vao FIELDS de khong doi schema cua 3 tab quet luoi.
+FIELDS_SEED = FIELDS + ["is_new"]
 CODE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def seed_targets_from_official(official_stations, known_codes, statuses=("ACTIVE", "BUSY")):
+    """-> [(store_id, lat, lng)] cac cua hang official CHUA co trong catalog evcs.
+
+    VI SAO CO HAM NAY (L10, 29/07). Dot bo sung 29/07 tim duoc 298 tram bang cach seed
+    CO DICH tu registry VinFast (285 truy van) thay vi quet luoi ~28.000 truy van — nhung
+    script sinh ra no KHONG nam trong repo: file `evcs_stations_2026-07-29-new.csv` mang
+    cot `is_new` ma `FIELDS` khong he co, va no da bi dong bang vao MANIFEST. Tuc la 298
+    tram trong canonical (19.507 -> 19.805) khong tai sinh duoc — dung lai lop loi F20.
+
+    GIOI HAN PHAI KHAI: ham nay tai lap duoc **quy trinh**, khong tai lap duoc **dung 298
+    dong do** — evcs.vn la nguon song, moi lan chay ra mot snapshot khac. Bu lai, tap seed
+    la ham TAT DINH cua (registry, catalog) nen kiem chung duoc ma khong can mang.
+
+    THIEN LECH PHAI KHAI (E-DQ2 / doc lap nguon): seed lay tu registry nen tram evcs-only
+    (do: 170 dong `match_method=none`) KHONG BAO GIO duoc tim thay bang che do nay. No bo
+    sung cho quet luoi chu khong thay the.
+
+    PHAI DUNG BAN REGISTRY MOI (do 29/07): voi gen 16 (frozen 22/07) chi ra **12** diem
+    seed va phu 7/298 ma moi; voi gen 179 (pull 29/07) ra **252** diem seed va phu
+    **242/298 (81%)** — phan con lai la tram nam quanh diem seed, mot truy van /search
+    tra ve moi tram gan do. Vi the `run_enrich` lay `latest_registry()`, khong lay ban
+    frozen. He qua: **muon tim tram moi thi phai pull registry moi truoc.**
+    """
+    known = {str(c).strip() for c in known_codes if str(c).strip()}
+    out, seen = [], set()
+    for r in official_stations.itertuples():
+        sid = str(getattr(r, "store_id", "") or "").strip()
+        if not sid or sid in known or sid in seen:
+            continue
+        if statuses and str(getattr(r, "charging_status", "") or "").strip().upper() not in statuses:
+            continue
+        try:
+            lat, lng = float(r.lat), float(r.lng)
+        except (TypeError, ValueError):
+            continue
+        if not (VN_BBOX[0] <= lat <= VN_BBOX[1] and VN_BBOX[2] <= lng <= VN_BBOX[3]):
+            continue
+        seen.add(sid)
+        out.append((sid, lat, lng))
+    out.sort()                     # tat dinh: khong phu thuoc thu tu dong cua parquet
+    return out
 
 
 def rec_from_search(s):
@@ -244,24 +290,45 @@ def run_enrich(args):
     codes_path = os.path.splitext(args.out)[0] + "_codes.txt"
     failed_path = os.path.splitext(args.out)[0] + "_failed.txt"
 
-    # 1) toạ độ mục tiêu (lọc theo --type qua cột 'tab' nếu catalog có)
+    # 1) toạ độ mục tiêu — hai nguồn seed, cùng một vòng truy vấn phía dưới
     targets, order = {}, []
-    with open(args.enrich_from, encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            code = row.get("code")
-            if not code:
-                continue
-            tab = row.get("tab")
-            if tab not in (None, "", args.type):
-                continue
-            try:
-                lat, lng = float(row["lat"]), float(row["lng"])
-            except (TypeError, ValueError, KeyError):
-                continue
-            if code not in targets:
-                targets[code] = (lat, lng)
-                order.append(code)
-    print(f"[0] {len(targets)} trạm mục tiêu (type={args.type}) từ {args.enrich_from}")
+    seed_mode = bool(getattr(args, "seed_from_official", False))
+    known_codes = set()
+    seed_gen = None
+    if seed_mode:
+        import pandas as pd
+
+        from ..vinfast_official.paths import latest_registry
+
+        if args.enrich_from and os.path.exists(args.enrich_from):
+            known_codes = {r.get("code", "") for r in csv.DictReader(open(args.enrich_from, encoding="utf-8"))}
+        seed_gen, _raw_dir, stations_parquet = latest_registry()
+        seeds = seed_targets_from_official(pd.read_parquet(stations_parquet), known_codes)
+        for sid, lat, lng in seeds:
+            targets[sid] = (lat, lng)
+            order.append(sid)
+        print(f"[0] {len(targets)} điểm seed từ registry generation={seed_gen} "
+              f"({stations_parquet.name}); catalog đã biết {len(known_codes)} mã")
+        if not seeds:
+            print("    ! 0 seed — registry chưa được pull lại thì không có trạm nào 'mới'. "
+                  "Chạy `make official` trước.")
+    else:
+        with open(args.enrich_from, encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                code = row.get("code")
+                if not code:
+                    continue
+                tab = row.get("tab")
+                if tab not in (None, "", args.type):
+                    continue
+                try:
+                    lat, lng = float(row["lat"]), float(row["lng"])
+                except (TypeError, ValueError, KeyError):
+                    continue
+                if code not in targets:
+                    targets[code] = (lat, lng)
+                    order.append(code)
+        print(f"[0] {len(targets)} trạm mục tiêu (type={args.type}) từ {args.enrich_from}")
 
     # 2) resume: giữ nguyên hàng đã có trong --out; trạm CÓ evse_powers coi như đã lấy
     enriched, seen = {}, set()
@@ -275,12 +342,16 @@ def run_enrich(args):
                 seen.add(c)
         print(f"    resume: {len(enriched)} hàng trong {args.out}, {len(seen)} đã có evse_powers")
 
+    fields_out = FIELDS_SEED if seed_mode else FIELDS
+
     def flush_out():
         tmp = args.out + ".tmp"
         with open(tmp, "w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=FIELDS, extrasaction="ignore")
+            w = csv.DictWriter(f, fieldnames=fields_out, extrasaction="ignore")
             w.writeheader()
             for rrow in enriched.values():
+                if seed_mode:
+                    rrow = {**rrow, "is_new": rrow.get("code", "") not in known_codes}
                 w.writerow(rrow)
         os.replace(tmp, args.out)
 
@@ -376,6 +447,15 @@ def run_enrich(args):
         browser.close()
 
     flush_out()
+    if seed_mode:
+        # Provenance cua dot seed: khong co no thi file catalog sinh ra khong truy duoc
+        # ve ban registry nao — dung lo hong da lam `evcs_stations_2026-07-29-new.csv`
+        # thanh mo coi (L10).
+        with open(os.path.splitext(args.out)[0] + ".seed.json", "w", encoding="utf-8") as f:
+            json.dump({"mode": "seed_from_official", "registry_generation": seed_gen,
+                       "n_seed_points": len(targets), "n_queries": n_queries,
+                       "n_rows_out": len(enriched), "known_codes_from": args.enrich_from,
+                       "n_known_codes": len(known_codes)}, f, ensure_ascii=False, indent=2)
     with open(codes_path, "w", encoding="utf-8") as f:
         f.write("\n".join(sorted(enriched)) + "\n")
     with open(failed_path, "w", encoding="utf-8") as f:
@@ -418,9 +498,18 @@ def main():
         "để lấp cột mới (evse_powers…) cho ĐÚNG các station_code đó — bounded, "
         "bỏ qua trạm đã lấy nên rẻ hơn discovery nhiều. Resume theo --out.",
     )
+    ap.add_argument(
+        "--seed-from-official",
+        action="store_true",
+        help="CHẾ ĐỘ SEED CÓ ĐÍCH (L10): lấy toạ độ seed từ registry VinFast "
+        "(`official_stations.parquet`) cho các store CHƯA có trong --enrich-from, rồi "
+        "truy vấn /search tại từng điểm. Vài trăm truy vấn thay vì ~28.000 của quét lưới. "
+        "Ghi thêm cột `is_new`. LƯU Ý: chỉ tìm được trạm CÓ trong registry — trạm evcs-only "
+        "không bao giờ lộ ra bằng chế độ này, nên nó BỔ SUNG cho quét lưới, không thay thế.",
+    )
     args = ap.parse_args()
 
-    if args.enrich_from:
+    if args.enrich_from or args.seed_from_official:
         run_enrich(args)
         return
 

@@ -25,13 +25,17 @@ PBF_PATH = RAW_DIR / "vietnam-latest.osm.pbf"       # Geofabrik dump (nguồn ro
 
 # --- cleaned / derived (data/interim/osm) ---
 INTERIM_DIR = DATA / "interim" / "osm"
-POI_POINTS = INTERIM_DIR / "osm_poi_points.parquet"     # 1 dòng/POI (đã gán h3)
+POI_POINTS = INTERIM_DIR / "osm_poi_points.parquet"     # 1 dòng/POI TRONG VN (đã gán h3)
+POI_OUTSIDE_VN = INTERIM_DIR / "osm_poi_outside_vn.parquet"  # POI bbox-spill bị cắt (E-DQ11, để audit)
 ROADS_H3 = INTERIM_DIR / "osm_roads_h3.parquet"         # road_len theo ô H3
 DEMAND_COMPONENTS = INTERIM_DIR / "osm_demand_components_h3.parquet"  # gộp POI+road theo H3
 QUALITY_REPORT = INTERIM_DIR / "osm_quality_report.json"
 
 # --- vùng phủ & lưới ---
 # Bounding box Việt Nam (bao gồm cả quần đảo xa bờ): (min_lat, min_lon, max_lat, max_lon)
+# CHỈ dùng để CHIA Ô TRUY VẤN Overpass — KHÔNG phải bộ lọc lãnh thổ. Hình chữ nhật này trùm
+# Đông Bắc Thái Lan, Nam Lào, phần lớn Campuchia và Quảng Tây/Vân Nam; lọc bằng nó cho lọt
+# 54,2% POI ngoại biên (E-DQ11). Cắt lãnh thổ PHẢI dùng `ev_siting.vn_boundary`.
 VN_BBOX = (8.0, 102.0, 23.7, 110.0)
 H3_RES_R8 = 8
 H3_RES_R9 = 9

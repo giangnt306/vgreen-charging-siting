@@ -16,7 +16,9 @@ import sys
 
 import pandas as pd
 
-from .paths import DEMAND_COMPONENTS, POI_POINTS, QUALITY_REPORT, ROADS_H3, VN_BBOX, ensure_dirs
+from ev_siting.vn_boundary import mask_points_in_vn
+
+from .paths import DEMAND_COMPONENTS, POI_OUTSIDE_VN, POI_POINTS, QUALITY_REPORT, ROADS_H3, ensure_dirs
 
 
 def _check(report, name, ok, detail="", fatal=True):
@@ -30,18 +32,21 @@ def run():
     ensure_dirs()
     report = {"checks": [], "stats": {}}
     all_ok = True
-    s_lat, w_lon, n_lat, e_lon = VN_BBOX
 
     if POI_POINTS.exists():
         poi = pd.read_parquet(POI_POINTS)
         report["stats"]["n_poi_points"] = int(len(poi))
         report["stats"]["poi_by_category"] = poi["category"].value_counts().to_dict()
-        # dung sai biên: tâm way giáp ranh có thể lệch vài chục mét ngoài bbox truy vấn
-        tol = 0.05
-        in_bbox = (poi["lat"].between(s_lat - tol, n_lat + tol)
-                   & poi["lng"].between(w_lon - tol, e_lon + tol))
-        all_ok &= _check(report, "poi_coords_in_vn",
-                         bool(in_bbox.all()), f"{(~in_bbox).sum()} ngoài bbox (±{tol}°)")
+        # E-DQ11: kiểm tra ĐA GIÁC lãnh thổ, không phải bbox. Bản cũ hỏi `lat.between(bbox)`
+        # nên luôn PASS trong khi 54,2% POI nằm ở Thái Lan/Campuchia/Quảng Tây — cổng hỏi
+        # sai câu hỏi thì không bao giờ đỏ (cùng họ lỗi với F4).
+        in_vn = mask_points_in_vn(poi["lat"], poi["lng"])
+        n_out = int((~in_vn).sum())
+        all_ok &= _check(report, "poi_coords_in_vn", n_out == 0,
+                         f"{n_out} POI ngoài đa giác lãnh thổ VN")
+        report["stats"]["n_poi_clipped_outside_vn"] = (
+            int(len(pd.read_parquet(POI_OUTSIDE_VN))) if POI_OUTSIDE_VN.exists() else None
+        )
         dup = poi.duplicated(["osm_type", "osm_id", "category"]).sum()
         all_ok &= _check(report, "poi_no_dup", dup == 0, f"{dup} trùng")
         all_ok &= _check(report, "poi_has_h3", bool(poi["h3_r8"].notna().all()), fatal=False)

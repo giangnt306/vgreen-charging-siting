@@ -104,6 +104,7 @@ def _osm_version(pbf: Path) -> dict:
 def source_specs() -> list[dict]:
     """Khai báo toàn bộ nguồn thô + provenance. Path có thể chưa tồn tại (freeze sẽ
     ghi ``present=false`` và bỏ qua) — cho phép freeze từng phần khi crawl dở."""
+    from ... import vn_boundary as vnb
     from ..evcs import paths as evcs
     from ..landuse import paths as lu
     from ..osm import paths as osm
@@ -137,11 +138,15 @@ def source_specs() -> list[dict]:
             "name": "evcs.vn — catalog trạm sạc công cộng + telemetry occupancy",
             "retrieval_url": "https://evcs.vn (API bản đồ nội bộ)",
             "license": "Proprietary (public map API, dùng cho nghiên cứu)",
-            "vintage": "crawl 2026-07-21/22",
+            "vintage": "crawl 2026-07-21/22 (168h) + 2026-07-29 (720h)",
             "temporal_extent": evcs_window or None,
             "members": [
                 {"role": "catalog", "path": evcs.CATALOG_DIR, "kind": "dir"},
                 {"role": "occupancy_timeseries", "path": evcs.LOAD_TS, "kind": "file"},
+                # Từ 29/07 mỗi lần crawl telemetry ghi ra 1 run riêng trong thư mục này và
+                # `split_timeseries` mới tách về `data/interim`. Nếu không đóng băng nó thì
+                # bản telemetry mà TOÀN BỘ master đang dựa vào nằm ngoài snapshot.
+                {"role": "occupancy_runs", "path": evcs.TIMESERIES_RUNS_DIR, "kind": "dir"},
             ],
         },
         {
@@ -154,6 +159,15 @@ def source_specs() -> list[dict]:
                 {"role": "locators_meta", "path": vo.META_JSON, "kind": "file"},
                 {"role": "locators_full", "path": vo.BULK_JSON, "kind": "file"},
                 {"role": "station_details", "path": vo.DETAIL_DIR, "kind": "dir"},
+                # Registry la nguon SONG. Pull moi ghi vao `snapshot=<ngay>/` de khong de len
+                # ban frozen — nhung phai dong bang chung, vi chinh gen 179 (29/07) la SEED
+                # sinh ra 298 tram moi trong catalog da freeze; thieu no thi dau vao cua
+                # `--seed-from-official` khong tai lap duoc (L10).
+                *[
+                    {"role": f"locators_snapshot_{d.name.split('=')[-1]}", "path": d, "kind": "dir"}
+                    for d in sorted(vo.RAW_DIR.glob(vo.SNAPSHOT_GLOB))
+                    if d.is_dir()
+                ],
             ],
         },
         {
@@ -170,12 +184,31 @@ def source_specs() -> list[dict]:
         },
         {
             "id": "worldpop",
-            "name": "WorldPop — VN mật độ dân số 2020 constrained (~100m)",
-            "retrieval_url": wp.WORLDPOP_URL,
+            "name": "WorldPop — VN mật độ dân số, HAI niên đại (~100m)",
+            "retrieval_url": f"{wp.WORLDPOP_URL} ; {wp.WORLDPOP_2025_URL}",
             "license": "CC-BY 4.0",
-            "vintage": "2020 constrained (BSGM), UN-unadjusted",
+            # Giữ cả hai: 2020 neo pre-registration track assess, 2025 sửa được lỗi mặt nạ
+            # BSGM (P10). `demand_h3` mang cả `pop` lẫn `pop_2025` -> cả hai đều là INPUT
+            # thật của sản phẩm, nên cả hai phải nằm trong snapshot.
+            "vintage": "2020 constrained (BSGM) + 2025 R2024B (CN), đều UN-unadjusted",
             "members": [
                 {"role": "population_raster", "path": wp.POP_TIF, "kind": "file"},
+                {"role": "population_raster_2025", "path": wp.POP_TIF_2025, "kind": "file"},
+            ],
+        },
+        {
+            # Lop ranh giinh hanh chinh: DA TUNG nam ngoai repo (`../evcs-dataset/data/ref/`)
+            # va ngoai manifest -> `make verify-snapshot` PASS trong khi thu gac TOAN BO
+            # E-DQ11 lai khong duoc bam. Doi lai thi moi con so cat bien doi im lang:
+            # POI (cat 20.256/37.362), luoi `demand_h3`, diem T4, cong `poi_coords_in_vn`,
+            # `admin_join`, va 2/5 tin hieu cua `coord_quality`. Vao snapshot 2026-07-29.
+            "id": "vn_admin",
+            "name": "Ranh gioi hanh chinh VN 2025-07-01 (34 tinh, 2 cap) — OSM adm6",
+            "retrieval_url": "OpenStreetMap adm6 (dan xuat, luu trong repo)",
+            "license": "ODbL 1.0 (OpenStreetMap contributors) — VAULT-only, xem admin_join.py",
+            "vintage": "valid_from=2025-07-01 (sau sap nhap 2025)",
+            "members": [
+                {"role": "boundary_layer", "path": vnb.VN_ADMIN_DIR, "kind": "dir"},
             ],
         },
         {

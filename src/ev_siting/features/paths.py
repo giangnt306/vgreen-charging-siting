@@ -41,7 +41,13 @@ GAPFILL_TOP_Q = 0.90  # chỉ gap-fill ô demand trong top-decile
 # còn mang h3_r8 null -> grid_disk crash). Tập này phải khớp TỪ VỰNG CỜ THẬT mà producer
 # sinh ra (build_master_evcs / transform_canonical / dedup_crosssource) — xem known-issues F4;
 # 2 cờ cũ DUP_COORD / COORD_ADDR_MISMATCH(pre-E-DQ1) từng là cờ ma khiến bộ lọc chết.
-DIRTY_COORD_FLAGS = frozenset({"COORD_INVALID", "COORD_PLACEHOLDER", "DUP_COORD_SUSPECT"})
+# `COORD_LOW_TRUST` (2026-07-29) = phán quyết ĐA TÍN HIỆU của `data.evcs.coord_quality`:
+# >=2 trong {addr_mismatch, stacked, DUP_COORD_SUSPECT, outside_all_communes,
+# outside_all_provinces}. Ngưỡng 2 vì mỗi tín hiệu đơn lẻ có dương tính giả thật —
+# cặp trùng toạ độ thường là hai tầng hầm hợp lệ (VinFast cấp store_id riêng).
+DIRTY_COORD_FLAGS = frozenset(
+    {"COORD_INVALID", "COORD_PLACEHOLDER", "DUP_COORD_SUSPECT", "COORD_LOW_TRUST"}
+)
 
 
 def has_dirty_coord(flags):
