@@ -9,7 +9,7 @@
   - `B` Spatial Geometry & Siting Mechanics
   - `C` Master Data & Entity Resolution
   - `D` Covariates & Feature Engineering
-  - `E` Data Quality & Cleaning (di chuyển từ `data-layer-overview.md §7` — xem [Task-1 rationale](#0-nguồn-gộp))
+  - `E` Data Quality & Cleaning (di chuyển từ `data-layer-overview.md §7` — xem Task-1 rationale)
 - **Mức độ:** 🔴 Fatal · 🟠 High · 🟡 Medium · ⚪ Low
 - **Phạm vi (trong 3 sprint):**
   - `FIX` bắt buộc sửa
@@ -28,34 +28,36 @@
 
 ## 2. Bảng tổng hợp vấn đề (đã gộp)
 
-| ID               | Nhóm | Vấn đề                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Mức | Phạm vi              | Owner           | ngày giải quyết   | Trạng thái |
-| ---------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------- | --------------- | -------------------- | ------------ |
-| **P1**     | A     | Heuristic weights thay vì fit model có giám sát trên 18,6M occupancy — ⚠️**tiền đề đã bị bác bỏ 29/07**: fit trọng số trên 10 cột hiện có chỉ hơn `pop` đơn **+0,07** và hơn **trọng số bị đảo** +0,06 ⇒ gộp vào **E-DQ7d**, đổi mục tiêu sang **bổ sung feature dòng chảy**                                                                                                                                                                   | 🟠   | SIMPLIFY              | Kỳ             | —                   | ☐           |
-| **P2**     | A     | Selection bias: chỉ quan sát demand nơi**đã có** trạm                                                                                                                                                                                                                                                                                                                                                                                                                                                        | ⚪   | DOC → FUTURE         | Giang/Kỳ       | —                   | ⊘           |
-| **P3**     | A     | Cửa sổ 7,15 ngày → bỏ qua mùa vụ/lễ/thời tiết                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | ⚪   | DOC → FUTURE         | Giang           | —                   | ⊘           |
-| **P4**     | B     | **Bán kính suy biến:** R = 500 m < khoảng cách tâm 2 ô kề (0,98 km) → MCLP = sort top-p; 500 m không phải catchment lái xe                                                                                                                                                                                                                                                                                                                                                                              | 🔴   | **FIX (chặn)** | Kỳ + Giang     | **2026-07-24** | ☑           |
-| **P5**     | B     | Candidate set chưa định nghĩa; thiếu lọc land-use (hồ/núi/đất cấm)                                                                                                                                                                                                                                                                                                                                                                                                                                             | 🟡   | SIMPLIFY              | Giang           | **2026-07-24** | ☑           |
-| **P6**     | C     | Trùng PK (236 dòng); số trạm lệch giữa doc/report (28.417 vs 28.625)                                                                                                                                                                                                                                                                                                                                                                                                                                                | 🟡   | FIX                   | Giang           | **2026-07-24** | ☑           |
-| **P7**     | C     | Nhiễm xe máy điện: dùng power tier chung thay vì chuẩn cắm (CCS2)                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 🟠   | FIX                   | Giang           | **2026-07-24** | ☑           |
-| **P8**     | C     | Thiếu lọc trạng thái vận hành & access (private vs public)                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 🟡   | FIX                   | Giang           | **2026-07-27** | ☑           |
-| **P9**     | C     | Lệch thời điểm giữa các đợt crawl (occupancy 2026 · WorldPop 2020 · OSM)                                                                                                                                                                                                                                                                                                                                                                                                                                        | 🟡   | FIX + DOC             | Giang           | —                   | ☐           |
-| **P10**    | D     | WorldPop 2020 lỗi thời (6 năm)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 🟡   | DOC                   | Giang           | —                   | ⊘           |
-| **P11**    | D     | Model tổng dân số thay vì mật độ**sở hữu ô tô** (~5–9% hộ)                                                                                                                                                                                                                                                                                                                                                                                                                                             | 🟠   | SIMPLIFY              | Giang           | —                   | ☐           |
-| **E-DQ10** | E     | Chưa freeze snapshot / provenance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 🟡   | FIX                   | Giang           | **2026-07-27** | ☑           |
-| **E-DQ9**  | E     | Grid toàn quốc vs MVP 1 thành phố (`demand_h3` toàn bảng)                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 🟡   | SIMPLIFY              | Giang           | **2026-07-27** | ☑           |
-| **E-DQ2**  | E     | Trùng chéo nguồn (evcs vs official)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | 🟠   | FIX                   | Giang           | **2026-07-27** | ☑           |
-| **E-DQ1**  | E     | Toạ độ placeholder / trùng khít                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 🟠   | FIX                   | Giang           | **2026-07-28** | ☑           |
-| **E-DQ7a** | E     | **POI ngoài lãnh thổ VN** — Overpass query bằng `VN_BBOX` thô, không clip biên giới → **54,2%** POI nằm ở Campuchia/Lào/Thái/TQ (và **8.934 km road** rò rỉ: Geofabrik cắt bằng polygon **có đệm**)                                                                                                                                                                                                                                                                       | 🔴   | **FIX (chặn)** | Giang           | **2026-07-28** | ☑           |
-| **E-DQ7b** | E     | **`road_len` sai ngữ nghĩa** — `track`+`service` tính là đường sinh cầu (19,9%); double-count 2 chiều (motorway 96,9% `oneway`); `_MAJOR` gộp cao tốc + quốc lộ + tỉnh lộ                                                                                                                                                                                                                                                                                                                 | 🟠   | FIX                   | Giang           | **2026-07-28** | ☑           |
-| **E-DQ7c** | E     | **POI thiếu & lẫn đơn vị** — `n_poi` cộng `apartments` (toà nhà) với `mall` (trung tâm) tỉ lệ 1:1 (**84,8%** số đếm ở top-100 ô là chung cư); lẫn đơn vị **bên trong** từng nhóm crawl; **335** trùng node/way + 13 đối tượng ở 2 nhóm; recall OSM **fuel 35,9% · parking 8,6%** (đo ngoại vi)                                                                                                                                                   | 🟠   | FIX + DOC             | Giang           | **2026-07-28** | ☑           |
-| **E-DQ7e** | E     | **`pop` chưa hiệu chuẩn TUYỆT ĐỐI** — raster UN-**unadjusted**: 99,627M so với bản UNadj **97,569M** (**+2,11%**). Đo 29/07: UNadj là **hằng số quốc gia 0,979344** (std **2,4e-08** trên 2,64M pixel) ⇒ **không xê dịch thứ hạng**, chỉ làm sai mọi phát biểu **tuyệt đối** (`coverage_pop`, đối chiếu GSO). **Đã đổi nguồn sang file UNadj** (không hardcode hệ số) + **3 cổng QA**; Spearman(cũ, mới) = **1,000000** trên 104.171 ô | 🟡   | FIX + DOC             | Giang           | **2026-07-29** | ☑           |
-| **E-DQ7f** | E     | **`pop` dồn cục dasymetric + DỒN THỪA cấp xã** — đo lại trên artefact UNadj: **139 ô / 745.283 dân** dồn vào 1–5 pixel (đỉnh **28.731/pixel**); ngưỡng mật độ cũ bắt **61 ô lõi TP.HCM THẬT** và **0/139** ô hỏng (**giao = 0**). Đối chiếu **VNSDI DANSO** (nguồn cấp xã độc lập): **63% khối lượng là dồn THỪA** (WorldPop>1,5×DANSO; 16 ô có 1 ô > cả xã; đảo 22×) → thêm `pop_adj` (RETOTAL 17 xã / REPLACE 53 xã, rải theo built-up) + cờ `pop_pixel_implausible`; top-500 **16→0**, 7 cổng QA | 🟠   | **DONE**              | Giang           | **2026-07-29** | ☑           |
-| **E-DQ8**  | E     | Dân cư không có đường (`pop>0 & road_access=0`) — **số liệu đã chốt: 6.350 ô / 1,268M dân** (E-DQ7b không làm xê dịch, xem ghi chú thứ tự)                                                                                                                                                                                                                                                                                                                                                  | 🟡   | FIX                   | Giang           | —                   | ☐           |
-| **E-DQ7d** | E     | **Proxy cầu chưa kiểm chứng ngoại vi** — audit 29/07: trần đo được của target ρ = **0,865**, proxy chỉ đạt **0,33** (38% tín hiệu khả dụng); **trọng số KHÔNG phải nút thắt** (fit tốt nhất 0,329 vs **đảo trọng số 0,266** vs `pop` đơn 0,261); target thô **77% là công suất** (ρ(occ, số súng) = **0,773**); **644** ô (không phải 983) có sạc thật mà mọi input = 0, **488** ô trong đó có xe sạc thật | 🔴   | **FIX (chặn)** | **Kỳ**  | —                   | ☐           |
-| **E-DQ4**  | E     | Cấu hình khuyết (`current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0`)                                                                                                                                                                                                                                                                                                                                                                                                                         | 🟡   | FIX                   | Giang           | —                   | ☐           |
-| **E-DQ5**  | E     | Trường`operator` bẩn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 🟡   | FIX                   | Giang           | —                   | ☐           |
-| **E-DQ6**  | E     | Text tự do bẩn (`name`, `address`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | ⚪   | SIMPLIFY              | Giang           | —                   | ☐           |
-| **E-DQ3**  | E     | Cột admin trống (`admin_l1_code`, `province_name`, `commune_name`, `commune_kind`)                                                                                                                                                                                                                                                                                                                                                                                                                              | 🟡   | FIX                   | Giang           | —                   | ☐           |
+| ID               | Nhóm | Vấn đề                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Mức | Phạm vi              | Owner           | ngày giải quyết   | Trạng thái |
+| ---------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------- | --------------- | -------------------- | ------------ |
+| **P1**     | A     | Heuristic weights thay vì fit model có giám sát trên 18,6M occupancy — ⚠️**tiền đề đã bị bác bỏ 29/07**: fit trọng số trên 10 cột hiện có chỉ hơn `pop` đơn **+0,07** và hơn **trọng số bị đảo** +0,06 ⇒ gộp vào **E-DQ7d**, đổi mục tiêu sang **bổ sung feature dòng chảy**                                                                                                                                                                                                                                                                       | 🟠   | SIMPLIFY              | Kỳ             | —                   | ☐           |
+| **P2**     | A     | Selection bias: chỉ quan sát demand nơi**đã có** trạm                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | ⚪   | DOC → FUTURE         | Giang/Kỳ       | —                   | ⊘           |
+| **P3**     | A     | Cửa sổ 7,15 ngày → bỏ qua mùa vụ/lễ/thời tiết                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | ⚪   | DOC → FUTURE         | Giang           | —                   | ⊘           |
+| **P4**     | B     | **Bán kính suy biến:** R = 500 m < khoảng cách tâm 2 ô kề (0,98 km) → MCLP = sort top-p; 500 m không phải catchment lái xe                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 🔴   | **FIX (chặn)** | Kỳ + Giang     | **2026-07-24** | ☑           |
+| **P5**     | B     | Candidate set chưa định nghĩa; thiếu lọc land-use (hồ/núi/đất cấm)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 🟡   | SIMPLIFY              | Giang           | **2026-07-24** | ☑           |
+| **P6**     | C     | Trùng PK (236 dòng); số trạm lệch giữa doc/report (28.417 vs 28.625)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | 🟡   | FIX                   | Giang           | **2026-07-24** | ☑           |
+| **P7**     | C     | Nhiễm xe máy điện: dùng power tier chung thay vì chuẩn cắm (CCS2)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 🟠   | FIX                   | Giang           | **2026-07-24** | ☑           |
+| **P8**     | C     | Thiếu lọc trạng thái vận hành & access (private vs public)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | 🟡   | FIX                   | Giang           | **2026-07-27** | ☑           |
+| **P9**     | C     | Lệch thời điểm giữa các đợt crawl (occupancy 2026 · WorldPop 2020 · OSM)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 🟡   | FIX + DOC             | Giang           | —                   | ☐           |
+| **P10**    | D     | WorldPop 2020 lỗi thời (6 năm)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 🟡   | DOC                   | Giang           | —                   | ⊘           |
+| **P11**    | D     | Model tổng dân số thay vì mật độ**sở hữu ô tô** (~5–9% hộ)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 🟠   | SIMPLIFY              | Giang           | —                   | ☐           |
+| **E-DQ10** | E     | Chưa freeze snapshot / provenance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 🟡   | FIX                   | Giang           | **2026-07-27** | ☑           |
+| **E-DQ9**  | E     | Grid toàn quốc vs MVP 1 thành phố (`demand_h3` toàn bảng)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 🟡   | SIMPLIFY              | Giang           | **2026-07-27** | ☑           |
+| **E-DQ2**  | E     | Trùng chéo nguồn (evcs vs official)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 🟠   | FIX                   | Giang           | **2026-07-27** | ☑           |
+| **E-DQ1**  | E     | Toạ độ placeholder / trùng khít                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 🟠   | FIX                   | Giang           | **2026-07-28** | ☑           |
+| **E-DQ7a** | E     | **POI ngoài lãnh thổ VN** — Overpass query bằng `VN_BBOX` thô, không clip biên giới → **54,2%** POI nằm ở Campuchia/Lào/Thái/TQ (và **8.934 km road** rò rỉ: Geofabrik cắt bằng polygon **có đệm**)                                                                                                                                                                                                                                                                                                                                                                           | 🔴   | **FIX (chặn)** | Giang           | **2026-07-28** | ☑           |
+| **E-DQ7b** | E     | **`road_len` sai ngữ nghĩa** — `track`+`service` tính là đường sinh cầu (19,9%); double-count 2 chiều (motorway 96,9% `oneway`); `_MAJOR` gộp cao tốc + quốc lộ + tỉnh lộ                                                                                                                                                                                                                                                                                                                                                                                                                     | 🟠   | FIX                   | Giang           | **2026-07-28** | ☑           |
+| **E-DQ7c** | E     | **POI thiếu & lẫn đơn vị** — `n_poi` cộng `apartments` (toà nhà) với `mall` (trung tâm) tỉ lệ 1:1 (**84,8%** số đếm ở top-100 ô là chung cư); lẫn đơn vị **bên trong** từng nhóm crawl; **335** trùng node/way + 13 đối tượng ở 2 nhóm; recall OSM **fuel 35,9% · parking 8,6%** (đo ngoại vi)                                                                                                                                                                                                                                                       | 🟠   | FIX + DOC             | Giang           | **2026-07-28** | ☑           |
+| **E-DQ7e** | E     | **`pop` chưa hiệu chuẩn TUYỆT ĐỐI** — raster UN-**unadjusted**: 99,627M so với bản UNadj **97,569M** (**+2,11%**). Đo 29/07: UNadj là **hằng số quốc gia 0,979344** (std **2,4e-08** trên 2,64M pixel) ⇒ **không xê dịch thứ hạng**, chỉ làm sai mọi phát biểu **tuyệt đối** (`coverage_pop`, đối chiếu GSO). **Đã đổi nguồn sang file UNadj** (không hardcode hệ số) + **3 cổng QA**; Spearman(cũ, mới) = **1,000000** trên 104.171 ô                                                                     | 🟡   | FIX + DOC             | Giang           | **2026-07-29** | ☑           |
+| **E-DQ7f** | E     | **`pop` dồn cục dasymetric + DỒN THỪA cấp xã** — đo lại trên artefact UNadj: **139 ô / 745.283 dân** dồn vào 1–5 pixel (đỉnh **28.731/pixel**); ngưỡng mật độ cũ bắt **61 ô lõi TP.HCM THẬT** và **0/139** ô hỏng (**giao = 0**). Đối chiếu **VNSDI DANSO** (nguồn cấp xã độc lập): **63% khối lượng là dồn THỪA** (WorldPop>1,5×DANSO; 16 ô có 1 ô > cả xã; đảo 22×) → thêm `pop_adj` (RETOTAL 17 xã / REPLACE 53 xã, rải theo built-up) + cờ `pop_pixel_implausible`; top-500 **16→0**, 7 cổng QA | 🟠   | **DONE**        | Giang           | **2026-07-29** | ☑           |
+| **E-DQ8a** | E     | **Lối vào đo ở thang SAI** — `buildable_h3`/E-DQ8 hỏi "ô này có đường không?" bằng cách xét **đúng ô đó**, nhưng tâm 2 ô res 8 chỉ cách 0,98 km: **4.862/6.350 ô** (72,1% khối lượng · 894.956 người) có đường ngay ở **vành 1**. Lỗi **THANG ĐO**, không phải lỗi dữ liệu — cùng bẫy `poi_coords_in_vn` (7a) / `POP_DENSITY_OUTLIER` (7f). Thêm bậc `access_tier` (DIRECT/ADJACENT/NEAR/ISOLATED) + 2 cột vành; loại cứng **chỉ** ISOLATED (**6.350 → 723 ô**). Neo ngoại vi: 99,43% trạm đang vận hành ở DIRECT, **15 trạm ở ADJACENT** ⇒ ADJACENT tới được THẬT, nhưng **không** tương đương DIRECT | 🟡   | **DONE**              | Giang           | **2026-07-30** | ☑           |
+| **E-DQ8b** | E     | **Dân ở ô không có lối vào chưa được dời** — dùng lại đúng bộ máy 7f (trọng tài DANSO → rải theo built-up → kế toán theo TỔNG) nhưng **ngược kết luận về khối lượng**: chỉ **18,5%** khối lượng nằm trong xã RETOTAL (7f: 63%) ⇒ mặc định là **REPLACE bảo toàn khối lượng**, không phải gỡ người ma. Dời **6.244 ô** sang ô DIRECT có built-up cùng xã; khối lượng roadless **1.241.833 → 42.249 (−96,6%)**; gỡ 110.855 người ma; `pop` **bất biến từng bit**. Trọng số ô nhận có xét lối vào ⇒ **sửa luôn hồi quy D4 của 7f** (7f tự sinh 6.350→6.467 ô roadless). 8 cổng QA | 🟠   | **DONE**              | Giang           | **2026-07-30** | ☑           |
+| **E-DQ8c** | E     | **Dân KHÔNG phục vụ được — bài toán MẪU SỐ, không phải làm sạch.** Dư sau 8b: **225 ô / 42.576 người** không dời được (222 ô ngoài mọi polygon xã VNSDI · 3 ô ở xã không có đất vừa built-up vừa DIRECT). Cụm lõi là xóm kênh rạch ĐBSCL (9,8–10,0 N / 104,9 E, `frac_water` 0,43–0,66) — người **thật**, đi lại bằng thuyền, xe không vào được. Phải gắn `demand_servable=False` và **trừ khỏi `coverage_pop`** kèm số công bố, không để đọng thành mẫu số không thể phủ | ⚪   | DOC → policy          | Giang/Kỳ       | —                   | ☐           |
+| **E-DQ7d** | E     | **Proxy cầu chưa kiểm chứng ngoại vi** — audit 29/07: trần đo được của target ρ = **0,865**, proxy chỉ đạt **0,33** (38% tín hiệu khả dụng); **trọng số KHÔNG phải nút thắt** (fit tốt nhất 0,329 vs **đảo trọng số 0,266** vs `pop` đơn 0,261); target thô **77% là công suất** (ρ(occ, số súng) = **0,773**); **644** ô (không phải 983) có sạc thật mà mọi input = 0, **488** ô trong đó có xe sạc thật                                                                                                     | 🔴   | **FIX (chặn)** | **Kỳ**  | —                   | ☐           |
+| **E-DQ4**  | E     | Cấu hình khuyết (`current_type`, `max_power_kw`, `total_power_kw`, `num_connectors=0`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | 🟡   | FIX                   | Giang           | —                   | ☐           |
+| **E-DQ5**  | E     | Trường`operator` bẩn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 🟡   | FIX                   | Giang           | —                   | ☐           |
+| **E-DQ6**  | E     | Text tự do bẩn (`name`, `address`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | ⚪   | SIMPLIFY              | Giang           | —                   | ☐           |
+| **E-DQ3**  | E     | Cột admin trống (`admin_l1_code`, `province_name`, `commune_name`, `commune_kind`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 🟡   | FIX                   | Giang           | —                   | ☐           |
 
 ---
 
@@ -119,7 +121,7 @@ Tỷ lệ < 1 ⇒ mỗi trạm chỉ phủ đúng ô chứa nó ⇒ mọi trạm
 
 - **(c) Granularity — mô hình lai.** Với `R = 3 km`, `d = 0,98 km` → `R/d = 3,07`, hai điểm bất kỳ trong cùng ô H3 phủ gần như y hệt tập ô demand → giữ nhiều điểm/ô gây MCLP **tie-degenerate** (biến thể ẩn của **P4**). Chốt: candidate = **một điểm thực** (giữ toạ độ để explainability), nhưng **tối đa 1 candidate/ô H3 res 8**; coverage tính theo `h3_r8`.
 - **(a) Sinh candidate — phân tầng anchor.** T0 trạm hiện có (brownfield, `is_existing=True` — ràng buộc thiết kế: incumbent bắt buộc mở) · T1 `parking`/`fuel` · T2 `mall`/`retail`/`apartments` · **T4 gap-fill tổng hợp** (ô demand cao, buildable, chưa có anchor → centroid `SYNTHETIC`). T4 **bắt buộc** để chống thiên vị đô thị của OSM (POI thưa ở vùng ven → nếu không có T4 thì MCLP không thể chọn ở đó → mâu thuẫn mục tiêu "phủ công bằng" của Nhà nước). T3 rest_area/nút giao QL cần road-class từ `.pbf` → để roadmap.
-- **(b) Bộ lọc land-use — 2 mức, `buildable_h3`.** Nền chính **ESA WorldCover 10m v200 (CC-BY)** vì OSM land-use ở VN quá thưa ("không có polygon nước" ≠ đất khô). *Loại cứng:* `frac_water≥0,5` · `water+wetland≥0,7` · `built_up_frac<0,05` (núi/rừng/chưa đô thị hoá) · cờ OSM MILITARY/PROTECTED/AIRPORT/WATER_OSM · `road_access_m≤0` (không đường vào — dùng `demand_h3` có sẵn; **E-DQ7b**: cột lối vào, GỒM `service`/`track`). *Phạt mềm:* đất nông nghiệp (`frac_crop≥0,6`) · hạ tầng mỏng · `pop>0 & road=0` (§7 #9) · khoảng cách tới `power=substation` (proxy đấu nối lưới — Nhóm 2 #3).
+- **(b) Bộ lọc land-use — 2 mức, `buildable_h3`.** Nền chính **ESA WorldCover 10m v200 (CC-BY)** vì OSM land-use ở VN quá thưa ("không có polygon nước" ≠ đất khô). *Loại cứng:* `frac_water≥0,5` · `water+wetland≥0,7` · `built_up_frac<0,05` (núi/rừng/chưa đô thị hoá) · cờ OSM MILITARY/PROTECTED/AIRPORT/WATER_OSM · `access_tier == ISOLATED` (không có đường trong ô **lẫn** vành 1/2 — **E-DQ8a** 30/07, thay `road_access_m≤0` vốn loại oan 4.862 ô có đường ở ô kề; nguồn vẫn là cột lối vào của **E-DQ7b**, GỒM `service`/`track`). *Phạt mềm:* đất nông nghiệp (`frac_crop≥0,6`) · hạ tầng mỏng · `NEEDS_ACCESS_ROAD` (đường chỉ ở vành — **E-DQ8a**) · `ROAD_ACCESS_INFORMAL` · `ROAD_BRIDGE_ONLY` · `pop>0 & road=0` (cờ chẩn đoán) · khoảng cách tới `power=substation` (proxy đấu nối lưới — Nhóm 2 #3).
 
 **QA gate 5 cổng** (đóng P5 thật, không chỉ "có file candidate"): ① upper-bound coverage của toàn bộ candidate ≥ 90% demand lõi AOI (fail = candidate set chặn model) · ② `|candidates| ≥ 5×p` (tỷ lệ tự do) · ③ `|candidates| ≤ 3.000` (trần giải MCLP) · ④ **anti-degenerate** `unique(coverage_set)/|candidates| ≥ 0,9` (biến thể ẩn P4) · ⑤ gate lưới↔bán kính `R > d` (P4).
 
@@ -255,7 +257,8 @@ Các dòng **E-DQ** trong [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn
 
 > `E-DQ10` freeze inputs ✅ → `E-DQ9` clip MVP city ✅ → `E-DQ2` dedup chéo nguồn ✅ → `E-DQ1` sửa toạ độ ✅ →
 > **`E-DQ7a` clip biên giới VN ✅** → **`E-DQ7b` retype road ✅** → **`E-DQ7c` retype POI ✅** →
-> **`E-DQ7e` hiệu chuẩn tuyệt đối ✅** → **`E-DQ7f` sửa dồn cục dasymetric ✅** → `E-DQ8` dân cư không đường →
+> **`E-DQ7e` hiệu chuẩn tuyệt đối ✅** → **`E-DQ7f` sửa dồn cục dasymetric ✅** →
+> **`E-DQ8a` bậc lối vào ✅** → **`E-DQ8b` dời dân ô roadless ✅** → `E-DQ8c` mẫu số không phục vụ được →
 > `E-DQ7d` kiểm chứng ngoại vi (**gate của `demand_weight`** — chẩn đoán xong 29/07, **bàn giao Kỳ**) → `E-DQ4` xử lý khuyết →
 > `E-DQ5`+`E-DQ6` chuẩn hoá categorical → `E-DQ3` enrich admin (cũng trọng tài `COORD_ADDR_MISMATCH` của E-DQ1).
 
@@ -265,11 +268,14 @@ Các dòng **E-DQ** trong [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn
   chứng phương án cũ sai.** Lập luận gốc: bỏ `track`+`service` khỏi `road_len_m` làm **tăng** số ô `road=0` nên
   đo E-DQ8 trước = phải đo lại lần hai. Điều đó chỉ đúng nếu 7b dùng **một cột duy nhất**. E-DQ7b đã chốt theo
   hướng **hai cột** (`road_access_m` cho lối vào, `road_len_m` cho cầu — xem [E-DQ7b](#e-dq7b--road_len-sai-ngữ-nghĩa-bước-5)):
-  E-DQ8 đo trên `road_access_m` (xóm chỉ có đường mòn **vẫn có** đường) nên con số **đứng yên ở 6.350 ô /
-  1.268.026 dân**, đúng bằng giá trị sau 7a. E-DQ8 nay **đo được ngay**, có thêm 2 tập con để phân loại:
+  E-DQ8 đo trên `road_access_m` (xóm chỉ có đường mòn **vẫn có** đường) nên con số **đứng yên ở 6.350 ô**,
+  đúng bằng giá trị sau 7a. E-DQ8 nay **đo được ngay**, có thêm 2 tập con để phân loại:
   27.828 ô lối vào phi chính thức (850.207 dân) và 100 ô có trạm sạc thật nhưng OSM không có đường nào.
   *(Cập nhật 28/07: dự đoán rằng **7a** làm xê dịch E-DQ8 cũng đã **sai** — clip biên giới xoá 14.369 ô nhưng
   gần như không ô nào có dân, nên E-DQ8 chỉ đi từ **6.352 → 6.350 ô**. Cả hai dự đoán xê dịch đều không xảy ra.)*
+  *(⚠️ Đính chính 30/07: **số dân của dòng này lỗi thời** — "1.268.026" tính trên raster UN-**unadjusted**
+  trước E-DQ7e. Trên artefact đang dùng: **6.350 ô / 1.241.833 người**. Số **ô** thì đúng như đã ghi. Cùng
+  họ lỗi lỗi-thời-vì-7e với các con số của 7f, xem [E-DQ8a](#e-dq8a--lối-vào-đo-ở-thang-sai-bước-10).)*
 - **`E-DQ7c` phải xong trước `E-DQ7d`** — ràng buộc **còn nguyên** (khác hai cái trên). E-DQ7d hiệu chuẩn trọng
   số `demand_weight` bằng 18,6M bản ghi occupancy; không thể fit trọng số cho "trung tâm thương mại" trên một cột
   mà **84,8%** số đếm là toà chung cư. E-DQ7c giao ra **10 cột tách rời**; E-DQ7d gán trọng số. Hệ quả: mọi nguồn
@@ -288,6 +294,15 @@ Các dòng **E-DQ** trong [Bảng tổng hợp §2](#2-bảng-tổng-hợp-vấn
   **thật sự** chặn chất lượng target vẫn là **`E-DQ1`/`E-DQ3`**: một trạm sai toạ độ đổ occupancy vào **sai ô**,
   đầu độc trực tiếp biến phụ thuộc. Vì vậy 7d chạy được **ngay**; chỉ cần chạy lại sau 7e/7f (rẻ, nhờ D1 tách
   harness khỏi trọng số) và ưu tiên đóng phần dư của E-DQ1/E-DQ3.
+
+  > ⚠️ **Bổ sung 30/07 — `E-DQ8b` KHÔNG nhẹ như 7f, Kỳ cần biết trước khi fit.** Câu "E-DQ8 không đụng tới
+  > target" vẫn đúng (8b không sửa occupancy), nhưng nó **sửa một FEATURE** (`pop_adj`) trên diện rộng hơn 7f
+  > **hai bậc độ lớn**: 7f chạm **14/12.811** ô cung (0,1%), 8b chạm **2.541/12.811** (**19,83%**, +93.859
+  > người). Vẫn **không** phải rào chặn, vì thứ hạng — thứ duy nhất `demand_weight` dùng — gần như bất động
+  > **ở đúng chỗ 7d fit**: Spearman(`pop_adj` 7f↔8b) trên **tập cung** = **0,998947** và top-500 `pop_adj`
+  > toàn quốc trùng **500/500**. Trên toàn lưới thì thấp hơn hẳn (**0,932865** trên 262.849 ô) vì 8b cố ý
+  > dời khối lượng giữa các ô nông thôn. Kết luận: 7d **fit được ngay**, nhưng **phải fit trên artefact sau
+  > 8b** — fit trên bản trước 8b rồi so với bản sau là so hai tập feature khác nhau.
 - **`E-DQ7a` mở khoá `E-DQ3`.** Để clip POI theo biên giới phải trích **polygon `admin_level=2`** từ chính `.pbf`
   đã freeze — đúng artefact mà `E-DQ3` cần để spatial-join admin, và do đó cũng giải phóng **758 `COORD_ADDR_MISMATCH`**
   mà E-DQ1 cố ý hoãn. Một artefact, ba issue → làm 7a **sớm nhất** dù E-DQ3 nằm cuối hàng. *(Đã xong 28/07:
@@ -676,7 +691,7 @@ chứa 145 trạm sạc đang vận hành** — tức bộ lọc khả thi sẽ 
 
 | Cột                   | Định nghĩa                                             | Consumer                                |
 | ---------------------- | --------------------------------------------------------- | --------------------------------------- |
-| `road_access_m`      | mọi đường lái xe được (gồm`service`+`track`) | `buildable_h3`, E-DQ8                 |
+| `road_access_m`      | mọi đường lái xe được (gồm`service`+`track`) | `access_tier` (E-DQ8a) → `buildable_h3` |
 | `road_len_m`         | mạng lái xe**trừ** `service`+`track`         | proxy cầu                              |
 | `road_lane_mw_m`     | lane-mét cao tốc                                        | hành lang liên tỉnh                  |
 | `road_lane_ar_m`     | lane-mét`trunk`+`primary`                            | trục đô thị                         |
@@ -723,12 +738,14 @@ nhãn cột · ③ `road_len_le_access` + `road_bridge_le_access` · ④ `road_l
 - **108 trạm đang vận hành nằm ở ô OSM không có bất kỳ đường nào** (100 ô, 0,78% ô có trạm) — hoặc OSM thiếu
   đường, hoặc toạ độ còn sai sau E-DQ1. Đây chính là cổng ⑥ ở trên, và là đầu vào cho **E-DQ7d**.
 
-**Hệ quả thứ tự — ràng buộc "7b trước 8" đã tan.** [§ thứ tự](#thứ-tự-xử-lý) lập luận E-DQ8 phải đo sau 7b vì bỏ
+**Hệ quả thứ tự — ràng buộc "7b trước 8" đã tan.** [§ thứ tự](#e-data-quality--cleaning-từ-data-layer-overviewmd-7) lập luận E-DQ8 phải đo sau 7b vì bỏ
 `track`+`service` làm **tăng** số ô `road=0`. Điều đó chỉ đúng với phương án **một cột**. Với R2, E-DQ8 đo trên
 `road_access_m` (một xóm chỉ có đường mòn **vẫn có** đường) nên con số **đứng yên: 6.350 ô / 1.268.026 dân** —
 đúng bằng giá trị sau E-DQ7a. Nói cách khác, lý do "phải làm 7b trước" chính là bằng chứng phương án một cột
 sai. E-DQ8 nay **đo được ngay**, và có thêm hai tập con để phân loại: 27.828 ô lối vào phi chính thức (850.207
 dân) và 100 ô có trạm thật nhưng không có đường.
+
+> ✅ **Chốt 30/07.** Hai tập con ấy đã thành hai dòng register riêng: `road_access_m` được **giữ nguyên** làm nguồn, nhưng câu hỏi "có lối vào không?" nay đo ở thang **lân cận** (`access_tier`, [E-DQ8a](#e-dq8a--lối-vào-đo-ở-thang-sai-bước-10)) và khối lượng dân ở ô không lối vào đã được **dời** ([E-DQ8b](#e-dq8b--dời-dân-ở-ô-không-có-lối-vào-bước-10b)). 27.828 ô `ROAD_ACCESS_INFORMAL` vẫn đúng như R2 định — và cờ đó **nay mới thật sự có trọng số** trong `penalty` (trước 30/07 nó được phát ra nhưng công thức bỏ qua).
 
 **Limitation (`DOC`):**
 
@@ -755,7 +772,7 @@ E-DQ7a (17.106 POI `in_vn`) cho kết quả:
 | - | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 1 | `n_poi` lẫn đơn vị 1:1                                                          | apartments**53,5%** · retail **32,1%** · mall **14,5%**; ở **top-100 ô theo `n_poi`, 84,8% số đếm là apartments**                                                                                                          |
 | 2 | **Lẫn đơn vị BÊN TRONG từng nhóm crawl** *(không có trong register)* | `retail` = **1.698 chợ** (`marketplace`) + **1.409 siêu thị**; `mall` = **1.137 `department_store`** + 262 `shop=mall`; `parking` = 376 surface / **146 street_side** / 93 underground / 42 multi-storey / 20 lane    |
-| 3 | 1 khu chung cư = N toà = N POI*(không có trong register)*                       | **60,8%** polygon chung cư nằm trong cụm ≥5 thành viên trong 200 m; tên lặp nhiều nhất đúng là `block b` · `lô a` · `ct1` · `a2`                                                                                              |
+| 3 | 1 khu chung cư = N toà = N POI*(không có trong register)*                         | **60,8%** polygon chung cư nằm trong cụm ≥5 thành viên trong 200 m; tên lặp nhiều nhất đúng là `block b` · `lô a` · `ct1` · `a2`                                                                                              |
 | 4 | POI thiếu                                                                            | recall**fuel 35,9%** · **parking 8,6%** (đo ngoại vi — xem dưới)                                                                                                                                                                           |
 | 5 | 496 trùng node/way                                                                   | **không tái lập được**: đo lại được **259** @30 m · **311** @50 m · **427** @100 m (`in_vn`), 438 @50 m chưa clip. Con số chốt của bản vá là **335** bản trùng (254 trong VN) theo định nghĩa ở C3 |
 
@@ -856,7 +873,7 @@ theo toà là FAIL ngay) · ⑦ `components_has_poi_columns` (chặn artefact c�
 | `n_fuel`                            | 4.964            | **4.830**            | −134 bản trùng node/way                                                                                       |
 | Toà chung cư →**khu**        | 5.157            | **1.370**            | hệ số**3,76×** — đơn vị mới sánh được với `n_mall`                                          |
 | Ô lưới`demand_h3`                | 254.035          | **254.035**          | không đổi (E-DQ7a/7b giữ nguyên bit-level)                                                                  |
-| `pop` · `road_access_m` · E-DQ8 | —               | **không xê dịch** | 99,621 M · 721.785 km · 6.350 ô / 1.268.026 dân                                                              |
+| `pop` · `road_access_m` · E-DQ8 | —               | **không xê dịch** | 99,621 M · 721.785 km · 6.350 ô *(số dân của dòng này là tiền-7e; xem [E-DQ8a](#e-dq8a--lối-vào-đo-ở-thang-sai-bước-10) cho 1.241.833)* |
 | Candidate Hà Nội                    | 1.711 (5/5 gate) | **1.707 (5/5 gate)** | T0 1.409 · T4 130 · T1**108** · T2 60                                                                   |
 
 **Mọi cổng PASS**, đúng **một WARN có chủ đích**: `poi_recall_bias_parking_off = 2,665` — cổng đang làm đúng
@@ -887,7 +904,7 @@ siêu thị.
   OSM** nên dùng làm nguồn đối chiếu thì tốt. **Google Maps thì không**: ToS chỉ cho lưu `place_id` vĩnh viễn và
   toạ độ **30 ngày**, đồng thời cấm tạo dataset dẫn xuất — một snapshot có checksum commit vào MANIFEST **chính là**
   dataset dẫn xuất, tức E-DQ10 và ToS của Google **không tương thích về cấu trúc**, không phải về giá. Nếu thay
-  tầng POI thì phải làm **trước E-DQ7d** (xem [§ thứ tự](#thứ-tự-xử-lý)).
+  tầng POI thì phải làm **trước E-DQ7d** (xem [§ thứ tự](#e-data-quality--cleaning-từ-data-layer-overviewmd-7)).
 - **Không nguồn nào không thiên lệch.** Overture/FSQ suy từ POI thương mại nên **cũng** lệch đô thị, có khi hơn OSM
   ở nông thôn VN. Vì vậy doctrine giữ nguyên bất kể nguồn: **không bao giờ lọc cứng theo việc VẮNG POI**, và
   **T4 gap-fill vẫn bắt buộc** — đây chính là biện minh định lượng cho câu "OSM thưa ở vùng ven" ở
@@ -926,16 +943,16 @@ về UN WPP. Chênh lệch không phải chuyện làm tròn: mọi phát biểu
 
 **Đã tải bản UNadj về và differ từng pixel** (cùng lưới, `transform` trùng khít — kiểm tra được, không suy đoán):
 
-| Đại lượng                              | Giá trị                                        |
-| ---------------------------------------- | ------------------------------------------------ |
-| tổng bản unadjusted (đang dùng)   | **99,627 M**                               |
-| tổng bản UNadj                        | **97,569 M**                               |
-| chênh lệch                             | **+2,11%** (+2,058 M)                      |
-| tỉ số UNadj/unadj theo **từng pixel** | min = p1 = trung vị = p99 = max = **0,979344** |
-| độ lệch chuẩn của tỉ số           | **2,5e-08** (2,64M pixel có dân)            |
+| Đại lượng                                 | Giá trị                                            |
+| --------------------------------------------- | ---------------------------------------------------- |
+| tổng bản unadjusted (đang dùng)           | **99,627 M**                                   |
+| tổng bản UNadj                              | **97,569 M**                                   |
+| chênh lệch                                  | **+2,11%** (+2,058 M)                          |
+| tỉ số UNadj/unadj theo**từng pixel** | min = p1 = trung vị = p99 = max =**0,979344** |
+| độ lệch chuẩn của tỉ số                | **2,5e-08** (2,64M pixel có dân)             |
 
 ⇒ **UN-adjustment là một vô hướng quốc gia, không phải một phép nắn không gian.** Hệ quả trực tiếp: thứ hạng ô
-**bất biến từng bit**, nên [§ thứ tự](#thứ-tự-xử-lý) nói đúng khi xếp `E-DQ7d` chạy trước — nhưng trước 29/07
+**bất biến từng bit**, nên [§ thứ tự](#e-data-quality--cleaning-từ-data-layer-overviewmd-7) nói đúng khi xếp `E-DQ7d` chạy trước — nhưng trước 29/07
 đó là *giả định* ("gần đơn điệu"), nay là **số đo**.
 
 > ⚠️ **Sửa con số của register cũ.** Dòng cũ ghi "+2,35% so 97,34M". **97,34 M là UN WPP**, không phải sản phẩm
@@ -960,11 +977,11 @@ về UN WPP. Chênh lệch không phải chuyện làm tròn: mọi phát biểu
 
 **QA gate — 3 cổng, kèm giá trị ĐO ĐƯỢC khi chạy 29/07** (mỗi cổng canh **một** giả định, và đều FAIL được):
 
-| Cổng                             | Ngưỡng                                             | Đo được 29/07                                       | Bắt được lỗi gì                                                   |
-| ---------------------------------- | ----------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
-| `pop_total_matches_unadj`        | lệch ≤ **0,01%** so Σ file UNadj đã băm    | **2,7e-11** (Σ = 97.569.444)                     | tải nhầm lại bản unadjusted; lỗi gộp raster                  |
-| `pop_rank_invariant`             | Spearman(pop cũ, pop mới) = **1,000**           | **1,000000** trên **104.171** ô, tập ô trùng khít | "hiệu chuẩn" bằng một phép **phi tuyến** (winsorize/log/chuẩn hoá) |
-| `pop_scale_ratio_is_constant`    | std(tỉ số theo pixel) < **1e-6**                  | **2,4e-08**; min = max = **0,979344** (2,64M pixel) | WorldPop đổi cách UNadj ở phiên bản sau ⇒ giả định đơn điệu tan |
+| Cổng                           | Ngưỡng                                           | Đo được 29/07                                                   | Bắt được lỗi gì                                                           |
+| ------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `pop_total_matches_unadj`     | lệch ≤**0,01%** so Σ file UNadj đã băm | **2,7e-11** (Σ = 97.569.444)                                 | tải nhầm lại bản unadjusted; lỗi gộp raster                               |
+| `pop_rank_invariant`          | Spearman(pop cũ, pop mới) =**1,000**       | **1,000000** trên **104.171** ô, tập ô trùng khít | "hiệu chuẩn" bằng một phép**phi tuyến** (winsorize/log/chuẩn hoá) |
+| `pop_scale_ratio_is_constant` | std(tỉ số theo pixel) <**1e-6**            | **2,4e-08**; min = max = **0,979344** (2,64M pixel)     | WorldPop đổi cách UNadj ở phiên bản sau ⇒ giả định đơn điệu tan   |
 
 > Cổng ② là phép đo **duy nhất** biến "rescale đơn điệu nên không ảnh hưởng MCLP" từ lập luận thành **số**: nó
 > so `pop` mới với artefact **ngay trước khi ghi đè**, tức tại lần migrate này nó so đúng bản dẫn từ raster
@@ -974,13 +991,13 @@ về UN WPP. Chênh lệch không phải chuyện làm tròn: mọi phát biểu
 **Đã chứng minh cả 3 cổng FAIL được** (doctrine của dự án: dự án này từng ship 3 cổng không bao giờ FAIL được —
 `poi_coords_in_vn` · `road_mt_le_total` · `poi_no_dup`). Bơm lỗi cố ý vào `qa_gates`:
 
-| Lỗi bơm vào                                             | Cổng bắt                                | Kết quả                                  |
-| ----------------------------------------------------------- | ----------------------------------------- | ------------------------------------------- |
-| chia lại cho 0,979344 (= quay về bản unadjusted)             | `pop_total_matches_unadj`               | **FAIL** (lệch 2,11e-02)              |
-| winsorize đỉnh phân vị 99,9%                            | `pop_rank_invariant`                    | **FAIL** (1−ρ = 5,12e-10)             |
-| xoá 5 ô khỏi lưới                                       | `pop_rank_invariant`                    | **FAIL** ("tập ô ĐÃ ĐỔI")           |
-| tỉ số theo pixel hết là hằng (std 4,2e-03)              | `pop_scale_ratio_is_constant`           | **FAIL**                              |
-| thiếu raster legacy / chưa có artefact trước           | ③ / ②                                   | **WARN** (không chặn, không PASS ngầm) |
+| Lỗi bơm vào                                      | Cổng bắt                      | Kết quả                                        |
+| --------------------------------------------------- | ------------------------------- | ------------------------------------------------ |
+| chia lại cho 0,979344 (= quay về bản unadjusted) | `pop_total_matches_unadj`     | **FAIL** (lệch 2,11e-02)                  |
+| winsorize đỉnh phân vị 99,9%                    | `pop_rank_invariant`          | **FAIL** (1−ρ = 5,12e-10)                |
+| xoá 5 ô khỏi lưới                              | `pop_rank_invariant`          | **FAIL** ("tập ô ĐÃ ĐỔI")            |
+| tỉ số theo pixel hết là hằng (std 4,2e-03)     | `pop_scale_ratio_is_constant` | **FAIL**                                   |
+| thiếu raster legacy / chưa có artefact trước   | ③ / ②                         | **WARN** (không chặn, không PASS ngầm) |
 
 > ⚠️ Chính phép thử này bắt được **hai lỗi trong bản cổng đầu tiên**: (a) winsorize chỉ kéo ρ xuống ~1e-10 nên
 > `{rho:.6f}` in ra "1,000000" **ngay trên một dòng FAIL** — log tự mâu thuẫn, nay in 9 chữ số kèm `1−ρ`;
@@ -989,15 +1006,15 @@ về UN WPP. Chênh lệch không phải chuyện làm tròn: mọi phát biểu
 
 **Kết quả** (chạy 29/07 — `worldpop_pop` → `make demand` → `build_buildable_h3 --national` → `make freeze`):
 
-| Đại lượng                        | Trước          | Sau                  | Ghi chú                                                       |
-| ------------------------------------ | ---------------- | -------------------- | ---------------------------------------------------------------- |
-| Σ`pop` (`worldpop_pop_h3`)     | 99.627.388     | **97.569.444** | −2,058 M (−2,07%); **104.171 ô** không đổi           |
-| Σ`pop` (`demand_h3`, sau clip) | 99.620.916     | **97.563.106** | lưới vẫn **254.035** ô                                 |
-| dân bị clip ngoài VN (E-DQ7a) | 6.472          | **6.338**      | = 6.472 × 0,979344 ⇒ clip **không** đổi hành vi        |
-| thứ hạng ô                     | —              | **bất biến**   | Spearman 1,000000; `demand_h3` sắp xếp y hệt              |
-| `buildable_h3` (national)        | 59.768 ô      | **59.768 ô**  | `pop` mới; **mọi cờ loại cứng/phạt mềm y nguyên**    |
+| Đại lượng                       | Trước        | Sau                  | Ghi chú                                                                              |
+| ----------------------------------- | -------------- | -------------------- | ------------------------------------------------------------------------------------- |
+| Σ`pop` (`worldpop_pop_h3`)     | 99.627.388     | **97.569.444** | −2,058 M (−2,07%);**104.171 ô** không đổi                                 |
+| Σ`pop` (`demand_h3`, sau clip) | 99.620.916     | **97.563.106** | lưới vẫn**254.035** ô                                                       |
+| dân bị clip ngoài VN (E-DQ7a)    | 6.472          | **6.338**      | = 6.472 × 0,979344 ⇒ clip**không** đổi hành vi                            |
+| thứ hạng ô                       | —             | **bất biến** | Spearman 1,000000;`demand_h3` sắp xếp y hệt                                      |
+| `buildable_h3` (national)         | 59.768 ô      | **59.768 ô**  | `pop` mới; **mọi cờ loại cứng/phạt mềm y nguyên**                     |
 | `candidate_sites` (Hà Nội)      | 1.707          | **1.707**      | **trùng khít từng `candidate_id`** (T0 1.409 · T4 130 · T1 108 · T2 60) |
-| cổng QA                           | 0 (không có) | **3**          | + 7 cổng `demand_h3` cũ vẫn PASS                            |
+| cổng QA                            | 0 (không có) | **3**          | + 7 cổng`demand_h3` cũ vẫn PASS                                                  |
 
 Mọi cổng của `make demand`, `osm/validate.py`, `landuse/validate.py` và `build_candidates` **PASS** sau khi đổi
 nguồn (WARN duy nhất là `poi_recall_bias_parking_off` = 2,665 — vốn có từ E-DQ7c, không liên quan).
@@ -1050,11 +1067,11 @@ người trên MỘT pixel 100 m** = 2,9 triệu người/km². Đó không ph�
 
 **Detector mật độ cũ (`POP_DENSITY_OUTLIER` >48.000/km²) bắt nhầm tập hoàn toàn — giao = 0:**
 
-| Bộ phát hiện                          | Số ô | `pop`     | trung vị max/pixel | trung vị top-3 |
-| --------------------------------------- | ------: | ----------: | -------------------: | ---------------: |
-| **pixel bất khả thi** (lỗi thật) | **139** | 745.283 |        **1.252** |     **1,00** |
-| mật độ > 48.000/km² (đặc tả cũ)  |  **61** | 2,96 M |                585 |            0,035 |
-| **giao hai tập**                  |   **0** |         — |                 — |              — |
+| Bộ phát hiện                            |        Số ô | `pop` | trung vị max/pixel | trung vị top-3 |
+| ------------------------------------------ | ------------: | ------: | ------------------: | --------------: |
+| **pixel bất khả thi** (lỗi thật) | **139** | 745.283 |     **1.252** |  **1,00** |
+| mật độ > 48.000/km² (đặc tả cũ)    |  **61** |  2,96 M |                 585 |           0,035 |
+| **giao hai tập**                    |   **0** |      — |                  — |              — |
 
 61 ô "mật độ cao" nằm **liền khối** trong lõi TP.HCM (~100 pixel/ô, 500–800 người/pixel — quận nội thành thật);
 139 ô hỏng có mật độ **cấp ô** trung vị chỉ **~3.100/km²**, **không ô nào chạm 48.000**. Lỗi **không quan sát
@@ -1067,19 +1084,19 @@ xã ĐỘC LẬP** ([`data/vnsdi/`](../src/ev_siting/data/vnsdi/), ArcGIS VNSDI 
 2025). Spatial-join 2,64M pixel WorldPop → xã (**99,88% gán được**, 0,16% khối lượng ngoài polygon) rồi so tổng
 mỗi xã:
 
-| Kiểm chứng                                                 | Đo được                                                                 |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| 1 ô nhiều dân hơn **CẢ XÃ** (bất khả thi — chống lệch niên đại) | **16/139 ô · 321.684 dân (43%)**                          |
-| xã có WorldPop > **1,5× DANSO** (dồn thừa)         | **50 ô · 468.593 dân (63%)**                                    |
-| cụm đảo Hòn Nghệ + Sơn Hải (An Giang)                | WorldPop **117.126** vs DANSO **5.335** (~**22×**)               |
-| tổng WorldPop vs Σ DANSO / Spearman xã                  | 97,57 M vs 113,63 M · ρ=**0,827**; tỉ số/xã p10–p90 = **0,28–1,36** |
+| Kiểm chứng                                                                       | Đo được                                                                            |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 1 ô nhiều dân hơn**CẢ XÃ** (bất khả thi — chống lệch niên đại) | **16/139 ô · 321.684 dân (43%)**                                              |
+| xã có WorldPop >**1,5× DANSO** (dồn thừa)                               | **50 ô · 468.593 dân (63%)**                                                  |
+| cụm đảo Hòn Nghệ + Sơn Hải (An Giang)                                       | WorldPop**117.126** vs DANSO **5.335** (~**22×**)                   |
+| tổng WorldPop vs Σ DANSO / Spearman xã                                          | 97,57 M vs 113,63 M · ρ=**0,827**; tỉ số/xã p10–p90 = **0,28–1,36** |
 
 ⇒ Với **63% khối lượng bị cờ, `pop` cấp xã CHÍNH NÓ sai** (dồn thừa), không chỉ sai vị trí. **Rải lại giữ nguyên
 khối lượng ở đó = rải NGƯỜI MA.** Đây là lý do đặc tả D1–D6 cũ (rải trong ô, bảo toàn khối lượng WorldPop) bị
 thay: sửa phải **TÁCH theo tổng độc lập**.
 
 **Hậu quả (đo trên artefact UNadj) — bơm rác vào đúng đỉnh hàm mục tiêu:** **16/139** ô trong top-500 `pop` toàn
-quốc · **42/139** ô `buildable=True` (ứng viên T4 khi chạy national) · **5** ô `POP_NO_ROAD` giả (E-DQ8) · chỉ
+quốc · **42/139** ô `buildable=True` (ứng viên T4 khi chạy national) · **5** ô `POP_NO_ROAD` giả (E-DQ8, nay là 5/6.350 và đã dời ở [E-DQ8b](#e-dq8b--dời-dân-ở-ô-không-có-lối-vào-bước-10b)) · chỉ
 **14/12.811** ô cung ⇒ **không** chặn E-DQ7d.
 
 ---
@@ -1104,19 +1121,19 @@ cờ `pop_pixel_implausible`.
    (việc đó kéo thứ hạng cả lưới theo số 2025, trộn hiệu chỉnh niên đại P10 vào lỗi phân bổ — ngoài scope 7f).
 6. **D6 — chặn downstream.** [`build_demand_h3`](../src/ev_siting/data/worldpop/build_demand_h3.py) mang `pop_adj`
    + cờ vào `demand_h3`; [`_gapfill`](../src/ev_siting/features/build_candidates.py) chấm điểm bằng `pop_adj` **và**
-   loại ô `pop_pixel_implausible` không có đường trục/POI xác nhận.
+     loại ô `pop_pixel_implausible` không có đường trục/POI xác nhận.
 
 **Cổng QA — 7 cổng, giá trị đo khi chạy 29/07 (mỗi cổng FAIL được):**
 
-| Cổng                              | Đo được 29/07                                    |
-| ----------------------------------- | ---------------------------------------------------- |
-| `pop_bit_invariant`               | max\|Δ\| = **0,0** (không đụng cột UN-anchored) |
-| `no_unflagged_implausible_pixel`  | **0** ô `max_px>1.000` không cờ                |
-| `flagged_mass_share_lt_1pct`      | **0,764%**                                     |
-| `retotal_reduces_mass`            | gỡ **486.399** (removed 651.049 − target 164.651) — chỉ HẠ |
-| `global_mass_accounted`           | \|Σpop_adj − kỳ vọng\| = **0,000 người** (kế toán độc lập nhãn ô) |
-| `pop_adj_national_drift_lt_1pct`  | **0,499%**                                     |
-| `commune_join_coverage` (advisory)| pixel không gán = **0,16%**                     |
+| Cổng                                | Đo được 29/07                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------ |
+| `pop_bit_invariant`                | max\|Δ\| = **0,0** (không đụng cột UN-anchored)                           |
+| `no_unflagged_implausible_pixel`   | **0** ô `max_px>1.000` không cờ                                           |
+| `flagged_mass_share_lt_1pct`       | **0,764%**                                                                     |
+| `retotal_reduces_mass`             | gỡ**486.399** (removed 651.049 − target 164.651) — chỉ HẠ                 |
+| `global_mass_accounted`            | \|Σpop_adj − kỳ vọng\| = **0,000 người** (kế toán độc lập nhãn ô) |
+| `pop_adj_national_drift_lt_1pct`   | **0,499%**                                                                     |
+| `commune_join_coverage` (advisory) | pixel không gán =**0,16%**                                                   |
 
 > Cổng `global_mass_accounted` là chỗ tinh tế: ô nhận vắt biên thuộc **hai** xã nên bảo toàn theo NHÃN ô không
 > giữ (lệch 5,2e-3); kế toán theo **TỔNG** trong lượt rải (REPLACE net 0, RETOTAL hạ đúng phần người ma) cho
@@ -1124,13 +1141,13 @@ cờ `pop_pixel_implausible`.
 
 **Kết quả** (`make demand` → `build_candidates`):
 
-| Đại lượng                        | Trước (`pop`)  | Sau (`pop_adj`)      |
-| ------------------------------------ | ---------------- | -------------------- |
-| ô đảo Hòn Nghệ `8865a30cd5f…` | **28.731**    | **493** (xã 2.546 dân) |
-| ô bị cờ trong top-500 quốc gia  | **16**         | **0**              |
-| ô built-up bị cờ → ứng viên T4 | 42             | **21 loại · 21 chấm lại** (trung bình 8.727 → 1.834) |
-| `candidate_sites` (Hà Nội MVP)  | 1.707          | **1.707** (không đổi — 7f chạm núi/đảo, không chạm HN) |
-| Σ`pop` (UN-anchored)             | 97.563.106     | **97.563.106** (bất biến, cổng 7e xanh) |
+| Đại lượng                        | Trước (`pop`) | Sau (`pop_adj`)                                                      |
+| ------------------------------------ | ----------------- | ---------------------------------------------------------------------- |
+| ô đảo Hòn Nghệ`8865a30cd5f…` | **28.731**  | **493** (xã 2.546 dân)                                         |
+| ô bị cờ trong top-500 quốc gia   | **16**      | **0**                                                            |
+| ô built-up bị cờ → ứng viên T4 | 42                | **21 loại · 21 chấm lại** (trung bình 8.727 → 1.834)       |
+| `candidate_sites` (Hà Nội MVP)   | 1.707             | **1.707** (không đổi — 7f chạm núi/đảo, không chạm HN) |
+| Σ`pop` (UN-anchored)              | 97.563.106        | **97.563.106** (bất biến, cổng 7e xanh)                       |
 
 `make verify-snapshot` **PASS**; mọi validator `osm/validate`, `demand_h3`, `build_candidates` **PASS**.
 
@@ -1145,6 +1162,243 @@ cờ `pop_pixel_implausible`.
   bị cờ đều có built-up trong xã; nhánh vẫn còn để phòng snapshot sau).
 - **Thứ hạng bị xê dịch ⇒ khác E-DQ7e về bản chất** — lý do phải tách hai dòng: 7e an toàn với mọi downstream,
   7f thì không (nên có cột `pop_adj` riêng, không đè `pop`).
+
+#### E-DQ8a — Lối vào đo ở thang SAI (bước 10)
+
+`🟡 FIX · ☑ Xử lý 2026-07-30 · Owner: Giang`
+
+**Chẩn đoán.** `buildable_h3` và E-DQ8 hỏi *"ô này có đường không?"* bằng cách xét **đúng ô đó**
+(`road_access_m <= 0`). Ô res 8 rộng 0,75 km² và tâm hai ô kề cách **0,98 km**: một xóm mà đường vào nằm ở
+**ô bên cạnh** bị kết luận "không có đường". Tách 6.350 ô của E-DQ8 theo vành:
+
+| Bậc         | Điều kiện                          |     Ô |     `pop` | % khối lượng |
+| ----------- | ---------------------------------- | -----: | ---------: | -----------: |
+| `ADJACENT`  | có đường ở **vành 1** (~1,0 km)    | **4.862** | 894.956 | **72,1%** |
+| `NEAR`      | chỉ có ở vành 2 (~2,0 km)          |    923 | 159.831 |      12,9% |
+| `ISOLATED`  | không có đường trong cả hai vành   |    565 | 187.047 |      15,1% |
+
+⇒ **72,1% khối lượng E-DQ8 không phải lỗi dữ liệu, mà lỗi THANG ĐO.** Đây đúng là cái bẫy mà **E-DQ7a đã gỡ ở
+tầng biên giới** ("test là **giao lục giác** ∩ polygon, KHÔNG phải tâm-ô-trong-polygon" — vì ô vắt biên rơi tâm
+về bên nào cũng được); tầng đường chưa từng được xử lý cùng cách. Cùng họ với `poi_coords_in_vn` (7a) và
+`POP_DENSITY_OUTLIER` (7f): **một đại lượng không chứa thông tin về câu hỏi được hỏi**.
+
+**Neo ngoại vi — 19.015 trạm đang vận hành.** Bậc mới phải được kiểm bằng thực địa, không tự tuyên bố:
+
+| Bậc của ô chứa trạm | Trạm | % trạm | % dân số ở bậc đó |
+| ------------------- | ----: | -----: | ----------------: |
+| `DIRECT`            | 18.907 | **99,432%** | 98,727% |
+| `ADJACENT`          |    **15** |  0,079% |  **0,917%** |
+| `NEAR`              |     5 |  0,026% |  0,164% |
+| `ISOLATED`          |     1 |  0,005% |  0,192% |
+| *không có dòng trong lưới* | **87** | 0,458% | — (xem [E-DQ8c](#e-dq8c--dân-không-phục-vụ-được-mẫu-số-bước-10c)) |
+
+Đọc đúng bằng chứng này quan trọng hơn cả con số: **15 trạm thật ở ô `ADJACENT` ⇒ ô như thế xây được**, nên loại
+cứng chúng là sai. Nhưng `ADJACENT` giữ 0,917% dân mà chỉ nhận 0,079% trạm — **dưới mức dân số ~11×** — nên bằng
+chứng **không** đủ để nói `ADJACENT` tương đương `DIRECT`. Vì vậy đáp án là **bậc có thứ tự + phạt mềm**, không
+phải nới bộ lọc thành nhị phân.
+
+**Cách xử lý (ĐÃ CÀI ĐẶT) — [`osm/access_tiers.py`](../src/ev_siting/data/osm/access_tiers.py).**
+
+1. **A1 — hai cột vành + một cột bậc.** `road_access_nb1_m`, `road_access_nb2_m` (Σ `road_access_m` của vành 1/2,
+   **trừ** chính ô) → `access_tier` ∈ `DIRECT|ADJACENT|NEAR|ISOLATED`. Vào `demand_h3`.
+2. **A2 — tính TRƯỚC khi clip lãnh thổ.** Ô bên kia biên vẫn là láng giềng **có đường thật** (8.934 km đường rò
+   của Geofabrik, E-DQ7a); clip trước khi tính vành sẽ báo `ISOLATED` giả cho đúng những ô biên.
+3. **A3 — loại cứng CHỈ `ISOLATED`** (`buildable_h3`: **6.350 → 723 ô**). `ADJACENT`/`NEAR` nhận phạt mềm
+   `NEEDS_ACCESS_ROAD` (**7.072 ô**) — phải **làm** đường vào là chi phí thật, không phải lý do loại bỏ.
+4. **A4 — bậc phải được TÍNH, không mặc định.** Ô AOI không có dòng trong `demand_h3` (AOI thành phố sinh đĩa
+   hình học; ô `OUTSIDE` đã tách sang `demand_h3_clipped_out`) trước đây rơi về `road_access_m = 0` ⇒ loại cứng.
+   Nay tra bậc từ `osm_demand_components_h3` qua `tiers_from_lookup()`. Lý do là **đo được**: 76 ô không-dòng
+   chứa **83 trạm đang vận hành**, và tính từ bảng đường ra **50 `ADJACENT` · 8 `NEAR` · 18 `ISOLATED`** — mặc
+   định `ISOLATED` loại cứng đúng những ô đã có bằng chứng thực địa là xây được. `classify()` là **nơi duy nhất**
+   định nghĩa bậc để hai đường tính không thể lệch (bài học cổng ② của E-DQ7b).
+
+**Phát hiện phụ — bộ lọc cũ gần như vô ích.** `NO_ROAD_ACCESS` loại 6.350 ô, nhưng chỉ **134 ô** bị loại **RIÊNG**
+bởi nó; phần còn lại đã vướng `NOT_BUILT_UP`/`WATER`/`WETLAND`:
+
+```
+('NOT_BUILT_UP','NO_ROAD_ACCESS')                      4.408
+('NOT_BUILT_UP','NO_ROAD_ACCESS','WATER','WETLAND')      749
+('NOT_BUILT_UP','NO_ROAD_ACCESS','WATER')                520
+('NOT_BUILT_UP','NO_ROAD_ACCESS','WETLAND')              481
+('NO_ROAD_ACCESS',) một mình                             134
+```
+
+⇒ Hệ quả **cung** của E-DQ8 gần bằng 0; hệ quả thật nằm ở **mẫu số cầu**, và đó là 8b/8c.
+
+**Phát hiện phụ — bốn cờ mềm có trọng số 0.** `POP_NO_ROAD`, `ROAD_ACCESS_INFORMAL` (27.828 ô),
+`ROAD_BRIDGE_ONLY` (50 ô), `NO_SUBSTATION` được **phát** vào `penalty_flags` nhưng công thức `penalty` chỉ gồm
+`crop`/`low_built`/`dist` ⇒ chúng **không hề** ảnh hưởng điểm. Nay vào công thức
+(`+0,2·needs_access +0,1·informal +0,1·bridge_only`). `access_tier` cũng được **xuất ra** `buildable_h3`: không
+audit được một quyết định loại bỏ bằng cột không có trong artefact.
+
+**Cổng QA — 1 cổng mới ở `build_demand_h3` (FAIL được):** `access_tier_consistent` — mọi ô `road_access_m > 0`
+phải là `DIRECT`, và mọi ô `ISOLATED` phải thật sự trống đường ở **cả hai** vành (đo: **0 · 0**). Kèm
+[`tests/test_access_tiers.py`](../tests/test_access_tiers.py) — 11 test khoá ngữ nghĩa, trong đó ca `ADJACENT`
+(ô mà bản cũ đánh sai) và ca ô mồ côi ở A4.
+
+**Kết quả** (`make demand` → `landuse-national` → `candidates`):
+
+| Đại lượng                                | Trước       | Sau                    |
+| ---------------------------------------- | ------------ | ---------------------- |
+| ô loại cứng vì "không đường"           | 6.350        | **723** (`ISOLATED`) |
+| `buildable` national                     | 59.768       | **59.927**       |
+| cờ `NEEDS_ACCESS_ROAD`                 | —           | **7.072 ô**      |
+| `candidate_sites` (Hà Nội MVP)         | 1.707        | **1.707** (không đổi) |
+| `demand_h3`                              | 254.159 ô   | **255.480 ô** (thêm ô nhận của 8b) |
+
+**Limitation (`DOC`):**
+
+- **`ADJACENT` ≠ `DIRECT`, và phạt 0,2 là số ĐẶT TAY.** Bằng chứng 15 trạm chỉ chứng minh *tới được*; độ lớn chi
+  phí làm đường vào chưa có nguồn. Nếu muốn số đo, phải có capex đường theo lớp — chưa freeze nguồn nào.
+- **Vành ≠ khoảng cách.** `grid_disk(1)` là ~0,98 km theo tâm ô, không phải khoảng cách tới **mép** đường. Muốn
+  chính xác phải tính `dist_to_road_m` từ hình học way — chưa làm; vành là bản rẻ và đủ để phân bậc.
+- **Lưới vẫn KHÔNG phải tessellation.** A4 chữa *mặc định sai*, không chữa *ô thiếu*: 76 ô / 83 trạm vẫn không có
+  dòng ở bất kỳ bảng lưới nào. Xem [E-DQ8c](#e-dq8c--dân-không-phục-vụ-được-mẫu-số-bước-10c).
+
+#### E-DQ8b — Dời dân ở ô không có lối vào (bước 10b)
+
+`🟠 FIX · ☑ Xử lý 2026-07-30 · Owner: Giang`
+
+**Tiền đề.** Sau 8a, `ADJACENT`/`NEAR`/`ISOLATED` là ô mà **xe không vào được tận nơi** nhưng vẫn mang
+`pop_adj > 0`. Để MCLP nhìn thấy đúng cầu, khối lượng đó phải **dời sang ô đặt trụ được**, không phải bị xoá và
+cũng không được để đọng. Dùng lại **đúng bộ máy E-DQ7f** (trọng tài bằng tổng độc lập cấp xã → rải theo built-up →
+kế toán khối lượng theo TỔNG), khác 7f ở ba chỗ và **cả ba đều do đo được**:
+
+**① Phạm vi khác.** Detector 7f là detector **dồn cục** (`max_px > 1.000` ∨ `pop>2.000 & top3>0,8`) → 139 ô. Tập
+E-DQ8 là 6.350 ô và **giao chỉ 109 ô**. Hai lỗi khác nhau: 7f = "cả xã nhồi vào 1 pixel", 8b = "người ở ô mà xe
+không vào được".
+
+**② Khối lượng phần lớn là THẬT — ngược hẳn 7f.** Chạy **cùng phép trọng tài DANSO** trên tập E-DQ8 (join ô→xã
+96,7%):
+
+| Phân lớp xã                                 |    Ô |     Người | % khối lượng | 7f để so |
+| ------------------------------------------- | ----: | ---------: | -----------: | -------: |
+| `RETOTAL` (WorldPop\_xã > 1,5×DANSO ⇒ người ma) |   765 | 229.224 | **18,5%** | **63%** |
+| `REPLACE` (DANSO xác nhận tổng ⇒ chỉ sai chỗ)   | 5.373 | 944.229 | **81,5%** |     37% |
+
+⇒ Với 8b, mặc định là **REPLACE (bảo toàn khối lượng, chỉ đổi chỗ)**. Nếu bê nguyên chính sách của 7f sang đây
+thì sẽ **gỡ mất ~800k người thật**.
+
+> **Một tiền đề suýt dẫn tới phép sửa sai — ghi lại để không ai đề xuất lại.** Giả thuyết ban đầu: "dân ở ô
+> roadless mà WorldCover không thấy built-up là dasymetric smear" (đo thô ủng hộ: khối lượng ở ô `built_up_frac=0`
+> chiếm **47,6%** trong nhóm roadless so với **2,0%** trong nhóm có đường — chênh 24×). **Đo phân bố thì tiền đề
+> sụp:** ô `built_up_frac = 0` mà **có** đường có p50 = 97 · p90 = 558 · p99 = **1.779** người; ô `built_up_frac = 0`
+> mà **không** đường có p50 = 70 · p90 = 391 · p99 = **1.183** — **đuôi NHẸ HƠN**. Tức "dân trên đất không có
+> built-up" là **thuộc tính toàn quốc của cặp WorldPop×WorldCover** (12.182 ô · 2,50 M người); nhóm roadless chỉ
+> chiếm 24% của nó, và chênh 24× kia là chênh **tỉ trọng trong tầng**, không phải bất thường **theo ô**. Kết luận
+> vận hành: **built-up là TRỌNG SỐ ô nhận, không bao giờ là detector.** Cùng bài học "đại lượng phải chứa thông
+> tin về lỗi" của 7a/7f — lần này bắt được *trước* khi cài đặt.
+>
+> Cùng lúc phát hiện `POP_BUILTUP_DENSITY_CEIL = 750` trong `worldpop/paths.py` là **hằng số CHẾT có docstring
+> sai**: 737 vốn là `pop_per_eff_px` (người/pixel hiệu dụng), **không** phải người/ha built-up. Đo đúng đại lượng:
+> p99 mật độ built-up lõi TP.HCM r=12 km là **904** (max 1.491). Dùng 750 làm detector gắn cờ **15.056 ô / 8,97 M
+> người (9,2% toàn quốc)**, gồm **26 ô lõi TP.HCM/Hà Nội THẬT** ⇒ vô dụng. Đã ghi cảnh báo tại chỗ, **không** đấu
+> dây vào cổng nào.
+
+**③ Ô nhận phải ĐẶT TRỤ ĐƯỢC — và điều này sửa một hồi quy của 7f.** D4 của 7f rải theo built-up **không xét lối
+vào**, nên nó **đổ người vào ô roadless**: số ô `pop>0 & road_access=0` đi từ **6.350** (`pop`) lên **6.467**
+(`pop_adj`).
+Ở 8b trọng số ô nhận là `built_ha × 1{access_tier == DIRECT}`.
+
+**Cách xử lý (ĐÃ CÀI ĐẶT) — [`reallocate_roadless.py`](../src/ev_siting/data/worldpop/reallocate_roadless.py).**
+
+1. **R1 — lưới hợp nhất + bậc.** `pop ∪ đường ∪ built-up`, tính `access_tier` trên lưới hợp nhất (tổng vành phụ
+   thuộc láng giềng nên **không** tính được trên tập con). Loại 191.506 ô đệm ngoài VN do tile WorldCover kéo vào.
+2. **R2 — phạm vi:** `pop_adj > 0` & `access_tier ≠ DIRECT` → **6.469 ô / 1.183.197 người**.
+3. **R3 — trọng tài cấp xã** (dùng lại `POP_RETOTAL_RATIO=1,5` + `POP_WORLDPOP_OVER_DANSO=0,859`): **92 xã**
+   `RETOTAL` · **855 xã** `REPLACE`.
+4. **R4 — ô nhận = built-up ∧ `DIRECT`, cùng xã**, trọng số theo `built_ha`. **KHÔNG có nhánh dự phòng** "rải vào
+   built-up bất kỳ": bản đầu có nhánh đó và **cổng ② bắt ngay** — nó đổ dân sang một ô roadless KHÁC, tức tự sinh
+   lại đúng lỗi đang sửa. Xã không có ô nào vừa built-up vừa `DIRECT` ⇒ **giữ tại chỗ có nhãn**, đầu vào 8c.
+5. **R5 — chính sách khối lượng** (kế toán theo TỔNG, bài học cổng ⑤ của 7f):
+   `REPLACE`: `target = removed` (bảo toàn tuyệt đối) · `RETOTAL`: `target = removed × (0,859·DANSO / wp_xã) < removed`.
+   RETOTAL ở đây **chỉ hạ phần khối lượng đang dời**, KHÔNG viết lại cả xã như 7f — 8b sửa *vị trí của khối lượng
+   roadless*, không sửa *tổng của xã*, để hai phép sửa không tranh nhau cùng khối lượng.
+6. **R6 — `pop` bất biến từng bit**; mọi thay đổi vào `pop_adj` (hợp đồng D5 của 7f). Artefact mới
+   `worldpop_pop_acc_h3.parquet`; `build_demand_h3` nạp theo thang **8b → 7f → 7e**, mỗi bậc in cảnh báo.
+
+**Sổ cái `pop_src`** (kiểm được, không phải tự khai):
+
+| `pop_src`                          |      Ô | Ý nghĩa |
+| ---------------------------------- | ------: | ------- |
+| `WORLDPOP`                         | 252.529 | không đụng |
+| `MOVED_TO_ACCESSIBLE`              | **6.244** | dời sang ô `DIRECT` cùng xã (8b) |
+| `REDISTRIBUTED` / `RETOTALED_DANSO` | 2.915 / 936 | ô do 7f xử lý |
+| `UNREPAIRED_NO_COMMUNE`            |     222 | ngoài mọi polygon xã → 8c |
+| `UNREPAIRED_NO_ACCESSIBLE_BUILTUP` |       3 | xã không có đất vừa built-up vừa `DIRECT` → 8c |
+
+**Cổng QA — 8 cổng, giá trị đo khi chạy 30/07 (mỗi cổng FAIL được):**
+
+| Cổng | Đo được 30/07 |
+| ---- | ------------- |
+| `pop_bit_invariant` | max\|Δpop\| = **0,0** |
+| `no_unlabelled_roadless_pop` | 225 ô còn dân, **0 ô KHÔNG nhãn** |
+| `retotal_only_reduces` | gỡ **110.855** người ma (removed 196.865 − target 86.009) |
+| `global_mass_accounted` | \|Σpop_adj − kỳ vọng\| = **0,000 người** |
+| `national_drift_lt_1pct` | **0,114%** so `pop_adj` sau 7f |
+| `roadless_mass_strictly_decreases` | 1.183.197 → **42.576** (**−96,4%**) |
+| `all_received_mass_landed_direct` | **0** ô không-`DIRECT` nhận thêm dân |
+| `supply_ranking_shift` (advisory) | **2.541/12.811** ô cung đổi `pop_adj` (19,83%) |
+
+> **Hai cổng đã bắt lỗi thật trong lúc dựng** — và đó là lý do chúng được viết để FAIL được. Lần chạy 1: cổng ②
+> đỏ với **224 ô** bị bỏ qua im lặng (không gán được xã ⇒ không vào vòng lặp). Lần chạy 2: vẫn đỏ với **2 ô** —
+> chính là ô nhận của nhánh dự phòng "built-up bất kỳ", tức phép sửa đang **tái tạo** lỗi. Gỡ nhánh đó xong mới
+> xanh. Cổng ⑦ ban đầu đo bằng **nhãn `pop_src`** — nhưng nhãn là thứ code **tự ghi**, kiểm bằng nó thì cổng chỉ
+> xác nhận code đồng ý với chính nó (đúng lỗi `poi_coords_in_vn` của 7a); đã đổi sang so `pop_adj` trước/sau trên
+> chính các ô không-`DIRECT`.
+
+**Kết quả:**
+
+| Đại lượng | `pop` (UN-anchored) | `pop_adj` (sau 7f+8b) |
+| --------- | ------------------: | --------------------: |
+| khối lượng ở ô roadless | 1.241.833 | **42.249** (**−96,6%**) |
+| Σ toàn quốc | **97.563.106** (bất biến) | 96.965.852 (−0,612% cộng dồn) |
+| ô `pop>0 & road_access=0` do phép sửa TỰ SINH | 7f: **+117** | 8b: **0** (cổng ⑦) |
+
+`make demand` PASS · `osm/validate` PASS · `landuse/validate` PASS · `candidates` Hà Nội **1.707** (không đổi) ·
+40 test PASS.
+
+**Limitation (`DOC`):**
+
+- **Không sửa được nguyên nhân gốc** — vẫn là mặt nạ built-settlement của BSGM (7f) cộng với OSM thiếu đường. 8b
+  chỉ **đặt lại chỗ** theo WorldCover; muốn phân bổ tử tế cần lớp built-up độc lập tốt hơn (Microsoft/Google
+  footprints) — roadmap, cùng dòng với limitation của 7f.
+- **Ranh giới xã là ranh giới dời dân, không phải nhãn hành chính.** Gán ô→xã ở 8b theo **tâm ô** còn 7f theo
+  **pixel**, nên hai bảng có thể lệch ở ô vắt biên. Chấp nhận được vì kế toán theo TỔNG không lệ thuộc nhãn — và
+  nhãn admin thật vẫn là việc của **E-DQ3**.
+- **Dời trong xã có thể dời khá xa.** Không có ràng buộc khoảng cách: một xã dài thì người có thể nhảy vài km sang
+  ô built-up khác. Đúng về mặt "ai phục vụ được họ", nhưng nếu Sprint 3 cần khoảng cách đi lại thật thì phải thêm
+  trần khoảng cách vào R4.
+- **`ADJACENT` bị dời khối lượng dù chỉ cách 1 vành.** Có thể tranh luận nên **chia tỉ lệ** thay vì dời hết. Chưa
+  làm vì chưa có nguồn nào đo được tỉ lệ đó — giữ dứt khoát để cổng kế toán còn kiểm được.
+
+#### E-DQ8c — Dân KHÔNG phục vụ được: mẫu số (bước 10c)
+
+`⚪ DOC → policy · ☐ Open · Owner: Giang/Kỳ`
+
+**Không phải việc làm sạch.** Dư sau 8b: **225 ô / 42.576 người** giữ tại chỗ có nhãn — **222 ô** ngoài mọi polygon
+xã VNSDI (đảo/vắt biên) và **3 ô** ở xã không có đất vừa built-up vừa `DIRECT`. Cụm lõi của nhóm cô lập thật là
+xóm kênh rạch **ĐBSCL** (9,8–10,0 N / 104,9 E, `frac_water` 0,43–0,66, `built_up_frac` 0,006–0,099): người
+**thật**, đi lại bằng **thuyền**. Không có phép làm sạch nào biến họ thành phục vụ được, và cố "sửa" là bịa.
+
+**Quyết định phải ra (chưa ra) — 3 việc:**
+
+1. **`demand_servable`** — cột boolean ở `demand_h3`, `False` cho ô `pop_src LIKE 'UNREPAIRED%'`.
+2. **`coverage_pop` phải trừ nhóm này và CÔNG BỐ số bị trừ.** Để đọng thì mọi chỉ số coverage bị hạ ~0,04% bởi
+   một khối lượng **không thể phủ theo định nghĩa** — và với `radius_m` hiện tại (500 m,
+   [`config/params.yaml`](../config/params.yaml)) mỗi ô chỉ phủ chính nó, nên ô roadless là **chính xác không phủ
+   được**. Mục tiêu coverage đặt trên mẫu số đó là không đạt được **theo cấu tạo**.
+3. **Lưới phải thành tessellation** — việc còn lại của 8a/A4: **76 ô chứa 83 trạm đang vận hành** không có dòng ở
+   `demand_h3`, `demand_h3_clipped_out`, lẫn `buildable_h3`, vì lưới là **hợp của các ô CÓ đặc trưng**
+   (`pop>0` ∪ đặc trưng OSM), không phải phủ hình học. Chúng vô hình với optimizer ở **cả hai** vai cung và cầu,
+   và bơm nhiễu vào tử số cổng ⑥ `supply_cells_have_road_access` (100/12.811). Bậc thật của chúng (tính từ bảng
+   đường): **50 `ADJACENT` · 8 `NEAR` · 18 `ISOLATED`**.
+   > ⚠️ **Thứ tự bắt buộc: A4 phải xong TRƯỚC bước này** — và nó đã xong. Làm tessellation trước A4 sẽ đưa 76 ô
+   > đó vào lưới với bậc mặc định `ISOLATED` ⇒ loại cứng **76/76** ô đang chứa trạm thật, và bản sửa lưới sẽ trông
+   > như một hồi quy. Cần cổng mới `grid_contains_all_supply_cells` (**FAIL**, không WARN).
+
+**Chưa làm vì đây là thay đổi ĐỊNH NGHĨA LƯỚI**, kéo theo số dòng của `demand_h3`/`buildable_h3`/AOI national và
+mẫu số của cổng ⑥ ⇒ cần chốt phạm vi trước (gộp vào **E-DQ3**, vốn cần cùng artefact polygon, là lựa chọn rẻ nhất).
 
 #### E-DQ7d — Proxy cầu chưa kiểm chứng ngoại vi (bước 7)
 
@@ -1296,7 +1550,7 @@ trên một proxy cố ý làm hỏng** trước khi được tính là cổng.
 | Cổng                                                                                               |                           Giá trị hiện tại | Trạng thái                                            |
 | --------------------------------------------------------------------------------------------------- | ---------------------------------------------: | ------------------------------------------------------- |
 | `no_zero_weight_where_charging`                                                                   |                               **488** ô | **FAIL**                                          |
-| `proxy_beats_scramble ≥ δ` (LOPO)                                                               |                      +0,329 vs**+0,266** | **FAIL** ở mọi δ hợp lý                      |
+| `proxy_beats_scramble ≥ δ` (LOPO)                                                               |                            +0,329 vs**+0,266** | **FAIL** ở mọi δ hợp lý                      |
 | `target_poll_bias ≤ δ`                                                                          |                                **0,501** | **FAIL** (trước khi trọng số hoá thời gian) |
 | `occ_not_capacity` — ρ(target, súng) sau khử                                                  |                                **0,773** | **FAIL**                                          |
 | `proxy_beats_pop_only ≥ δ`                                                                      |                               **+0,069** | biên giới                                             |

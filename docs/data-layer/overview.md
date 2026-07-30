@@ -126,12 +126,18 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 - **P7:** `connector_standard` lấy từ registry chính thức (`official_connectors.standard`),
   đã sửa **1.588 connector 20-22 kW** bị power tier gán nhầm AC → **DC CCS2**.
 
-### 🟡 `demand_h3` — 19 cột, 254.035 ô (key `h3_r8`)
+### 🟡 `demand_h3` — 24 cột, 255.480 ô (key `h3_r8`)
 
-- `pop` (Σ = **97,56M**, raster UNadj — **E-DQ7e** 29/07) · `road_access_m` · `road_len_m` · `road_lane_mw_m` · `road_lane_ar_m` ·
-  `road_bridge_m` (**E-DQ7b**) · `n_fuel` · `n_parking_off` · `n_parking_street` · `n_mall` · `n_dept_store` ·
+- `pop` (Σ = **97,56M**, raster UNadj — **E-DQ7e** 29/07) · `pop_adj` (Σ = **96,97M** — đã đặt lại chỗ bởi
+  **E-DQ7f** dồn cục **+ E-DQ8b** dời dân ô roadless) · `pop_pixel_implausible` (**E-DQ7f**) ·
+  `road_access_m` · `road_len_m` · `road_lane_mw_m` · `road_lane_ar_m` ·
+  `road_bridge_m` (**E-DQ7b**) · `road_access_nb1_m` · `road_access_nb2_m` · `access_tier` (**E-DQ8a**) ·
+  `n_fuel` · `n_parking_off` · `n_parking_street` · `n_mall` · `n_dept_store` ·
   `n_supermarket` · `n_market` · `n_apartment` · `n_apartment_complex` · `apartment_levels_sum` (**E-DQ7c** —
   `n_poi`/`n_parking` **khai tử**) · `cell_state` · `frac_in_vn` (**E-DQ7a**).
+- **Hai cột dân số, hai nhiệm vụ** (hợp đồng D5 của E-DQ7f): `pop` cho phát biểu **TUYỆT ĐỐI** (`coverage_pop`,
+  đối chiếu GSO) — bất biến từng bit; `pop_adj` cho consumer **XẾP HẠNG** (MCLP `demand_weight`, T4 gap-fill).
+- Số ô tăng 254.159 → **255.480** vì E-DQ8b đưa thêm ô built-up **nhận** dân vào lưới.
 - ⚠️ **Lệch hợp đồng:** SCHEMA_CONTRACT ghi 11 cột (kèm admin); file hiện **7 cột, chưa có admin**.
   Chưa có `demand_weight`. Chưa có bảng rollup `demand_commune`. 61% ô `pop=0` (grid toàn quốc).
 
@@ -207,7 +213,9 @@ Dưới đây là **trạng thái thực tế của file hiện tại** (đã in
 | 8d | `E-DQ7d` (chẩn đoán 29/07 → **Kỳ**) | Proxy cầu chưa kiểm chứng ngoại vi                           | `demand_weight` (gate ρ vs 18,6M occupancy) — trần target **0,865**, proxy **0,33**; trọng số **không** phải nút thắt (đảo trọng số vẫn 0,266); target thô 77% là **công suất**; **644** ô zero-input (**488** có xe sạc thật) |
 | 8e | **`E-DQ7e`** (Done 29/07) | `pop` chưa hiệu chuẩn **tuyệt đối**                        | `pop` → **đã đổi nguồn** sang raster **UNadj** (99,627M → **97,569M**, −2,07%); 3 cổng QA (`pop_total_matches_unadj`/`pop_rank_invariant`/`pop_scale_ratio_is_constant`). Thứ hạng ô **bất biến**: Spearman(cũ, mới) = **1,000000** |
 | 8f | **`E-DQ7f`** (Done 29/07)    | `pop` dồn cục dasymetric + **dồn thừa cấp xã**         | đo lại UNadj: **139 ô / 745.283 dân** (đỉnh **28.731/pixel**); đối chiếu **VNSDI DANSO** (nguồn cấp xã độc lập): **63% là dồn THỪA** (WorldPop>1,5×DANSO). Thêm **`pop_adj`** (RETOTAL 17 xã→0,859·DANSO / REPLACE 53 xã, rải theo built-up) + cờ `pop_pixel_implausible`; `pop` giữ UN-anchored. Top-500 **16→0**, 7 cổng QA. `reconcile_dasymetric.py` |
-| 9  | `E-DQ8`                         | Dân cư không có đường                                      | `pop` vs `road_access_m` (**số đã chốt sau 7b: 6.350 ô / 1,268M dân**)                                          |
+| 9a | **`E-DQ8a`** (Done 30/07) | **Lối vào đo ở thang SAI** (trong-ô thay vì lân cận)          | `access_tier` (DIRECT/ADJACENT/NEAR/ISOLATED) + `road_access_nb1_m`/`road_access_nb2_m`; **4.862/6.350 ô** roadless thật ra có đường ở **vành 1** (72,1% khối lượng); loại cứng **6.350 → 723 ô**; 4 cờ mềm trước đây có **trọng số 0** nay vào `penalty` |
+| 9b | **`E-DQ8b`** (Done 30/07) | **Dân ở ô không lối vào chưa được dời**                        | `pop_adj` — dùng lại bộ máy 7f nhưng DANSO cho kết luận **ngược**: chỉ **18,5%** khối lượng là người ma (7f: 63%) ⇒ REPLACE là mặc định. Dời **6.244 ô**; roadless mass **1.241.833 → 42.249 (−96,6%)**; ô nhận xét lối vào ⇒ sửa luôn **hồi quy D4 của 7f**; `reallocate_roadless.py`, 8 cổng QA |
+| 9c | `E-DQ8c`                        | **Dân KHÔNG phục vụ được** (mẫu số, không phải làm sạch)      | `demand_servable` + `coverage_pop` — **225 ô / 42.576 người** không dời được (xóm kênh rạch ĐBSCL đi thuyền); kèm việc **lưới chưa phải tessellation**: 76 ô chứa **83 trạm vận hành** không có dòng ở bảng lưới nào |
 | 10 | **`E-DQ9`** (Done 27/07)  | Grid toàn quốc / MVP 1 thành phố                              | `demand_h3` (toàn bảng) → AOI clip (`aoi.py`)                                                                              |
 | 11 | **`P5`** (Done 24/07)     | Chưa định nghĩa candidate site                                | — →[candidate-sites.md](candidate-sites.md)                                                                                      |
 | 12 | **`E-DQ10`** (Done 27/07) | Freeze snapshot / provenance                                      | `data/raw/MANIFEST.json` (checksum mọi nguồn raw)                                                                             |

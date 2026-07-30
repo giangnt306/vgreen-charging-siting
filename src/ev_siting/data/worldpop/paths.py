@@ -81,8 +81,21 @@ POP_WORLDPOP_OVER_DANSO = 0.859
 #: RETOTAL khi WorldPop cấp xã > 1,5× DANSO (= r>1,75 sau trung hoà niên đại). Đo được:
 #: 50/139 ô (63% khối lượng bị cờ) rơi vào đây; 16 ô có 1 ô > cả xã (bất khả thi).
 POP_RETOTAL_RATIO = 1.5
-#: Trần mật độ built-up (người/ha) từ p99 ô lõi TP.HCM đã kiểm chứng dày thật (=737).
+#: ⚠️ HẰNG SỐ CHẾT — khai báo cho E-DQ7f nhưng `reconcile_dasymetric.py` chỉ import chứ
+#: KHÔNG dùng, và docstring cũ ("p99 ô lõi TP.HCM = 737") mô tả **sai đại lượng**: 737 là
+#: `pop_per_eff_px` (người/pixel hiệu dụng), không phải người/ha built-up. Đo lại đúng
+#: đại lượng (2026-07-30): p99 mật độ built-up của lõi TP.HCM r=12km là **904**, max
+#: 1.491; ngưỡng 750 gắn cờ **15.056 ô / 8,97 M người (9,2% toàn quốc)** trong đó có 26 ô
+#: lõi TP.HCM/Hà Nội THẬT ⇒ vô dụng làm detector. Giữ lại kèm cảnh báo này để không ai
+#: đấu dây nó vào một cổng QA. Xem `reallocate_roadless.py` (E-DQ8b) về lý do built-up
+#: chỉ dùng làm **trọng số ô nhận**, không dùng làm detector.
 POP_BUILTUP_DENSITY_CEIL = 750.0
+
+# --- E-DQ8b: dời dân ở ô không có lối vào (2026-07-30) ---
+#: Bảng pop sau CẢ HAI phép đặt lại chỗ (7f dồn cục + 8b roadless). Giữ nguyên hợp đồng
+#: D5 của 7f: `pop` UN-anchored cho phát biểu tuyệt đối, `pop_adj` cho consumer XẾP HẠNG.
+POP_ACC_H3 = INTERIM_DIR / "worldpop_pop_acc_h3.parquet"
+POP_ACC_REPORT = INTERIM_DIR / "worldpop_pop_acc_report.json"
 
 
 def ensure_dirs():

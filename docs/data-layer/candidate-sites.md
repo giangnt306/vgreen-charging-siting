@@ -10,7 +10,7 @@
 
 - **Vấn đề P5** gộp 3 câu hỏi độc lập: **(a)** candidate sinh từ đâu · **(b)** điểm nào phải loại (land-use) · **(c)** candidate là điểm hay ô H3.
 - **Output:** `data/processed/candidate_sites.{parquet,geojson}` — bàn giao trực tiếp cho MCLP.
-- **Bộ lọc khả thi:** `data/interim/landuse/buildable_h3.parquet` (ESA WorldCover 10m + OSM cấm + road access).
+- **Bộ lọc khả thi:** `data/interim/landuse/buildable_h3.parquet` (ESA WorldCover 10m + OSM cấm + `access_tier` — **E-DQ8a**).
 - **MVP Hà Nội:** 1.672 candidate, 79% ô AOI buildable, **5/5 QA gate PASS**.
 - Chạy: `make landuse CITY=hanoi && make candidates CITY=hanoi`.
 
@@ -86,7 +86,7 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | Nước + ngập nước | WorldCover | `frac_water + frac_wetland ≥ 0,70` (`WETLAND`) |
 | Núi/rừng/đất trống | WorldCover | `built_up_frac < 0,05` (`NOT_BUILT_UP`) |
 | Đất cấm | OSM | `landuse=military` · `boundary=protected_area` · `leisure=nature_reserve` · `aeroway=aerodrome` · `natural=water`/`reservoir` |
-| Không có đường vào | `demand_h3` | `road_access_m ≤ 0` (`NO_ROAD_ACCESS`) — rẻ nhất, lọc nhiều nhất. **E-DQ7b:** dùng cột **lối vào** (gồm `service`/`track`), KHÔNG dùng `road_len_m` (cột cầu) — nếu dùng nhầm sẽ loại 27.828 ô, trong đó 36 ô đã có trạm sạc thật |
+| Không có đường vào | `demand_h3` | **`access_tier == ISOLATED`** (`ROAD_ACCESS_ISOLATED`) — **E-DQ8a (30/07)** thay `road_access_m ≤ 0`, vốn loại **6.350 ô** trong đó **4.862 ô có đường ở ô KỀ** (tâm 2 ô res 8 cách 0,98 km); nay loại **723 ô**. Neo ngoại vi: **15 trạm đang vận hành** ở ô `ADJACENT`. **E-DQ7b:** nguồn vẫn là cột **lối vào** (gồm `service`/`track`), KHÔNG dùng `road_len_m` (cột cầu) — dùng nhầm sẽ loại 27.828 ô, trong đó 36 ô đã có trạm sạc thật |
 | Ngoài AOI | `aoi.py` | ngoài lõi + buffer 5 km |
 | Toạ độ bẩn (T0) | `stations` | cờ `DUP_COORD` / `COORD_ADDR_MISMATCH` (§7 #1) |
 
@@ -99,7 +99,10 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | --- | --- | --- |
 | Đất nông nghiệp | `frac_crop ≥ 0,60` (`CROP`) | +0,3 |
 | Hạ tầng mỏng | `built_up_frac < 0,15` (`LOW_BUILTUP`) | +0,2 |
-| Dân không đường | `pop>0 & road=0` (`POP_NO_ROAD`, §7 #9) | flag (không phạt) |
+| Đường chỉ ở ô kề | `access_tier ∈ {ADJACENT, NEAR}` (`NEEDS_ACCESS_ROAD`, **E-DQ8a**) | **+0,20** — phải LÀM đường vào, là chi phí thật |
+| Lối vào phi chính thức | chỉ `service`/`track` (`ROAD_ACCESS_INFORMAL`, E-DQ7b) | **+0,10** |
+| Đường duy nhất là mặt cầu | `ROAD_BRIDGE_ONLY` (E-DQ7b) | **+0,10** |
+| Dân không đường | `pop>0 & road=0` (`POP_NO_ROAD`) | flag chẩn đoán (không phạt) — khối lượng đã dời ở **E-DQ8b** |
 | Xa trạm biến áp | dist tới `power=substation` | +0,5·(d/dmax) — proxy đấu nối lưới |
 
 Trạm hiện có (T0) đã có điện/mặt bằng → `penalty = 0` (không phạt land-use thêm).
@@ -171,6 +174,9 @@ spatial-join ranh giới — module tiêu thụ không đổi.
 - **AOI:** tâm (21,028 · 105,834), lõi 25 km + buffer 5 km → **3.141 ô H3**.
 - **buildable_h3:** 2.471/3.141 = **79% buildable**. Loại cứng: NOT_BUILT_UP 596 · WATER_OSM 71 · WATER 63 ·
   WETLAND 25 · NO_ROAD_ACCESS 8 · MILITARY 7. Chỉ **17%** ô `pop>0` bị loại → ngưỡng `BUILT_UP_MIN=0,05` hợp lý.
+  *(Cập nhật 30/07 sau **E-DQ8a** — Hà Nội: **2.529/3.141 = 81%**; `NO_ROAD_ACCESS` 8 ô → `ROAD_ACCESS_ISOLATED`
+  **0 ô**, thay bằng phạt mềm `NEEDS_ACCESS_ROAD` 8 ô. National: 59.768 → **59.927** buildable. `candidate_sites`
+  Hà Nội **1.707 — không đổi**: bậc lối vào chạm nông thôn, không chạm lõi đô thị.)*
 - **candidate_sites:** **1.672** candidate — T0 1.411 · T1 96 · T2 54 · **T4 111**. CapEx: low 1.411 · mid 148 · high 113.
 - **QA gate:** upper-bound coverage 1,00 · freedom 1.672 (≥100) · size 1.672 (≤3.000) · anti-degenerate 1,00 ·
   grid_radius 3,0 → **5/5 PASS**.

@@ -52,7 +52,7 @@
 
 > **P7 — chuẩn cắm thay power tier:** evcs.vn chỉ lộ **công suất**, không lộ chuẩn cắm → tier `AC/DC` theo ngưỡng 25 kW gán **sai** 20-22 kW thành AC (thực tế DC CCS2). Nguồn sự thật là VinFast official (`official_connectors.standard`); 100% connector khớp là chuẩn **ô tô** (CCS2/Type2) → không còn nhiễm 2 bánh sau khi lọc BSS.
 
-### 🟡 `demand_h3` — nhu cầu theo ô H3 (13 cột) · key: `h3_r8`
+### 🟡 `demand_h3` — nhu cầu theo ô H3 (16 cột) · key: `h3_r8`
 
 **Nguồn demand chính thức cho MCLP.** Chứa **thành phần thô** theo ô: `pop`, `road_access_m`, `road_len_m`, `road_lane_mw_m`, `road_lane_ar_m`, `road_bridge_m`, **10 cột POI theo lớp tag** — `n_fuel`, `n_parking_off`, `n_parking_street`, `n_mall`, `n_dept_store`, `n_supermarket`, `n_market`, `n_apartment`, `n_apartment_complex`, `apartment_levels_sum` (**E-DQ7c**; `n_poi`/`n_parking` **khai tử**) (+ `admin_l1_code`, `province_name`, `commune_name`, `commune_kind`).
 
@@ -62,6 +62,27 @@
 | --- | --- | --- |
 | `cell_state` | string | `INSIDE` (lục giác nằm trọn trong VN) \| `BORDER` (vắt biên — **giữ**, 2.977 ô) |
 | `frac_in_vn` | double | tỉ lệ diện tích ô thuộc VN (1,0 với `INSIDE`) — để `demand_weight` chia tỉ lệ ô biên |
+
+**Bậc lối vào (E-DQ8a, 30/07)** — 3 cột nữa, và chúng **thay** `road_access_m <= 0` làm bộ lọc lối vào:
+
+| Cột | Kiểu | Vai trò |
+| --- | --- | --- |
+| `road_access_nb1_m` | double | Σ `road_access_m` của **vành 1** (6 ô kề, **trừ** chính ô) |
+| `road_access_nb2_m` | double | Σ `road_access_m` của **vành 2** (đĩa k=2, trừ chính ô) |
+| `access_tier` | string | `DIRECT` (đường trong ô) \| `ADJACENT` (vành 1, **4.939 ô**) \| `NEAR` (vành 2, 940 ô) \| `ISOLATED` (không có, **595 ô**) |
+
+> ⚠️ **Consumer phải đổi:** `buildable_h3` loại cứng theo `access_tier == 'ISOLATED'`, **không** theo
+> `road_access_m <= 0` — bộ lọc cũ loại 6.350 ô mà **4.862 ô trong đó có đường ở ô KỀ** (tâm 2 ô res 8 cách
+> 0,98 km). Neo ngoại vi: **15 trạm đang vận hành** nằm ở ô `ADJACENT`. `NO_ROAD_ACCESS` → đổi tên
+> `ROAD_ACCESS_ISOLATED` (đổi tên thay vì đổi nghĩa ngầm — cùng nguyên tắc `road_len_mt_m` của E-DQ7b).
+> `access_tier` cũng được xuất ra `buildable_h3` để audit được quyết định loại bỏ.
+
+> ✅ **`E-DQ8b` (30/07) — `pop_adj` nay đã qua HAI phép đặt lại chỗ.** Nguồn của `pop`/`pop_adj` là
+> `worldpop_pop_acc_h3.parquet` (7f dồn cục **+** 8b dời dân ô roadless); `build_demand_h3` nạp theo thang
+> **8b → 7f → 7e** và in cảnh báo ở mỗi bậc lùi. Khối lượng ở ô không lối vào: **1.241.833 → 42.249**
+> (−96,6%). Σ`pop_adj` quốc gia **96.965.852** (−0,612% so `pop`, có cổng canh <1%); Σ`pop` **bất biến từng
+> bit** ở **97.563.106**. Cột `pop_src` trong artefact nguồn là **sổ cái** của mọi lần dời
+> (`MOVED_TO_ACCESSIBLE` 6.244 ô · `UNREPAIRED_*` 225 ô → E-DQ8c).
 
 > Ô `OUTSIDE` tách sang `data/interim/demand/demand_h3_clipped_out.parquet` (cách ly, không xoá) để đối soát `input = output + clipped`. Các cột POI chỉ đếm điểm có `in_vn=True` (clip ở mức điểm, **E-DQ7a**) **và** `is_poi_primary=True` (khử trùng node/way, **E-DQ7c**). ⚠️ Recall OSM đo được: fuel **35,9%**, parking **8,6%** — đây là tín hiệu **tương đối**, không phải số đếm thực địa.
 

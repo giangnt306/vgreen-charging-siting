@@ -1,4 +1,4 @@
-.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand poi-recall vnsdi
+.PHONY: help data proxy model opex-electricity crawl crawl-validate canonical official landuse candidates landuse-national candidates-national covered0 freeze verify-snapshot boundary osm demand poi-recall vnsdi reconcile-pop reallocate-roadless
 
 CITY ?= hanoi
 
@@ -47,8 +47,12 @@ osm:  ## Rebuild OSM demand components (POI clipped + classified + deduped)  [E-
 poi-recall:  ## Measure OSM POI coverage against EV stations sited at fuel/parking  [E-DQ7c]
 	PYTHONPATH=src python -m ev_siting.data.osm.poi_recall
 
-demand:  ## Rebuild demand_h3 grid (cells classified/clipped to VN territory)  [E-DQ7a, E-DQ7f]
+reallocate-roadless:  ## Move pop out of cells with no road access -> worldpop_pop_acc_h3  [E-DQ8b]
+	PYTHONPATH=src python -m ev_siting.data.worldpop.reallocate_roadless
+
+demand:  ## Rebuild demand_h3 grid (cells classified/clipped to VN territory)  [E-DQ7a, E-DQ7f, E-DQ8]
 	PYTHONPATH=src python -m ev_siting.data.worldpop.reconcile_dasymetric
+	PYTHONPATH=src python -m ev_siting.data.worldpop.reallocate_roadless
 	PYTHONPATH=src python -m ev_siting.data.worldpop.build_demand_h3
 	PYTHONPATH=src python -m ev_siting.data.osm.validate
 

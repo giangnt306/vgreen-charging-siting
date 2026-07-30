@@ -8,15 +8,25 @@ Loại cứng (`buildable=False`) nếu bất kỳ điều nào đúng:
   - frac_water + frac_wetland >= WATER_WETLAND_MAX (đầm/bãi triều)
   - built_up_frac < BUILT_UP_MIN                  (núi/rừng/đất trống — chưa đô thị hoá)
   - có cờ loại trừ OSM (MILITARY/PROTECTED/AIRPORT/WATER_OSM)
-  - road_access_m <= 0 trong ô (không có đường tiếp cận — từ demand_h3)
+  - access_tier == ISOLATED (không có đường trong ô LẪN hai vành — E-DQ8a)
 
 Phạt mềm (giữ, hạ điểm — cột `penalty` + cờ):
   - frac_crop >= CROP_DOMINANT      -> CROP        (đất nông nghiệp)
   - built_up_frac < LOW_BUILTUP     -> LOW_BUILTUP (hạ tầng mỏng)
-  - pop>0 & road=0                  -> POP_NO_ROAD (lỗi OSM khả nghi — §7 #9)
+  - đường chỉ ở ô kề (vành 1/2)     -> NEEDS_ACCESS_ROAD    (E-DQ8a)
+  - pop>0 & road=0                  -> POP_NO_ROAD (chẩn đoán E-DQ8, không loại cứng)
   - chỉ có service/track            -> ROAD_ACCESS_INFORMAL (E-DQ7b)
   - đường duy nhất là mặt cầu/hầm   -> ROAD_BRIDGE_ONLY     (E-DQ7b)
   - xa trạm biến áp                 -> dist_substation_m (proxy đấu nối lưới)
+
+**E-DQ8a — vì sao loại cứng theo `access_tier` chứ không `road_access_m <= 0`.** Bộ lọc cũ
+loại **6.350 ô** vì "không có đường", nhưng **4.862 ô trong đó (72,1% khối lượng, 894.956
+người) có đường ngay ở ô KỀ** — tâm hai ô res 8 chỉ cách 0,98 km. Đó là lỗi **thang đo**,
+không phải lỗi dữ liệu, và là cùng cái bẫy mà E-DQ7a đã gỡ ở tầng biên giới (giao lục giác
+thay vì tâm-ô-trong-polygon). Kiểm ngoại vi: **15 trạm đang vận hành** nằm ở ô `ADJACENT`
+⇒ ô như thế xây được thật. Nay chỉ `ISOLATED` bị loại cứng, `ADJACENT`/`NEAR` chịu **phạt
+mềm** (phải làm đường vào — chi phí thật). Phụ chú: bộ lọc cũ dù sao cũng gần vô ích —
+chỉ **134/6.350 ô** bị loại RIÊNG bởi nó, phần còn lại đã vướng NOT_BUILT_UP/WATER/WETLAND.
 
 **E-DQ7b — vì sao lối vào dùng `road_access_m` chứ không `road_len_m`.** Sau E-DQ7b,
 `road_len_m` là mạng **sinh cầu** (đã bỏ `service`+`track`); dùng nó làm bộ lọc cứng
@@ -45,6 +55,9 @@ import pandas as pd
 import h3
 
 from ev_siting.aoi import EARTH_R_KM, add_aoi_args, aoi_from_args
+from ev_siting.data.osm.access_tiers import (BUILDABLE_EXCLUDED_TIERS,
+                                             tiers_from_lookup)
+from ev_siting.data.osm.paths import DEMAND_COMPONENTS
 from ev_siting.data.worldpop.paths import DEMAND_H3
 from .paths import (BUILDABLE_H3, BUILT_UP_MIN, CROP_DOMINANT, EXCLUSION_ZONES,
                     LANDUSE_H3, LOW_BUILTUP, SUBSTATIONS, WATER_MAX,
@@ -101,10 +114,42 @@ def build(aoi):
         if stale:
             raise SystemExit(f"{DEMAND_H3.name} thiếu {stale} (bản trước E-DQ7b) "
                              f"— chạy lại `make demand`")
-        df = df.merge(dem[["h3_r8", "pop"] + _ROAD_COLS], on="h3_r8", how="left")
+        if "access_tier" not in dem.columns:
+            raise SystemExit(f"{DEMAND_H3.name} thiếu access_tier (bản trước E-DQ8a) "
+                             f"— chạy lại `make demand`")
+        df = df.merge(dem[["h3_r8", "pop", "access_tier"] + _ROAD_COLS],
+                      on="h3_r8", how="left")
+    df["pop"] = df.get("pop", 0.0).fillna(0.0).to_numpy()
+    if "access_tier" not in df.columns:
+        df["access_tier"] = None
+    # Ô AOI KHÔNG có dòng trong `demand_h3` — hai nguồn: (a) AOI thành phố sinh đĩa hình
+    # học nên chứa ô mà lưới (hợp của các ô CÓ đặc trưng) chưa biết tới; (b) ô `OUTSIDE`
+    # đã bị E-DQ7a tách sang `demand_h3_clipped_out`. KHÔNG mặc định `ISOLATED` cho chúng:
+    # bậc phải được TÍNH từ bảng đường, vì "không có dòng" chỉ nói lưới thiếu ô đó, không
+    # nói quanh đó không có đường. Đo 30/07: 76 ô không-dòng chứa **83 trạm đang vận
+    # hành**, và tính từ bảng đường ra 50 ADJACENT · 8 NEAR · 18 ISOLATED — mặc định
+    # ISOLATED loại cứng đúng những ô đã có bằng chứng thực địa là xây được.
+    gap = df["access_tier"].isna().to_numpy()
+    if gap.any():
+        comp = pd.read_parquet(DEMAND_COMPONENTS)
+        lut = dict(zip(comp["h3_r8"], comp["road_access_m"]))
+        cells_gap = df.loc[gap, "h3_r8"].tolist()
+        df.loc[gap, "access_tier"] = tiers_from_lookup(cells_gap, lut)
+        # cùng nguồn -> lấy luôn cột đường thật thay vì để 0 (0 mà bậc DIRECT là tự mâu
+        # thuẫn, và `ROAD_ACCESS_INFORMAL`/`ROAD_BRIDGE_ONLY` cần số thật mới đúng)
+        fill = comp.set_index("h3_r8").reindex(cells_gap)
+        for c in _ROAD_COLS:
+            if c in fill.columns:
+                col = df[c].to_numpy(dtype=float, copy=True) if c in df.columns \
+                    else np.zeros(len(df))
+                col[gap] = fill[c].fillna(0.0).to_numpy()
+                df[c] = col
+        by = pd.Series(df.loc[gap, "access_tier"]).value_counts().to_dict()
+        print(f"  [E-DQ8a] {int(gap.sum()):,} ô AOI không có trong demand_h3 -> bậc "
+              f"tính từ {DEMAND_COMPONENTS.name}: {by}")
     for c in _ROAD_COLS:
         df[c] = df.get(c, 0.0).fillna(0.0).to_numpy()
-    df["pop"] = df.get("pop", 0.0).fillna(0.0).to_numpy()
+    df["access_tier"] = df["access_tier"].to_numpy()
 
     # --- OSM exclusion flags ---
     osm_flags = [[] for _ in range(len(df))]
@@ -127,19 +172,25 @@ def build(aoi):
     not_built = df["built_up_frac"].to_numpy() < BUILT_UP_MIN
     # E-DQ7b: lối vào = định nghĩa RỘNG (gồm service/track) — xem docstring
     access = df["road_access_m"].to_numpy()
-    no_road = access <= 0
+    # E-DQ8a: loại CỨNG theo bậc ISOLATED, không theo `road_access_m <= 0`. Bộ lọc cũ
+    # loại 4.862 ô mà đường vào chỉ nằm ở ô KỀ (72% khối lượng E-DQ8) — lỗi thang đo, và
+    # dù sao cũng gần vô ích: chỉ 134/6.350 ô bị loại RIÊNG bởi nó, phần còn lại đã vướng
+    # NOT_BUILT_UP/WATER/WETLAND. Giữ `NO_ROAD_ACCESS` làm cờ CHẨN ĐOÁN (không loại cứng)
+    # vì `buildable` vẫn cần biết ô đó chưa có đường tới tận nơi.
+    tier = df["access_tier"].to_numpy()
+    isolated = np.isin(tier, BUILDABLE_EXCLUDED_TIERS)
     has_osm_excl = np.array([len(f) > 0 for f in osm_flags])
 
     df["exclusion_flags"] = _flag_lists(
         {"WATER": water, "WETLAND": wetland,
-         "NOT_BUILT_UP": not_built, "NO_ROAD_ACCESS": no_road},
+         "NOT_BUILT_UP": not_built, "ROAD_ACCESS_ISOLATED": isolated},
         base_lists=osm_flags)
-    df["buildable"] = ~(water | wetland | not_built | no_road | has_osm_excl)
+    df["buildable"] = ~(water | wetland | not_built | isolated | has_osm_excl)
 
     # --- PHẠT MỀM (vector hoá) ---
     crop = df["frac_crop"].to_numpy() >= CROP_DOMINANT
     low_built = df["built_up_frac"].to_numpy() < LOW_BUILTUP
-    pop_no_road = (df["pop"].to_numpy() > 0) & (access == 0)
+    pop_no_road = (df["pop"].to_numpy() > 0) & (access <= 0)   # cờ chẩn đoán E-DQ8
     # E-DQ7b: lối vào chỉ qua service/track (giữ, hạ điểm — không loại cứng)
     informal = (access > 0) & (df["road_len_m"].to_numpy() <= 0)
     # E-DQ7b: đường duy nhất trong ô là mặt cầu/hầm -> không có chỗ đặt trụ
@@ -149,15 +200,28 @@ def build(aoi):
     dist_term = np.where(finite, 0.5 * np.minimum(dist / (dmax or 1.0), 1.0), 0.5)
     no_sub = ~finite
 
-    penalty = np.clip(0.3 * crop + 0.2 * low_built + dist_term, 0.0, 1.0)
+    # E-DQ8a: các cờ mềm dưới đây trước đây được PHÁT nhưng mang trọng số 0 — công thức
+    # `penalty` chỉ gồm crop/low_built/dist, nên `ROAD_ACCESS_INFORMAL` (27.828 ô) và
+    # `ROAD_BRIDGE_ONLY` (50 ô) bị bỏ qua trong lúc chấm điểm dù chúng nói đúng thứ P5
+    # cần: chỗ đó khó đặt trụ. Nay vào công thức. Ô `ADJACENT`/`NEAR` (có đường ở vành,
+    # không có trong ô) chịu phạt vì phải LÀM đường vào — đó là chi phí thật, không phải
+    # lý do loại bỏ (15 trạm đang vận hành nằm ở ô ADJACENT).
+    needs_access = np.isin(tier, ("ADJACENT", "NEAR"))
+    penalty = np.clip(0.3 * crop + 0.2 * low_built
+                      + 0.2 * needs_access + 0.1 * informal + 0.1 * bridge_only
+                      + dist_term, 0.0, 1.0)
     df["penalty"] = np.round(penalty, 3)
     df["penalty_flags"] = _flag_lists(
         {"CROP": crop, "LOW_BUILTUP": low_built,
          "POP_NO_ROAD": pop_no_road, "NO_SUBSTATION": no_sub,
+         "NEEDS_ACCESS_ROAD": needs_access,
          "ROAD_ACCESS_INFORMAL": informal, "ROAD_BRIDGE_ONLY": bridge_only})
 
+    # `access_tier` là ĐẦU VÀO của bộ lọc cứng nên phải xuất ra cùng bảng — không thể
+    # audit một quyết định loại bỏ bằng cột không có trong artefact (cùng lý do E-DQ7b
+    # xuất `road_access_m` chứ không chỉ xuất `buildable`).
     out_cols = ["h3_r8", "buildable", "built_up_frac", "frac_water", "frac_crop",
-                "road_access_m", "road_len_m", "road_bridge_m", "pop",
+                "road_access_m", "road_len_m", "road_bridge_m", "access_tier", "pop",
                 "dist_substation_m", "exclusion_flags", "penalty_flags", "penalty"]
     out = df[out_cols].sort_values("h3_r8").reset_index(drop=True)
     out.to_parquet(BUILDABLE_H3, index=False)

@@ -52,29 +52,45 @@ import pandas as pd
 from ev_siting.data.osm.paths import DEMAND_COMPONENTS
 from ev_siting.data.osm.poi_semantics import DERIVED_COLUMNS as POI_DERIVED
 from ev_siting.data.osm.road_semantics import DERIVED_COLUMNS
+from ev_siting.data.osm.access_tiers import DERIVED_COLUMNS as TIER_DERIVED
+from ev_siting.data.osm.access_tiers import derive as derive_tiers
 from ev_siting.data.osm.vn_boundary import classify_cells
 from ev_siting.data.provenance.manifest import load_manifest
-from .paths import (DEMAND_H3, DEMAND_H3_CLIPPED, DEMAND_REPORT, POP_ADJ_H3,
-                    POP_H3, ensure_dirs)
+from .paths import (DEMAND_H3, DEMAND_H3_CLIPPED, DEMAND_REPORT, POP_ACC_H3,
+                    POP_ADJ_H3, POP_H3, ensure_dirs)
 
 # `apartment_levels_sum` là Σ số tầng (số ĐO, có thể lẻ khi thiếu tag) -> cột số thực;
-# mọi cột POI còn lại là số đếm nguyên. `pop_adj` (E-DQ7f) là pop ĐÃ đặt lại chỗ theo
-# built-up — dùng cho consumer XẾP HẠNG; `pop` giữ UN-anchored cho phát biểu tuyệt đối.
-_NUM_COLS = ["pop", "pop_adj"] + DERIVED_COLUMNS + ["apartment_levels_sum"]
+# mọi cột POI còn lại là số đếm nguyên. `pop_adj` (E-DQ7f + E-DQ8b) là pop ĐÃ đặt lại chỗ
+# — dùng cho consumer XẾP HẠNG; `pop` giữ UN-anchored cho phát biểu tuyệt đối.
+#: cột số có SẴN ở đầu vào (pop + thành phần OSM) — được fillna(0) sau outer join.
+_JOINED_NUM_COLS = ["pop", "pop_adj"] + DERIVED_COLUMNS + ["apartment_levels_sum"]
+#: cột số của bảng ra = cột join + 2 cột vành do E-DQ8a SUY RA sau (không fillna được
+#: vì lúc đó chưa tồn tại — `access_tier` là chuỗi nên không nằm ở đây).
+_NUM_COLS = _JOINED_NUM_COLS + [c for c in TIER_DERIVED if c != "access_tier"]
 _INT_COLS = [c for c in POI_DERIVED if c != "apartment_levels_sum"]
 _FLAG_COLS = ["pop_pixel_implausible"]          # E-DQ7f: cờ ô dồn cục (bool)
 _ALL_COLS = (["h3_r8"] + _NUM_COLS + _INT_COLS + _FLAG_COLS
-             + ["cell_state", "frac_in_vn"])
+             + ["access_tier", "cell_state", "frac_in_vn"])
 
 
 def _load_pop():
-    """Nạp pop cho demand. Ưu tiên bảng E-DQ7f (`worldpop_pop_adj_h3`, có `pop_adj` +
-    cờ dồn cục); nếu chưa dựng thì lùi về `worldpop_pop_h3` với pop_adj=pop, cờ=False
-    (tương thích ngược, KHÔNG bịa giá trị)."""
+    """Nạp pop cho demand, theo thang ưu tiên **mới nhất thắng** (không bịa giá trị ở
+    bậc nào):
+
+      1. `worldpop_pop_acc_h3` (E-DQ8b) — pop_adj đã qua CẢ hai phép đặt lại chỗ;
+      2. `worldpop_pop_adj_h3` (E-DQ7f) — chỉ sửa dồn cục, dân roadless còn nguyên chỗ;
+      3. `worldpop_pop_h3`     (E-DQ7e) — pop_adj = pop, cờ = False.
+    """
+    if POP_ACC_H3.exists():
+        p = pd.read_parquet(POP_ACC_H3)[["h3_r8", "pop", "pop_adj",
+                                         "pop_pixel_implausible"]]
+        print(f"[demand_h3] pop từ {POP_ACC_H3.name} (E-DQ7f + E-DQ8b)")
+        return p
     if POP_ADJ_H3.exists():
         p = pd.read_parquet(POP_ADJ_H3)[["h3_r8", "pop", "pop_adj",
                                          "pop_pixel_implausible"]]
-        print(f"[demand_h3] pop từ {POP_ADJ_H3.name} (E-DQ7f: pop_adj + cờ dồn cục)")
+        print(f"[demand_h3] ⚠️ chưa có {POP_ACC_H3.name} (E-DQ8b) — pop từ "
+              f"{POP_ADJ_H3.name}, dân ô roadless CHƯA được dời")
         return p
     p = pd.read_parquet(POP_H3)[["h3_r8", "pop"]]
     p["pop_adj"] = p["pop"]
@@ -133,6 +149,32 @@ def qa_gates(report, full, keep, drop):
     # ⑥ lưới giữ lại không còn ô OUTSIDE
     all_ok &= _check(report, "no_outside_cell_in_grid",
                      not (keep["cell_state"] == "OUTSIDE").any())
+
+    # ⑦ E-DQ8a — bậc lối vào phải nhất quán với cột đo: mọi ô `road_access_m > 0` là
+    #    DIRECT, và mọi ô ISOLATED phải thật sự không có đường trong cả hai vành. Cổng
+    #    này FAIL được (khác `road_mt_le_total` cũ vốn đúng theo xây dựng).
+    bad_direct = int(((keep["road_access_m"] > 0)
+                      & (keep["access_tier"] != "DIRECT")).sum())
+    bad_iso = int(((keep["access_tier"] == "ISOLATED")
+                   & ((keep["road_access_nb1_m"] > 0)
+                      | (keep["road_access_nb2_m"] > 0))).sum())
+    all_ok &= _check(report, "access_tier_consistent",
+                     bad_direct == 0 and bad_iso == 0,
+                     f"{bad_direct} ô có đường mà không DIRECT · "
+                     f"{bad_iso} ô ISOLATED mà vành có đường")
+
+    # ⑧ E-DQ8b — sau khi dời dân, `pop_adj` không được còn đọng ở ô ISOLATED. Ngưỡng
+    #    WARN thay vì FAIL vì xã không có ô built-up nào để nhận thì 8b GIỮ TẠI CHỖ có
+    #    nhãn (`UNREPAIRED_*`) — đó là đầu vào hợp lệ của E-DQ8c, không phải lỗi.
+    iso_pop = float(keep.loc[keep["access_tier"] == "ISOLATED", "pop_adj"].sum())
+    share = iso_pop / max(t_keep["pop_adj"], 1.0)
+    _check(report, "no_pop_adj_left_isolated", share < 1e-4,
+           f"{iso_pop:,.0f} người ({share:.4%}) còn ở ô ISOLATED "
+           f"(chưa chạy E-DQ8b nếu ≈ 0,19%)", fatal=False)
+    report["stats"]["access_tiers"] = {
+        t: {"cells": int(len(x)), "pop": float(x["pop"].sum()),
+            "pop_adj": float(x["pop_adj"].sum())}
+        for t, x in keep.groupby("access_tier")}
     return all_ok
 
 
@@ -157,7 +199,7 @@ def run():
                          f"— chạy lại `make osm`")
     df = pop.merge(osm, on="h3_r8", how="outer")
 
-    for c in _NUM_COLS:
+    for c in _JOINED_NUM_COLS:
         df[c] = df.get(c, 0.0).fillna(0.0)
     for c in _INT_COLS:
         df[c] = df.get(c, 0).fillna(0).astype(int)
@@ -165,6 +207,12 @@ def run():
     for c in _FLAG_COLS:
         s = df[c] if c in df.columns else pd.Series(False, index=df.index)
         df[c] = s.where(s.notna(), False).astype(bool)
+
+    # E-DQ8a — bậc lối vào tính ở thang LÂN CẬN. Phải tính TRƯỚC khi clip lãnh thổ: ô
+    # bên kia biên vẫn là láng giềng có đường thật, bỏ nó ra sẽ báo ISOLATED giả cho ô
+    # vắt biên (cùng cái bẫy "tâm-ô-trong-polygon" mà E-DQ7a đã gỡ).
+    print(f"[demand_h3] E-DQ8a: bậc lối vào theo vành 1/2 trên {len(df)} ô...")
+    df = derive_tiers(df)
 
     print(f"[demand_h3] phân loại {len(df)} ô theo lãnh thổ VN (E-DQ7a)...")
     df = df.merge(classify_cells(df["h3_r8"].tolist()), on="h3_r8", how="left")
@@ -204,9 +252,17 @@ def run():
     print(f"  lối vào phi chính thức (chỉ service/track): {int(informal.sum()):,} ô, "
           f"{keep.loc[informal, 'pop'].sum():,.0f} dân "
           f"({int((informal & (keep['pop'] > 0)).sum()):,} ô có dân)")
-    print(f"  E-DQ8 (pop>0 & không lối vào): "
-          f"{int(((keep['pop'] > 0) & (keep.road_access_m <= 0)).sum()):,} ô, "
-          f"{keep.loc[(keep['pop'] > 0) & (keep.road_access_m <= 0), 'pop'].sum():,.0f} dân")
+    # E-DQ8 — tách theo BẬC lối vào (E-DQ8a). Con số "6.350 ô / 1,24M dân" của register
+    # là tổng của ba thứ khác nhau: ADJACENT (đường ở ô kề — lỗi THANG ĐO, 72%), NEAR, và
+    # ISOLATED (cô lập thật). Chỉ ISOLATED là ứng viên loại cứng.
+    roadless = keep["road_access_m"] <= 0
+    print(f"  E-DQ8 (pop>0 & không lối vào TRONG ô): "
+          f"{int((roadless & (keep['pop'] > 0)).sum()):,} ô, "
+          f"{keep.loc[roadless & (keep['pop'] > 0), 'pop'].sum():,.0f} dân — tách theo bậc:")
+    for t in ("ADJACENT", "NEAR", "ISOLATED"):
+        m = (keep["access_tier"] == t) & (keep["pop"] > 0)
+        print(f"    {t:<9} {int(m.sum()):>6,} ô · pop {keep.loc[m, 'pop'].sum():>11,.0f}"
+              f" · pop_adj {keep.loc[m, 'pop_adj'].sum():>11,.0f}")
 
     report = {"snapshot_id": (load_manifest() or {}).get("snapshot_id"),
               "checks": [], "stats": {

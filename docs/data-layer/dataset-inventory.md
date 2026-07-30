@@ -97,10 +97,11 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 
 | Artifact | Dòng (ô H3) | Cột | Ghi chú |
 | --- | ---: | ---: | --- |
-| `demand/demand_h3.parquet` | **254.159** | 21 | `pop` + **`pop_adj`** + 5 cột `road_*` (**E-DQ7b**) + **10 cột POI theo lớp tag** (**E-DQ7c**: `n_fuel` 4.830 · `n_parking_off` 2.147 · `n_parking_street` 149 · `n_mall` 252 · `n_dept_store` 1.133 · `n_supermarket` 1.386 · `n_market` 1.661 · `n_apartment` 5.157 · `n_apartment_complex` **1.370** · `apartment_levels_sum`) + `pop_pixel_implausible` (**E-DQ7f**) + `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` = **97.563.106** (**E-DQ7e**, UNadj); Σ`pop_adj` = **97.076.708** (**E-DQ7f**, −0,499% người ma). ⚠️ `n_poi`/`n_parking` **khai tử** |
+| `demand/demand_h3.parquet` | **255.480** | 24 | `pop` + **`pop_adj`** + 5 cột `road_*` (**E-DQ7b**) + **`road_access_nb1_m`/`road_access_nb2_m`/`access_tier`** (**E-DQ8a**) + **10 cột POI theo lớp tag** (**E-DQ7c**: `n_fuel` 4.830 · `n_parking_off` 2.147 · `n_parking_street` 149 · `n_mall` 252 · `n_dept_store` 1.133 · `n_supermarket` 1.386 · `n_market` 1.661 · `n_apartment` 5.157 · `n_apartment_complex` **1.370** · `apartment_levels_sum`) + `pop_pixel_implausible` (**E-DQ7f**) + `cell_state`/`frac_in_vn` (**E-DQ7a**). Σ`pop` = **97.563.106** (**E-DQ7e**, UNadj, bất biến); Σ`pop_adj` = **96.965.852** (**E-DQ7f** người ma + **E-DQ8b** dời dân ô roadless, −0,612%). ⚠️ `n_poi`/`n_parking` **khai tử** |
 | `worldpop/worldpop_pop_h3.parquet` | 104.171 | 2 | chỉ ô có dân; Σ = **97.569.444** (**E-DQ7e**) — nguồn `pop` UN-anchored, KHÔNG đụng bởi 7f |
 | `worldpop/worldpop_pop_report.json` | — | — | 3 cổng hiệu chuẩn (**E-DQ7e**): tổng khớp file UNadj đã băm · Spearman(cũ, mới) = **1,000000** · tỉ số theo pixel là hằng số (std **2,4e-08**) |
 | `worldpop/worldpop_pop_adj_h3.parquet` | 107.942 | 14 | **E-DQ7f**: `pop` (bất biến) + `pop_adj` (đặt lại chỗ theo built-up) + `pop_src`/`pop_pixel_implausible` (139 ô) + chẩn đoán `n_px`/`max_px`/`top3_px_share`/`n_eff`/`pop_per_eff_px`/`pop_lat`/`pop_lon` + `maxa`/`danso`. +3.771 ô nhận (built-up, `pop=0`) |
+| `worldpop/worldpop_pop_acc_h3.parquet` | **262.849** | 19 | **E-DQ8b**: `pop_adj` sau CẢ HAI phép đặt lại chỗ (7f dồn cục + 8b dời dân ô roadless) + `access_tier`/`road_access_m`/`road_access_nb*`/`built_ha` + `pop_src` (sổ cái: `MOVED_TO_ACCESSIBLE` **6.244** · `UNREPAIRED_NO_COMMUNE` 222 · `UNREPAIRED_NO_ACCESSIBLE_BUILTUP` 3 → E-DQ8c). Σ`pop_adj` = **96.965.852**; khối lượng ở ô không lối vào **1.241.833 → 42.249** (−96,6%). Đây là bảng `build_demand_h3` ĐANG nạp |
 | `worldpop/worldpop_pop_adj_report.json` | — | — | 7 cổng **E-DQ7f**: `pop_bit_invariant`=0 · `retotal_reduces_mass`=486.399 người ma · `global_mass_accounted`=0,000 · drift 0,499% · join 99,84% |
 | `vnsdi/communes.parquet` | **3.321** | 10 | **E-DQ7f**: ranh giới + dân số cấp xã (VNSDI 34DVHC, DANSO 2025) — nguồn cấp xã **độc lập** để kiểm chứng phân bổ. `maxa`/`tenxa`/`matinh`/`danso`/`dientich_km2`/`geom_wkb`. Σdanso 113,63 M (đăng ký 2025, +16,5% vs WorldPop) |
 | `osm/osm_demand_components_h3.parquet` | 255.054 | 16 | thành phần OSM — cột **suy ra** từ 2 bảng lớp (10 POI + 5 `road_*`) |
@@ -133,7 +134,7 @@ Nguồn 1–5 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 | Artifact | Dòng | Cột | Ghi chú |
 | --- | ---: | ---: | --- |
 | `landuse/landuse_h3.parquet` | **1.419.043** | 11 | Bảng **nhiều dòng nhất** (trừ TS) — WorldCover theo H3 toàn quốc |
-| `landuse/buildable_h3.parquet` | 268.404 | 11 | Khớp 1-1 với `demand_h3` |
+| `landuse/buildable_h3.parquet` | **255.480** | 14 | Khớp 1-1 với `demand_h3`. **59.927** ô `buildable` (23%). Loại cứng: `NOT_BUILT_UP` 193.884 · `WATER` 7.262 · `WETLAND` 4.809 · **`ROAD_ACCESS_ISOLATED` 723** (**E-DQ8a** — đổi tên từ `NO_ROAD_ACCESS`, vốn loại 6.350 ô) · OSM MILITARY/PROTECTED/AIRPORT 594. Có cột **`access_tier`** để audit quyết định loại bỏ |
 | `landuse/osm_substations.parquet` | 2.432 | 2 | Trạm biến áp (proxy lưới điện) |
 | `landuse/exclusion_zones.parquet` | 694 | 2 | Ô H3 bị cấm |
 

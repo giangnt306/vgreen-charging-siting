@@ -145,11 +145,18 @@ Cột vô hướng dùng ở `demand_h3`:
 
 | Cột | Định nghĩa | Dùng cho |
 | --- | --- | --- |
-| `road_access_m` | Σ mọi lớp (**gồm** `service`+`track`) | **lối vào** — `buildable_h3`, E-DQ8 |
+| `road_access_m` | Σ mọi lớp (**gồm** `service`+`track`) | **lối vào** — nguồn của `access_tier` (E-DQ8a) → `buildable_h3` |
 | `road_len_m` | Σ trừ `service`+`track` | **cầu** — proxy demand |
 | `road_lane_mw_m` | lane-mét `MOTORWAY` | hành lang liên tỉnh (sạc nhanh) |
 | `road_lane_ar_m` | lane-mét `TRUNK`+`PRIMARY` | trục đô thị |
 | `road_bridge_m` | km cầu/hầm (**tập con** của `road_access_m`) | P5 — không đặt trụ trên mặt cầu |
+
+> ⚠️ **E-DQ8a (30/07) — `road_access_m` KHÔNG còn được đọc trực tiếp làm bộ lọc lối vào.** Câu hỏi "ô này có
+> lối vào không?" phải đo ở thang **lân cận**, không phải trong một ô: tâm hai ô res 8 cách **0,98 km** nên
+> **4.862/6.350 ô** `road_access_m = 0` thật ra có đường ngay ở **vành 1**. `build_demand_h3` suy ra
+> `road_access_nb1_m`/`road_access_nb2_m`/`access_tier` từ cột này
+> ([`osm/access_tiers.py`](../../src/ev_siting/data/osm/access_tiers.py)); consumer dùng `access_tier`.
+> Cột thô vẫn đúng và vẫn là nguồn duy nhất — chỉ đừng so nó với 0 rồi kết luận.
 | ~~`road_len_mt_m`~~ | **khai tử** (đổi tên thay vì đổi nghĩa ngầm) | — |
 
 > Chỉ có một chính sách còn nằm ở khâu trích xuất: `NON_DRIVABLE`
