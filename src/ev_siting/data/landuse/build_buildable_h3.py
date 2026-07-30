@@ -19,6 +19,9 @@ Phạt mềm (giữ, hạ điểm — cột `penalty` + cờ):
   - đường duy nhất là mặt cầu/hầm   -> ROAD_BRIDGE_ONLY     (E-DQ7b)
   - xa trạm biến áp                 -> dist_substation_m (proxy đấu nối lưới)
 
+Gate F14: nếu tỷ lệ ô pop>0 mà không có đường tiếp cận (road_access_m <= 0)
+vượt MAX_POP_NO_ROAD_FRAC -> fail-fast (đầu vào đường thiếu coverage).
+
 **E-DQ8a — vì sao loại cứng theo `access_tier` chứ không `road_access_m <= 0`.** Bộ lọc cũ
 loại **6.350 ô** vì "không có đường", nhưng **4.862 ô trong đó (72,1% khối lượng, 894.956
 người) có đường ngay ở ô KỀ** — tâm hai ô res 8 chỉ cách 0,98 km. Đó là lỗi **thang đo**,
@@ -60,7 +63,8 @@ from ev_siting.data.osm.access_tiers import (BUILDABLE_EXCLUDED_TIERS,
 from ev_siting.data.osm.paths import DEMAND_COMPONENTS
 from ev_siting.data.worldpop.paths import DEMAND_H3
 from .paths import (BUILDABLE_H3, BUILT_UP_MIN, CROP_DOMINANT, EXCLUSION_ZONES,
-                    LANDUSE_H3, LOW_BUILTUP, SUBSTATIONS, WATER_MAX,
+                    LANDUSE_H3, LOW_BUILTUP, MAX_POP_NO_ROAD_FRAC,
+                    SUBSTATION_PENALTY_SCALE_M, SUBSTATIONS, WATER_MAX,
                     WATER_WETLAND_MAX, ensure_dirs)
 
 
@@ -196,8 +200,9 @@ def build(aoi):
     # E-DQ7b: đường duy nhất trong ô là mặt cầu/hầm -> không có chỗ đặt trụ
     bridge_only = (access > 0) & ((access - df["road_bridge_m"].to_numpy()) <= 0)
     finite = np.isfinite(dist)
-    dmax = float(dist[finite].max()) if finite.any() else 1.0
-    dist_term = np.where(finite, 0.5 * np.minimum(dist / (dmax or 1.0), 1.0), 0.5)
+    # F14 (port từ devky): chuẩn hoá bằng hằng VẬT LÝ 50 km thay vì dmax theo dữ
+    # liệu — dmax làm `penalty` phụ thuộc AOI/run, không so sánh được giữa các lần.
+    dist_term = np.where(finite, 0.5 * np.minimum(dist / SUBSTATION_PENALTY_SCALE_M, 1.0), 0.5)
     no_sub = ~finite
 
     # E-DQ8a: các cờ mềm dưới đây trước đây được PHÁT nhưng mang trọng số 0 — công thức
@@ -239,6 +244,16 @@ def build(aoi):
         pop_excluded = int((pop_mask & ~out["buildable"].to_numpy()).sum())
         print(f"  ⚠️ ô pop>0 bị loại: {pop_excluded}/{int(pop_mask.sum())} = "
               f"{pop_excluded/pop_mask.sum():.0%} (nếu >70% -> BUILT_UP_MIN quá chặt)")
+        # Gate F14 (port từ devky): quá nhiều ô có dân mà KHÔNG có đường tiếp cận
+        # (`road_access_m <= 0`, ngữ nghĩa E-DQ7b) -> đầu vào đường thiếu coverage,
+        # dừng sớm thay vì để bộ lọc chạy trên dữ liệu đường mù.
+        no_road_pop = int(pop_no_road.sum())
+        frac = no_road_pop / int(pop_mask.sum())
+        print(f"  ô pop>0 không thấy road: {no_road_pop}/{int(pop_mask.sum())} "
+              f"= {frac:.0%}")
+        if frac > MAX_POP_NO_ROAD_FRAC:
+            raise SystemExit(f"F14 FAIL: POP_NO_ROAD={frac:.1%} > "
+                             f"{MAX_POP_NO_ROAD_FRAC:.0%}; road input thiếu coverage")
     return out
 
 
