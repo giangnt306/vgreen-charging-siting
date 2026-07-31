@@ -458,3 +458,18 @@ Toàn chuỗi dẫn xuất rebuild từ raw trên `integrate/final` (log gate tr
 - Kết quả: mọi QA gate PASS (1 WARN không chặn: `poi_recall_bias_parking_off` 2,44); **pytest 161/161, 0 skip**; `verify-snapshot HASHES=1` PASS trên snapshot mới `2026-07-30` (entry vn_admin tự rớt đúng thiết kế); bundle handoff `evcs_vn_2026-07-30` (19.805 trạm/24.787 connector, telemetry 720h, 1,06 GB).
 - Con số chốt (đo từ artefact): master 28.923 · canonical 19.805/24.787 · cung 19.086 + 719 loại = 19.805 · lưới demand 314.934 (INSIDE 311.447/BORDER 3.487) · Σpop_adj 97.083.046 (−0,499%) · Σpop_2025 101,30M · buildable 59.926/314.934 (19,0%) · candidates 16.659 · covered0 18.928/15.552.
 - Nợ đã đóng so danh sách B5: raw thiếu ✓ · verify-snapshot ✓ · 3 test VNSDI hết skip ✓ · số docs "(cần đo lại)" ✓ · dấu ☑ nhóm F tái kiểm ✓. Còn lại: test riêng cho export_handoff.py; token VNSDI trong lịch sử data/giang vẫn phải rotate (không phụ thuộc repo này); mirror HF chưa đồng bộ thế hệ mới.
+
+---
+
+## Hoàn thiện dữ liệu — 2026-07-31 (phiên grill với data lead)
+
+Sáu nợ/blocker còn lại được đưa qua grill từng-câu-một; quyết định cuối (mọi mục đều do data lead chốt):
+
+1. **Mirror HF — GIỮ PUBLIC nguyên raw** (bác khuyến nghị private; hỏi lại lần hai vẫn giữ). Register F1 → RISK-ACCEPTED, owner Kỳ, 31/07. Mirror chưa đồng bộ thế hệ 2026-07-30.
+2. **Token VNSDI — HẠ MỨC, ĐÓNG.** Cải chính đánh giá B2/B3: xác minh `_fetch_token` cho thấy `tokenChinh` là token public tự xoay phát cho mọi khách vãng lai (referer-bound, không bền) — không phải secret, không cần rotate/rewrite lịch sử. Vệ sinh còn lại: Giang chuyển allowlist sang `settings.local.json`.
+3. **Bản tách TS 720h — đo 31/07:** 19.426 file, 38.255.343 dòng, **khớp nguồn từng dòng**; giữ nguyên, không crawl lại.
+4. **pop_2025 lệch footprint thế hệ** (đo 31/07: 188.094 ô/11,33M người chỉ có ở R2024B; chiều ngược 417 ô/28,2K = 0,029%): người dùng mở lại Q9 → chốt tải **R2024B-2020** (fact: bản "2025 UN-adjusted" không tồn tại và cũng không sửa được footprint). Kết quả: `worldpop_pop_2020_r24_h3` 303.192 ô, Σ 97.620.404, **giao footprint 100% với lớp 2025** — cặp per-cell hợp lệ; `demand_h3` không đổi schema; vintage `2020_r24` thêm vào POP_SOURCES (+12 dòng code, có producer tái lập).
+5. **export_handoff.py — KHÔNG viết test** (quyết định có chủ đích, ghi register; bằng chứng vận hành: bundle 30/07 qua F10/FX-05 thật kể cả nhánh FAIL).
+6. **WARN parking bias 2,44 — chấp nhận** (fact: PARKING_OFF là anchor T1, T4 gap-fill đang bù 920 ô, upper-bound 91,05% PASS); docs ghi hệ quả + cấm đọc `n_parking_off` tuyệt đối.
+
+Re-freeze giữ `snapshot_id=2026-07-30` (chỉ thêm member `population_raster_2020_r24`, nguồn cũ không đổi — tránh cascade sang bundle handoff đã đóng).

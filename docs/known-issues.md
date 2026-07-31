@@ -67,7 +67,7 @@
 | **[E-DQ5](issues/e-data-quality/e-dq5-operator-ownership.md)**  | E     | ~~Trường `operator` bẩn~~ → **tiền đề bị bác**: `operator` là **HẰNG SỐ** trên tập cung (0 null, **1** giá trị phân biệt) ⇒ **không có gì để làm sạch**. Tín hiệu chủ sở hữu/mặt bằng nằm ở `name` chưa parse (**76,8%** cung mang token `Tư nhân`/`NQ`) — **Giang chốt 30/07: không cần sửa trong scope**, giữ lại làm ghi chú vì nó là *feature* tiềm năng, không phải lỗi. **33** dòng lỗi phạm trù (payment → network) theo cùng `E-DQ6` nếu mở lại | ⚪   | DOC → FUTURE          | Giang           | **2026-07-30** | ⊘           |
 | **[E-DQ6](issues/e-data-quality/e-dq6-freetext-cleanup.md)**  | E     | Text tự do bẩn (`name`, `address`)                                                                                                                                                                                                                                                                                                                                                     | ⚪   | SIMPLIFY              | Giang           | —                   | ☐           |
 | **[E-DQ3](issues/e-data-quality/e-dq3-admin-enrichment.md)**  | E     | Cột admin trống (`admin_l1_code`, `province_name`, `commune_name`, `commune_kind`) **+ trọng tài `COORD_ADDR_MISMATCH` của E-DQ1** (nguồn: ranh giới xã VNSDI 2025-06-16)                                                                                                                                                                                                                                                                                                 | 🟡   | FIX                   | Giang           | **2026-07-30**      | ☑           |
-| **[F1](sprint-reviews/data-pipeline-review-2026-07-28.md)** | F | HF dataset public (license Unknown, push lại 28/07) — rủi ro pháp lý ToS/vault. *Không demo/publish trước khi đóng.* | 🔴 | **FIX (chặn)** | Giang | — | ☐ |
+| **[F1](sprint-reviews/data-pipeline-review-2026-07-28.md)** | F | HF dataset public (license Unknown, push lại 28/07) — rủi ro pháp lý ToS/vault. **Quyết định 31/07 (data lead, sau grill):** GIỮ PUBLIC nguyên raw — khuyến nghị private của review bị bác, rủi ro ToS chấp nhận có chủ đích; mirror chưa đồng bộ thế hệ 2026-07-30. | 🟠 | **RISK-ACCEPTED** | Kỳ | **2026-07-31** | ⊘ |
 | **[F2](sprint-reviews/data-pipeline-review-2026-07-28.md)** | F | `split_timeseries` ghi đè khi resume → mất telemetry vĩnh viễn. Fix: raw run bất biến `timeseries_runs/load_ts_<run-id>.csv` + merge-union vào `evcs_timeseries/<code>.csv` *(port nguyên bản vào pipeline hợp nhất 30/07)* | 🔴 | FIX | Giang | **2026-07-28** | ☑ |
 | **[F3](sprint-reviews/data-pipeline-review-2026-07-28.md)** | F | Race listener Socket.IO → time-series gán nhầm trạm; fix: cô lập socket theo trạm + `.failed` | 🔴 | FIX | Giang | **2026-07-28** | ☑ |
 | **[F4](sprint-reviews/data-pipeline-review-2026-07-28.md)** | F | Bộ lọc dirty-coord chết (2 cờ không producer nào sinh); `DUP_COORD_SUSPECT` không ai tiêu thụ; T0 bypass buildable *(pipeline hợp nhất lọc bằng cổng `coord_resolved` của E-DQ1 — xem §2.1)* | 🔴 | FIX | Giang | **2026-07-28** | ☑ |
@@ -114,6 +114,23 @@
 >
 > **12 mục `L` còn mở** (L2/L3/L5/L7–L9/L11–L16) theo dõi tại
 > [review/2026-07-29-data-lead-review.md](review/2026-07-29-data-lead-review.md) — chưa thăng cấp thành dòng register.
+>
+> **Chốt phiên hoàn thiện 31/07 (grill với data lead):**
+>
+> - **Token VNSDI trong lịch sử `data/giang` — HẠ MỨC, ĐÓNG.** Xác minh 31/07: `tokenChinh` là token
+>   **public tự xoay** — `config.aspx` phát cho *bất kỳ* khách vãng lai, referer-bound, không bền
+>   (`vnsdi/fetch_communes._fetch_token`). Không phải secret ⇒ **không cần rotate, không rewrite lịch sử**.
+>   Cảnh báo "PHẢI rotate" trong hồ sơ B2/B3 là đánh giá quá tay tại thời điểm chưa đọc cơ chế token.
+>   Việc còn lại chỉ là vệ sinh: Giang chuyển allowlist cá nhân sang `.claude/settings.local.json`.
+> - **`export_handoff.py` không có test riêng — quyết định có chủ đích của data lead 31/07** (không phải
+>   nợ treo). Bằng chứng vận hành: bundle `evcs_vn_2026-07-30` đóng thành công qua gate F10 + FX-05 thật
+>   (kể cả nhánh FAIL của F10 đã kích hoạt đúng khi manifest lệch).
+> - **Bản tách timeseries 720h:** đo 31/07 — 19.426 file, **38.255.343 dòng, khớp nguồn từng dòng**;
+>   giữ nguyên, không crawl lại.
+> - **`pop_2025` khác footprint thế hệ:** bổ sung `worldpop_pop_2020_r24_h3` (cặp cùng thế hệ R2024B) để
+>   so per-cell hợp lệ — xem [schema-contract](schema/schema-contract.md) mục `pop_2025`.
+> - **WARN `poi_recall_bias_parking_off` 2,44 — chấp nhận có chủ đích** (T4 gap-fill 920 ô đang bù,
+>   coverage 91,05% PASS) — xem [candidate-sites](data-layer/candidate-sites.md).
 
 ### 2.1 Ghi chú hợp nhất nhánh (2026-07-30) — một sự thật mỗi lớp
 

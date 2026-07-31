@@ -52,7 +52,7 @@ nó không lộ ra qua tỷ lệ R/d mà qua **cấu trúc candidate**. Gate ④
 | **T0** | trạm hiện có (`canonical/stations`) | brownfield: đã có điện, mặt bằng, giấy phép | `low` |
 | **T1** | lớp `PARKING_OFF`, `FUEL` (**E-DQ7c**) | có sân đỗ, quen mô hình dừng-đỗ | `mid` |
 | **T2** | lớp `MALL`, `DEPT_STORE`, `SUPERMARKET`, `MARKET`, `APARTMENT` (**E-DQ7c**) | dwell time dài, có bãi đỗ đi kèm | `mid` |
-| **T4** | **gap-fill tổng hợp** — centroid ô demand cao **không** có anchor T0–T2 | chống thiên vị đô thị của OSM — **đã định lượng ở E-DQ7c**: recall POI của OSM chỉ 35,9% (fuel) / 8,6% (parking), riêng parking còn lệch đô thị (tỉ số tầng pop cao/thấp = 2,67) ⇒ **không được lọc cứng theo việc VẮNG POI** | `high` |
+| **T4** | **gap-fill tổng hợp** — centroid ô demand cao **không** có anchor T0–T2 | chống thiên vị đô thị của OSM — **đã định lượng ở E-DQ7c**: recall POI của OSM chỉ 35,9% (fuel) / 8,8% (parking — đo 30/07), riêng parking còn lệch đô thị (bias pop cao/thấp = **2,44**, WARN `poi_recall_bias_parking_off`) ⇒ **không được lọc cứng theo việc VẮNG POI** | `high` |
 
 - **E-DQ7c — ba bộ lọc "một địa điểm vật lý = một anchor".** (1) `PARKING_STREET` **không** làm anchor: 149 chỗ
   đỗ ven đường/lòng đường không phải mặt bằng đặt được trụ. (2) chỉ nhận `is_poi_primary` — bản node và bản way
@@ -272,7 +272,7 @@ Mọi ngưỡng scope-aware **override được** qua CLI (`--max-candidates`, `
 - **Quy hoạch sử dụng đất chính thức VN không public** → WorldCover/OSM chỉ là **proxy**; điểm "buildable"
   vẫn có thể bị cấm theo quy hoạch địa phương.
 - **WorldCover 2021 vs hiện tại 2026** — lệch vintage như **P10**.
-- **Bias đô thị của OSM POI** — giảm nhẹ bằng T4, không khử được.
+- **Bias đô thị của OSM POI** — giảm nhẹ bằng T4, không khử được. *(Chốt 31/07: WARN `poi_recall_bias_parking_off` = 2,44 **chấp nhận có chủ đích** — hệ quả đo được: nông thôn thiếu anchor T1-parking, T4 gap-fill đang bù 920 ô, upper-bound coverage 91,05% PASS; cấm đọc `n_parking_off` như số tuyệt đối.)*
 - Candidate **`SYNTHETIC` (T4)** phải kèm cảnh báo khảo sát thực địa, không dùng như khuyến nghị chốt.
 - T3 (rest_area/nút giao QL) chưa có → hành lang liên tỉnh phủ chưa tối ưu (roadmap).
 - **Phủ nông thôn (national):** `BUILT_UP_MIN=0,05` loại 47% ô `pop>0` toàn quốc → ~9% dân số không nằm

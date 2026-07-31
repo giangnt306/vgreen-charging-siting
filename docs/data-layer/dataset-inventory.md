@@ -14,8 +14,8 @@
 | --- | --- |
 | **Nguồn dữ liệu (source families)** | **7** — 6 nguồn snapshot raw (thêm **VNSDI** 30/07) + 1 nguồn ngoài (EVN) |
 | **Artifact có cấu trúc (bảng/tập file)** | **53** (chưa tính 5 raster/pbf không dạng bảng → **58** tổng) |
-| **Tổng số dòng (đo trực tiếp)** | **≈ 80,11 triệu** — chưa cộng bản tách 720h theo trạm (chưa đo lại, nguồn 38,26 M dòng) |
-| ↳ trong đó time-series occupancy | raw **56,89 triệu** (168h 18,63 M + 720h 38,26 M + pilot 2 K) + bản tách theo trạm 168h **18,63 M**; bản tách **720h chưa đo lại** (tầng mới) |
+| **Tổng số dòng (đo trực tiếp)** | **≈ 118,37 triệu** (đo 31/07 — đã cộng bản tách 720h 38,26 M) |
+| ↳ trong đó time-series occupancy | raw **56,89 triệu** (168h 18,63 M + 720h 38,26 M + pilot 2 K) + bản tách theo trạm 168h **18,63 M** + bản tách **720h 38,26 M** (đo 31/07: 38.255.343 dòng, **khớp nguồn 100%**) |
 | ↳ **dữ liệu phi time-series** | **4,59 triệu** dòng |
 | **Tổng số cột (cộng dồn mọi bảng)** | **745** |
 | **Số file trên đĩa** | **63.023** file · **5,6 GB** (`data/`) |
@@ -116,6 +116,7 @@ Nguồn 1–6 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 | `worldpop/worldpop_pop_h3.parquet` | 104.171 | 2 | chỉ ô có dân; Σ = **97.569.444** (**E-DQ7e**) — nguồn `pop` UN-anchored, KHÔNG đụng bởi 7f |
 | `worldpop/worldpop_pop_report.json` | — | — | 3 cổng hiệu chuẩn (**E-DQ7e**): tổng khớp file UNadj đã băm · Spearman(cũ, mới) = **1,000000** · tỉ số theo pixel là hằng số (std **2,4e-08**) |
 | `worldpop/worldpop_pop_2025_h3.parquet` | **303.319** | 2 | **MỚI (P10)** — raster 2025 R2024B CN 100m; Σ = **101.300.081** |
+| `worldpop/worldpop_pop_2020_r24_h3.parquet` | **303.192** | 2 | **MỚI (31/07)** — R2024B-2020, cặp **cùng thế hệ** với bản 2025 để so per-cell hợp lệ (giao footprint **100%**, cùng lưới raster); Σ = **97.620.404** (≈ UNadj 97,57 M, lệch 0,05%). KHÔNG thay `pop`/`pop_adj` — xem [schema-contract](../schema/schema-contract.md) mục `pop_2025` |
 | `worldpop/worldpop_pop_adj_h3.parquet` | **107.880** | 14 | **E-DQ7f**: `pop` (bất biến) + `pop_adj` (đặt lại chỗ theo built-up) + `pop_src` (WORLDPOP 103.902 · REDISTRIBUTED 2.987 · RETOTALED_DANSO 991) + cờ `pop_pixel_implausible` (139 ô) + chẩn đoán `n_px`/`max_px`/`top3_px_share`/`n_eff`/`pop_per_eff_px`/`pop_lat`/`pop_lon` + `maxa`/`danso`. +3.771 ô nhận (built-up, `pop=0`). Σ`pop_adj` = **97.083.046** (−0,499%) |
 | `worldpop/worldpop_pop_acc_h3.parquet` | **262.849** | 19 | **E-DQ8b**: `pop_adj` sau CẢ HAI phép đặt lại chỗ (7f dồn cục + 8b dời dân ô roadless) + `access_tier`/`road_access_m`/`road_access_nb*`/`built_ha` + `pop_src` (sổ cái 30/07: `MOVED_TO_ACCESSIBLE` **6.466** · unrepaired **225 ô** / 42.576 người, trong đó 3 ô `UNREPAIRED_NO_ACCESSIBLE_BUILTUP` → E-DQ8c). Σ`pop_adj` = **96.972.190**; khối lượng ở ô không lối vào **1.183.197 → 1.001** (−99,9%). Đây là bảng `build_demand_h3` ĐANG nạp |
 | `worldpop/worldpop_pop_adj_report.json` | — | — | 7 cổng **E-DQ7f**: `pop_bit_invariant`=0 · `retotal_reduces_mass`=486.399 người ma · `global_mass_accounted`=0,000 · drift 0,499% · join 99,84% |
@@ -178,7 +179,7 @@ Registry snapshot `2026-07-29` · **generation 210** · 61.333 locator (meta).
 | `edq1_suspect_stations.csv` | 796 | 17 | E-DQ1 — trạm nghi toạ độ sai |
 | `fix_coords_flagged.csv` | 796 | 9 | E-DQ1 — nhật ký sửa toạ độ |
 | `evcs_timeseries/*.csv` | **18.630.532** | 2 | **19.218 file**, 1 file/trạm (`timestamp`, `n_cars_charging`) — tầng 168h; nguồn `load_ts.csv` đo lại 30/07 không đổi |
-| `evcs_timeseries_720h/*.csv` | chưa đo lại (tầng 720h mới) | 2 | **19.426 file**, 1 file/trạm; nguồn `load_ts_2026-07-29-full.csv` = **38.255.343** dòng (đo 30/07) |
+| `evcs_timeseries_720h/*.csv` | **38.255.343** | 2 | **19.426 file**, 1 file/trạm; đo 31/07: tổng dòng dữ liệu **khớp nguồn `load_ts_2026-07-29-full.csv` từng dòng** (38.274.769 dòng file − 19.426 header). Giữ nguyên bản này, không crawl lại (quyết định 31/07) |
 
 **Đối soát cung: 19.805 − 719 = 19.086** ✓ — là **cổng QA ① `reconciles_input`** của
 `export_supply.py` (report 30/07 PASS), không phải phép cộng làm bằng tay trong doc.
