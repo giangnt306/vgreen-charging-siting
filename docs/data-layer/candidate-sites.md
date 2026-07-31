@@ -139,7 +139,8 @@ FAIL bất kỳ gate nào (mặc định) → exit ≠ 0, **không bàn giao K�
 | `candidate_id` | string | **PK** (`cand-<city>-<idx>`) |
 | `lat`, `lng` | double | toạ độ thật (explainability) |
 | `h3_r8` | string | ô coverage (**unique** — ≤1/ô) |
-| `province_code` | string | null trên candidate không phải trạm; nhãn hành chính **đã có ở `demand_h3`** (`E-DQ3`, 30/07) → join theo `h3_r8` để lấy `admin_l1_code`/`commune_code` |
+| `province_code` | string | **hệ 63 tỉnh CŨ** (prefix mã evcs) — **chỉ T0** mới có (từ trạm neo), T1/T2/T4 null. Không suy từ hệ 34: hai hệ **không** ánh xạ 1:1 (crosswalk `admin/province_crosswalk.csv`) |
+| `admin_l1_code`, `province_name` | string | **hệ 34 tỉnh** (VNSDI 2025-06-16) — enrich từ `demand_h3` qua `h3_r8` (`E-DQ3`, 31/07). Có cho mọi candidate trong lưới demand; null nếu ô ngoài lưới. Cần `commune_code` thì join tiếp `demand_h3` |
 | `tier` | string | T0–T4 |
 | `anchor_type` | string | `existing_station`/`parking`/`fuel`/`mall`/`retail`/`apartments`/`gapfill_synthetic` |
 | `source_ref` | string | `station_id` \| `osm_type/osm_id` \| `synthetic:<h3>` |

@@ -59,12 +59,12 @@ flowchart TD
 
 **Layout thư mục dữ liệu** (quy ước cookiecutter, `data/` gitignored):
 
-| Thư mục           | Vai trò                                        | Ghi chú                                                                     |
-| ----------------- | ---------------------------------------------- | --------------------------------------------------------------------------- |
-| `data/raw/`       | Nguồn thô, **BẤT BIẾN** (crawl/tải nguyên bản) | `MANIFEST.json` sha256 mọi nguồn + read-only lock (**E-DQ10**)              |
-| `data/interim/`   | Đã làm sạch / trung gian                       | `canonical/` · `demand/` · `osm/` · `worldpop/` · `vinfast_official/` · `vnsdi/` · `admin/` |
-| `data/external/`  | Nguồn ngoài không qua crawl                    | biểu giá điện OpEx                                                          |
-| `data/processed/` | Model-ready                                    | **`candidate_sites.{parquet,geojson}`** (P5, DONE) · `demand_weight` TODO    |
+| Thư mục           | Vai trò                                                   | Ghi chú                                                                                                        |
+| ------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `data/raw/`       | Nguồn thô,**BẤT BIẾN** (crawl/tải nguyên bản) | `MANIFEST.json` sha256 mọi nguồn + read-only lock (**E-DQ10**)                                        |
+| `data/interim/`   | Đã làm sạch / trung gian                               | `canonical/` · `demand/` · `osm/` · `worldpop/` · `vinfast_official/` · `vnsdi/` · `admin/` |
+| `data/external/`  | Nguồn ngoài không qua crawl                             | biểu giá điện OpEx                                                                                          |
+| `data/processed/` | Model-ready                                                | **`candidate_sites.{parquet,geojson}`** (P5, DONE) · `demand_weight` TODO                            |
 
 ---
 
@@ -72,25 +72,25 @@ flowchart TD
 
 Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT_ROOT` + hằng số (bbox, H3 res, URL).
 
-| Package                  | Script chính                                                                    | Nhiệm vụ                                                                      |
-| ------------------------ | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `data/provenance/`       | `freeze_snapshot.py` · `manifest.py`                                            | Freeze + verify snapshot raw (**E-DQ10**)                                     |
-| `data/evcs/`             | `evcs_enumerate.py` · `evcs_probe.py` · `evcs_scrape.py`                        | Liệt kê + scrape trạm & time-series từ evcs.vn (Socket.IO)                    |
-|                          | `merge_catalog.py` · `build_master_evcs.py`                                     | Gộp catalog → **master CSV** khoá `station_code` (**P6**)                      |
-|                          | `split_timeseries.py`                                                           | Merge-union raw run `timeseries_runs/load_ts_<run-id>.csv` → 1 file/trạm (`evcs_timeseries/`) — **F2** |
-|                          | `transform_canonical.py`                                                        | **Master CSV → canonical parquet** (car-only, H3, join official; cổng xref sha256 **F7** · ghi nguyên tử swap-generation **F12** — port nhánh Kỳ 30/07) |
-|                          | `dedup_crosssource.py` · `fix_coords.py` · `resolve_config.py`                   | Identity resolution (**E-DQ2**) · toạ độ (**E-DQ1**) · tầng ASSET (**E-DQ4**) |
-|                          | `export_supply.py`                                                              | Xuất **cung sạch** → `clean_supply.csv` + `excluded.csv` (6 cổng QA, đối soát input) |
-|                          | `validate.py`                                                                   | QA gate (`make crawl-validate`)                                               |
-| `data/vinfast_official/` | `fetch_locators.py` · `match_official.py`                                       | Crawl first-party (`bulk`→`detail`→`parse`) + matcher 2 tầng → `official_xref` |
-| `data/osm/`              | `overpass_poi.py` · `roads_pbf.py` · `build_osm_h3.py` · `validate.py`          | POI (Overpass) + đường (osmium/.pbf) → phần OSM của `demand_h3`               |
-|                          | `vn_boundary.py` · `poi_semantics.py` · `road_semantics.py` · `access_tiers.py` · `poi_recall.py` | Clip biên giới (**E-DQ7a**) · phân lớp POI (**E-DQ7c**) · retype road (**E-DQ7b**) · bậc lối vào (**E-DQ8a**) · recall ngoại vi |
-| `data/worldpop/`         | `worldpop_pop.py` · `build_demand_h3.py`                                        | Dân số .tif → `pop` theo H3, rồi ghép OSM → `demand_h3`                        |
-|                          | `reconcile_dasymetric.py` · `reallocate_roadless.py`                            | `pop_adj`: dồn cục (**E-DQ7f**) · dời dân ô roadless (**E-DQ8b**)             |
-| `data/vnsdi/`            | `fetch_communes.py`                                                             | Crawl polygon + `DANSO` cấp xã 2025 (ArcGIS 34DVHC layer 2)                   |
-| `data/admin/`            | `boundaries.py` · `enrich_stations.py` · `enrich_grid.py`                        | **Tầng hành chính + trọng tài toạ độ (E-DQ3)** — 7 + 7 cổng QA               |
-| `data/landuse/`          | `worldcover.py` · `osm_exclusion.py` · `build_buildable_h3.py` · `validate.py`   | **Bộ lọc khả thi candidate (P5)** → `buildable_h3`                           |
-| `data/`                  | `opex_electricity.py`                                                           | Biểu giá điện OpEx (nguồn pháp lý) → `data/external/`                         |
+| Package                    | Script chính                                                                                                   | Nhiệm vụ                                                                                                                                                                        |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data/provenance/`       | `freeze_snapshot.py` · `manifest.py`                                                                       | Freeze + verify snapshot raw (**E-DQ10**)                                                                                                                                   |
+| `data/evcs/`             | `evcs_enumerate.py` · `evcs_probe.py` · `evcs_scrape.py`                                                | Liệt kê + scrape trạm & time-series từ evcs.vn (Socket.IO)                                                                                                                    |
+|                            | `merge_catalog.py` · `build_master_evcs.py`                                                                | Gộp catalog →**master CSV** khoá `station_code` (**P6**)                                                                                                         |
+|                            | `split_timeseries.py`                                                                                         | Merge-union raw run`timeseries_runs/load_ts_<run-id>.csv` → 1 file/trạm (`evcs_timeseries/`) — **F2**                                                                |
+|                            | `transform_canonical.py`                                                                                      | **Master CSV → canonical parquet** (car-only, H3, join official; cổng xref sha256 **F7** · ghi nguyên tử swap-generation **F12** — port nhánh Kỳ 30/07) |
+|                            | `dedup_crosssource.py` · `fix_coords.py` · `resolve_config.py`                                          | Identity resolution (**E-DQ2**) · toạ độ (**E-DQ1**) · tầng ASSET (**E-DQ4**)                                                                             |
+|                            | `export_supply.py`                                                                                            | Xuất**cung sạch** → `clean_supply.csv` + `excluded.csv` (6 cổng QA, đối soát input)                                                                              |
+|                            | `validate.py`                                                                                                 | QA gate (`make crawl-validate`)                                                                                                                                                 |
+| `data/vinfast_official/` | `fetch_locators.py` · `match_official.py`                                                                  | Crawl first-party (`bulk`→`detail`→`parse`) + matcher 2 tầng → `official_xref`                                                                                        |
+| `data/osm/`              | `overpass_poi.py` · `roads_pbf.py` · `build_osm_h3.py` · `validate.py`                               | POI (Overpass) + đường (osmium/.pbf) → phần OSM của`demand_h3`                                                                                                            |
+|                            | `vn_boundary.py` · `poi_semantics.py` · `road_semantics.py` · `access_tiers.py` · `poi_recall.py` | Clip biên giới (**E-DQ7a**) · phân lớp POI (**E-DQ7c**) · retype road (**E-DQ7b**) · bậc lối vào (**E-DQ8a**) · recall ngoại vi               |
+| `data/worldpop/`         | `worldpop_pop.py` · `build_demand_h3.py`                                                                   | Dân số .tif →`pop` theo H3, rồi ghép OSM → `demand_h3`                                                                                                                  |
+|                            | `reconcile_dasymetric.py` · `reallocate_roadless.py`                                                       | `pop_adj`: dồn cục (**E-DQ7f**) · dời dân ô roadless (**E-DQ8b**)                                                                                             |
+| `data/vnsdi/`            | `fetch_communes.py`                                                                                           | Crawl polygon +`DANSO` cấp xã 2025 (ArcGIS 34DVHC layer 2)                                                                                                                    |
+| `data/admin/`            | `boundaries.py` · `enrich_stations.py` · `enrich_grid.py`                                               | **Tầng hành chính + trọng tài toạ độ (E-DQ3)** — 7 + 7 cổng QA                                                                                                    |
+| `data/landuse/`          | `worldcover.py` · `osm_exclusion.py` · `build_buildable_h3.py` · `validate.py`                       | **Bộ lọc khả thi candidate (P5)** → `buildable_h3`                                                                                                                    |
+| `data/`                  | `opex_electricity.py`                                                                                         | Biểu giá điện OpEx (nguồn pháp lý) →`data/external/`                                                                                                                    |
 
 > Ngoài `data/`: `aoi.py` (vùng nghiên cứu MVP), `features/build_candidates.py` (**candidate sites — P5, DONE**),
 > `features/build_covered0.py`, `features/build_demand_proxy.py` (`demand_weight` — **TODO, Kỳ**),
@@ -100,22 +100,22 @@ Mỗi nguồn là một sub-package; `paths.py` trong mỗi package neo `PROJECT
 
 ## 3. Pipeline theo bước (lệnh · output · số dòng)
 
-| #  | Bước                   | Lệnh                                                | Output chính                                                      | Số dòng                            |
-| -- | ---------------------- | --------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------- |
-| 0  | Freeze snapshot raw    | `make freeze` / `verify-snapshot`                   | `data/raw/MANIFEST.json`                                          | 23.326 file read-only (snapshot 2026-07-30) |
-| 1  | Crawl evcs.vn (full)   | `make crawl`                                        | `raw/evcs/timeseries_runs/load_ts_<run-id>.csv` + `stations_master_evcs.csv` | master **28.923** · TS 19.218 file |
-| 2  | Crawl VinFast official | `make official` (+ `detail`/`parse`)                | `official_stations` 22.983 (car-only) · `official_connectors` 71.174 | —                                  |
-| 3  | Matcher official       | `python -m …vinfast_official.match_official`         | `official_xref.parquet`                                           | exact_code **19.706** · spatial_fuzzy **3.744** · none 5.473 |
-| 4  | Transform canonical    | `make canonical`                                    | `canonical/stations/` + `canonical/connectors/`                    | **19.805** / **24.787**            |
-| 5  | Biên giới VN           | `make boundary`                                     | `osm/vn_boundary.parquet`                                         | adm2 MultiPolygon (4 phần) + 40 adm4 |
-| 6  | OSM POI + road         | `make osm`                                          | `osm_demand_components_h3.parquet`                                | 255.054 ô                          |
-| 7  | Crawl VNSDI cấp xã     | `make vnsdi`                                        | `vnsdi/communes.parquet` (+ `DANSO`)                              | **3.321 xã / 34 tỉnh**             |
-| 8  | Hiệu chỉnh `pop`       | `make reconcile-pop` · `reallocate-roadless`         | `worldpop_pop_adj_h3` · `worldpop_pop_acc_h3`                     | `pop_adj` Σ **97.083.046** (trôi −0,499%) |
-| 9  | WorldPop → demand      | `make demand`                                       | **`demand_h3.parquet`**                                           | **314.934** ô × 32 cột             |
-| 10 | Tầng hành chính        | `make admin-stations` · `make admin-grid`            | `admin/{cell_commune,demand_commune}.parquet` + enrich 2 bảng lõi  | 395.276 cặp → **3.321 xã**         |
-| 11 | Land-use + candidate   | `make landuse[-national]` · `candidates[-national]`  | `landuse/buildable_h3` · `processed/candidate_sites.*`             | buildable 59.926/314.934 ô · **16.659** candidate toàn quốc |
-| 12 | Xuất cung sạch         | `make export-supply`                                | `clean_supply.csv` + `excluded.csv` + `export_supply_report.json`  | **19.086** + **719** = 19.805      |
-| 13 | OpEx điện              | `make opex-electricity`                             | `data/external/opex_electricity_tariff.{csv,json}`                | —                                  |
+| #  | Bước                 | Lệnh                                                    | Output chính                                                                    | Số dòng                                                                 |
+| -- | ---------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 0  | Freeze snapshot raw    | `make freeze` / `verify-snapshot`                    | `data/raw/MANIFEST.json`                                                       | 23.326 file read-only (snapshot 2026-07-30)                               |
+| 1  | Crawl evcs.vn (full)   | `make crawl`                                           | `raw/evcs/timeseries_runs/load_ts_<run-id>.csv` + `stations_master_evcs.csv` | master**28.923** · TS 19.218 file                                  |
+| 2  | Crawl VinFast official | `make official` (+ `detail`/`parse`)               | `official_stations` 22.983 (car-only) · `official_connectors` 71.174        | —                                                                        |
+| 3  | Matcher official       | `python -m …vinfast_official.match_official`          | `official_xref.parquet`                                                        | exact_code**19.706** · spatial_fuzzy **3.744** · none 5.473 |
+| 4  | Transform canonical    | `make canonical`                                       | `canonical/stations/` + `canonical/connectors/`                              | **19.805** / **24.787**                                       |
+| 5  | Biên giới VN         | `make boundary`                                        | `osm/vn_boundary.parquet`                                                      | adm2 MultiPolygon (4 phần) + 40 adm4                                     |
+| 6  | OSM POI + road         | `make osm`                                             | `osm_demand_components_h3.parquet`                                             | 255.054 ô                                                                |
+| 7  | Crawl VNSDI cấp xã   | `make vnsdi`                                           | `vnsdi/communes.parquet` (+ `DANSO`)                                         | **3.321 xã / 34 tỉnh**                                            |
+| 8  | Hiệu chỉnh`pop`    | `make reconcile-pop` · `reallocate-roadless`        | `worldpop_pop_adj_h3` · `worldpop_pop_acc_h3`                               | `pop_adj` Σ **97.083.046** (trôi −0,499%)                      |
+| 9  | WorldPop → demand     | `make demand`                                          | **`demand_h3.parquet`**                                                  | **314.934** ô × 32 cột                                           |
+| 10 | Tầng hành chính     | `make admin-stations` · `make admin-grid`           | `admin/{cell_commune,demand_commune}.parquet` + enrich 2 bảng lõi            | 395.276 cặp →**3.321 xã**                                        |
+| 11 | Land-use + candidate   | `make landuse[-national]` · `candidates[-national]` | `landuse/buildable_h3` · `processed/candidate_sites.*`                      | buildable 59.926/314.934 ô ·**16.659** candidate toàn quốc      |
+| 12 | Xuất cung sạch       | `make export-supply`                                   | `clean_supply.csv` + `excluded.csv` + `export_supply_report.json`          | **19.086** + **719** = 19.805                                 |
+| 13 | OpEx điện            | `make opex-electricity`                                | `data/external/opex_electricity_tariff.{csv,json}`                             | —                                                                        |
 
 **Thứ tự tái lập tối thiểu (cung):** `freeze` → `crawl` → `official` → `match_official` → `canonical` → `admin-stations`.
 **Cầu:** `boundary` → `osm` + WorldPop (song song) → `vnsdi` → `reconcile-pop` → `reallocate-roadless` → `demand` → `admin-grid`.
@@ -259,13 +259,11 @@ Hợp đồng đầy đủ: [schema-contract.md](../schema/schema-contract.md) �
   spatial CV cho **0,329**, **đảo ngẫu nhiên chính bộ trọng số đó** vẫn cho **0,266**, `pop` đơn độc **0,261**,
   trần target **0,865**. Nút thắt là **tập feature** ⇒ phải thêm **catchment k-ring** (k = 2–3, khớp `R = 3 km`) và
   **covariate dòng chảy** dẫn từ `.pbf` đã freeze. **Cấm** feature dẫn từ cung (số súng đơn độc cho ρ = 0,773 — leakage).
-- [ ] **`occ_h3` + `features/demand_validation.py`** (**Giang** — target & harness của E-DQ7d): occupancy trung bình
+- [ ] **`occ_h3` + `features/demand_validation.py`** (**Kỳ** — target & harness của E-DQ7d): occupancy trung bình
   **có trọng số thời gian** (ρ(n_polls, occ) = 0,501), khử nhiễu công suất, cờ censoring (65,8% chạm trần súng),
   freeze vào MANIFEST; harness chấm điểm **bất kỳ** proxy nào trên **12.744 ô cung** (đo 2026-07-30 trên
   `integrate/final`; was 12.801 trước rebuild, 12.811 trước E-DQ3 — hai lần chạy trên hai mẫu số khác nhau
   **không so được**) + 12 cổng QA.
-- [ ] **`demand_servable` + `coverage_pop`** — [E-DQ8c](../issues/e-data-quality/e-dq8c-servable-denominator.md): 225 ô / 42.576
-  người không phục vụ được phải **trừ khỏi mẫu số và công bố số bị trừ**; kèm cổng `grid_contains_all_supply_cells`.
 - [ ] **Coverage/gap** theo **R = 3 km (baseline)**, quét {1,5 · 2 · 3 · 5} km (bỏ ngưỡng `has_station_5km` cố định).
   **Phải cài gate `R > d` trước khi tính** ([P4](../issues/b-spatial-geometry/p4-service-radius.md)).
 - [ ] **Load PostGIS** + GIST index (`config/db/migrations` + `config/db/seeds` đang trống).

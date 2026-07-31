@@ -50,7 +50,8 @@ def test_has_dirty_coord_each_flag_and_none():
 
 
 def _station(**kw):
-    row = {"is_operational": True, "access": "PUBLIC", "is_primary": True, "quality_flags": []}
+    row = {"is_operational": True, "access": "PUBLIC", "is_primary": True,
+           "coord_resolved": True, "quality_flags": []}
     row.update(kw)
     return row
 
@@ -64,7 +65,8 @@ def test_baseline_mask_drops_each_reason():
             _station(access="UNKNOWN"),  # không xác nhận public
             _station(is_primary=False),  # dup chéo nguồn (E-DQ2)
             _station(quality_flags=["DUP_COORD_SUSPECT"]),  # toạ độ bẩn (F4)
-            _station(quality_flags=["COORD_PLACEHOLDER"]),  # placeholder E-DQ1 (h3 null)
+            # placeholder E-DQ1: coord_resolved=False VÀ có cờ -> dính cả hai counter
+            _station(coord_resolved=False, quality_flags=["COORD_PLACEHOLDER"]),
         ]
     )
     mask, reasons = _baseline_mask(df)
@@ -74,13 +76,45 @@ def test_baseline_mask_drops_each_reason():
         "access_restricted": 1,
         "access_unknown": 1,
         "cross_source_dup": 1,
+        "coord_unresolved": 1,
         "dirty_coord": 2,
     }
 
 
+def test_baseline_excludes_coord_outside_admin():
+    """Hồi quy: `COORD_OUTSIDE_ADMIN` có `coord_resolved=False` nhưng KHÔNG nằm trong
+    `DIRTY_COORD_FLAGS` — bản trước chỉ lọc theo cờ nên 9 trạm `h3_r8` NULL lọt vào
+    baseline và tạo coverage ảo. Baseline phải gate bằng CẢ `coord_resolved`."""
+    df = pd.DataFrame([_station(coord_resolved=False,
+                                quality_flags=["COORD_OUTSIDE_ADMIN"])])
+    assert not has_dirty_coord(["COORD_OUTSIDE_ADMIN"])  # cờ này không ở tập F4
+    mask, reasons = _baseline_mask(df)
+    assert not mask.any()
+    assert reasons["coord_unresolved"] == 1
+
+
+def test_baseline_is_subset_of_export_supply_gate():
+    """Bất biến hợp đồng: baseline ⊆ tập cung. Cùng 4 vị từ của `export_supply`
+    (`is_operational & PUBLIC & is_primary & coord_resolved`) + 1 lớp bảo thủ thêm,
+    nên không dòng nào vào được baseline mà đứng ngoài cung."""
+    df = pd.DataFrame([
+        _station(),
+        _station(coord_resolved=False),
+        _station(quality_flags=["DUP_COORD_SUSPECT"]),
+        _station(access="UNKNOWN"),
+    ])
+    baseline, _ = _baseline_mask(df)
+    supply = (df["is_operational"].fillna(False).astype(bool)
+              & df["access"].eq("PUBLIC")
+              & df["is_primary"].fillna(False).astype(bool)
+              & df["coord_resolved"].fillna(False).astype(bool))
+    assert (baseline & ~supply).sum() == 0
+
+
 def test_baseline_mask_null_safe():
     # null ở cột bool -> loại (không xác nhận được), không crash / không default ngầm
-    df = pd.DataFrame([_station(is_operational=None), _station(is_primary=None)])
+    df = pd.DataFrame([_station(is_operational=None), _station(is_primary=None),
+                       _station(coord_resolved=None)])
     mask, _ = _baseline_mask(df)
     assert not mask.any()
 
@@ -98,6 +132,7 @@ def _t0_station(station_id, coord_resolved, quality_flags):
         "h3_r8": "8828308281fffff" if coord_resolved else None,
         "quality_flags": quality_flags, "operator": "x", "is_operational": True,
         "access": "PUBLIC", "is_primary": True, "coord_resolved": coord_resolved,
+        "province_code": "HNO",  # hệ 63 CŨ — T0 mang theo từ trạm neo (C3)
     }
 
 

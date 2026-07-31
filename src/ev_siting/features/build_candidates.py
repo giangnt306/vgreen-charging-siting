@@ -84,8 +84,12 @@ def _load_stations(aoi):
     ngừng (`is_operational=False`) hay trạm tư nhân (`access=RESTRICTED`). Giữ
     UNKNOWN (không loại ngầm — §8 bước 6)."""
     cols = ["station_id", "lat", "lng", "h3_r8", "quality_flags", "operator",
-            "is_operational", "access", "is_primary", "coord_resolved"]
+            "is_operational", "access", "is_primary", "coord_resolved",
+            # hệ 63 tỉnh CŨ (prefix mã evcs) — CHỈ T0 mới có, xem §admin bên dưới
+            "province_code"]
     df = pd.read_parquet(STATIONS_DIR, columns=cols)
+    # categorical -> str: T1/T2/T4 không có cột này, concat sẽ điền NaN
+    df["province_code"] = df["province_code"].astype("string").astype(object)
     df = df[_in_aoi(aoi, df)].copy()
     # P8: loại trạm đã ngừng vận hành / tư nhân khỏi anchor T0
     df = df[df["is_operational"] & (df["access"] != "RESTRICTED")]
@@ -98,7 +102,10 @@ def _load_stations(aoi):
     df["anchor_type"] = "existing_station"
     df["source_ref"] = df["station_id"]
     df["is_existing"] = True
-    return df[["lat", "lng", "h3_r8", "tier", "anchor_type", "source_ref", "is_existing"]]
+    # `province_code` (hệ 63 CŨ) chỉ T0 mang theo — T1/T2/T4 không có nguồn thật,
+    # concat sẽ điền NaN cho chúng (xem khối nhãn hành chính ở `build`).
+    return df[["lat", "lng", "h3_r8", "tier", "anchor_type", "source_ref",
+               "is_existing", "province_code"]]
 
 
 def _load_poi(aoi):
@@ -324,7 +331,15 @@ def build(aoi, R_km=R_BASELINE_KM, p_hint=20, strict=True,
     # Trạm hiện có đã có điện/mặt bằng -> penalty land-use = 0 (không phạt thêm).
     existing_na = cand["is_existing"] & cand["penalty"].isna()
     cand.loc[existing_na, "penalty"] = 0.0
-    cand["province_code"] = None  # enrich khi có admin (§8 bước 8)
+    # --- nhãn hành chính: HAI HỆ MÃ đi cạnh nhau, không trộn (E-DQ3) ---
+    # `admin_l1_code`/`province_name` = hệ 34 tỉnh (VNSDI 2025-06-16), lấy từ
+    # `demand_h3` qua `h3_r8` — có cho MỌI candidate nằm trong lưới demand.
+    # `province_code` = hệ 63 tỉnh CŨ (prefix mã evcs) — CHỈ T0 mới có nguồn thật
+    # (từ trạm neo); T1/T2/T4 để null thay vì suy từ hệ 34 (hai hệ KHÔNG ánh xạ 1:1,
+    # crosswalk ở data/interim/admin/province_crosswalk.csv).
+    admin = pd.read_parquet(DEMAND_H3, columns=["h3_r8", "admin_l1_code", "province_name"])
+    cand = cand.merge(admin, on="h3_r8", how="left")
+    cand["province_code"] = cand["province_code"].where(cand["is_existing"], None)
     cand["capex_class"] = np.where(
         cand["is_existing"], "low",
         np.where(cand["tier"] == "T4", "high",
@@ -339,7 +354,8 @@ def build(aoi, R_km=R_BASELINE_KM, p_hint=20, strict=True,
     for c in report["checks"]:
         print(f"  [{c['status']}] {c['gate']}: {c['value']} (ngưỡng {c['threshold']})")
 
-    out_cols = ["candidate_id", "lat", "lng", "h3_r8", "province_code", "tier",
+    out_cols = ["candidate_id", "lat", "lng", "h3_r8",
+                "province_code", "admin_l1_code", "province_name", "tier",
                 "anchor_type", "source_ref", "is_existing", "built_up_frac",
                 "dist_substation_m", "penalty", "capex_class", "exclusion_flags"]
     out = cand[out_cols]
@@ -368,6 +384,9 @@ def _write_geojson(cand, report):
                 "candidate_id": r.candidate_id, "h3_r8": r.h3_r8, "tier": r.tier,
                 "anchor_type": r.anchor_type, "is_existing": bool(r.is_existing),
                 "capex_class": r.capex_class,
+                # hệ 34 tỉnh (VNSDI) — nhãn để lọc/tô bản đồ theo tỉnh
+                "admin_l1_code": None if pd.isna(r.admin_l1_code) else r.admin_l1_code,
+                "province_name": None if pd.isna(r.province_name) else r.province_name,
                 "penalty": None if pd.isna(r.penalty) else round(float(r.penalty), 3),
             },
         })

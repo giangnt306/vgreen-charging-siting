@@ -69,8 +69,11 @@ WORLDPOP_URL = _WORLDPOP_BASE + "vnm_ppp_2020_UNadj_constrained.tif"
 WORLDPOP_URL_UNADJUSTED = _WORLDPOP_BASE + "vnm_ppp_2020_constrained.tif"
 
 # WorldPop R2024B 2025, constrained. CC-BY 4.0.
+# 31/07: đường cũ .../Individual_countries/VNM/ trả 404 — R2024B nằm ở cây
+# Global_2015_2030/R2024B/<year>/, cùng khuôn với 2020_r24 bên dưới.
 WORLDPOP_2025_URL = ("https://data.worldpop.org/GIS/Population/"
-                     "Individual_countries/VNM/vnm_pop_2025_CN_100m_R2024B_v1.tif")
+                     "Global_2015_2030/R2024B/2025/VNM/v1/100m/constrained/"
+                     "vnm_pop_2025_CN_100m_R2024B_v1.tif")
 WORLDPOP_2020_R24_URL = ("https://data.worldpop.org/GIS/Population/"
                          "Global_2015_2030/R2024B/2020/VNM/v1/100m/constrained/"
                          "vnm_pop_2020_CN_100m_R2024B_v1.tif")

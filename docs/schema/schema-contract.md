@@ -156,7 +156,8 @@ hiện hành — 322.309 ô vào, 7.375 ô `OUTSIDE` tách riêng, đo 2026-07-3
 | `candidate_id` | string | **PK** (`cand-<city>-<idx>`) |
 | `lat`, `lng` | double | toạ độ thật (explainability) |
 | `h3_r8` | string | ô coverage (**unique**) |
-| `province_code` | string | null trên candidate không phải trạm — nhãn hành chính lấy từ `demand_h3` qua `h3_r8` (**E-DQ3**, 30/07) |
+| `province_code` | string | **hệ 63 tỉnh CŨ** (prefix mã evcs) — **CHỈ T0 mới có** (lấy từ trạm neo); T1/T2/T4 **null** vì không có nguồn thật. **Không** suy từ hệ 34 (hai hệ không ánh xạ 1:1 — crosswalk ở `admin/province_crosswalk.csv`) |
+| `admin_l1_code`, `province_name` | string | **hệ 34 tỉnh** (VNSDI 2025-06-16) — lấy từ `demand_h3` qua `h3_r8` (**E-DQ3**). Có cho **mọi** candidate nằm trong lưới demand; null nếu ô ngoài lưới |
 | `tier` | string | T0–T4 (nguồn anchor) |
 | `anchor_type` | string | `existing_station`/`parking`/`fuel`/`mall`/`retail`/`apartments`/`gapfill_synthetic` |
 | `source_ref` | string | `station_id` \| `osm_type/osm_id` \| `synthetic:<h3>` |

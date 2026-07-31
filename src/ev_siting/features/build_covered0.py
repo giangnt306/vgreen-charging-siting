@@ -17,8 +17,14 @@ này, và so sánh "mạng hiện tại vs. vị trí model đề xuất" (probl
      (không xác nhận được là cung công khai). Lưu ý khác T0 có chủ đích: T0 giữ
      access-UNKNOWN làm anchor (chỉ cần không-RESTRICTED), baseline thì bảo thủ.
   3. `is_primary` (E-DQ2): bản trùng chéo nguồn không được phủ 2 lần.
-  4. Sạch toạ độ (F4, tập cờ dùng chung `features.paths.DIRTY_COORD_FLAGS`):
-     placeholder coords tạo **coverage ảo** — cùng lý do với gate `coord_resolved` ở T0.
+  4. Sạch toạ độ — **hai lớp, phải qua CẢ HAI**:
+     a. `coord_resolved` (E-DQ1/E-DQ3) — **cùng cột với `export_supply`**, nên baseline
+        luôn là **tập con** của tập cung. Thiếu lớp này thì `COORD_OUTSIDE_ADMIN`
+        (`coord_resolved=False` nhưng KHÔNG nằm trong `DIRTY_COORD_FLAGS`) lọt vào
+        baseline với `h3_r8` NULL ⇒ **coverage ảo** đúng thứ gate này định chặn.
+     b. `DIRTY_COORD_FLAGS` (F4, tập cờ dùng chung `features.paths`) — baseline **bảo thủ
+        hơn** T0 có chủ đích: `DUP_COORD_SUSPECT` loại khỏi baseline nhưng vẫn được làm
+        anchor T0 (không loại incumbent oan). Xem `tests/test_covered0.py`.
 
 Mọi loại trừ được **đếm + ghi log** theo lý do (nguyên tắc "flag, không xoá ngầm" §7 #5).
 
@@ -66,10 +72,13 @@ def _baseline_mask(df):
     """Mask baseline + bộ đếm lý do loại (tách thuần để test được — F16).
 
     Trả về (mask, reasons): mask = is_operational & PUBLIC & is_primary & sạch toạ độ.
+    Sạch toạ độ = `coord_resolved` (cùng cột với `export_supply` ⇒ baseline ⊆ cung)
+    VÀ không dính `DIRTY_COORD_FLAGS` (lớp bảo thủ thêm của baseline).
     Các counter độc lập (1 dòng có thể dính nhiều lý do)."""
     operational = df["is_operational"].fillna(False).astype(bool)
     public = df["access"].eq("PUBLIC")
     primary = df["is_primary"].fillna(False).astype(bool)
+    resolved = df["coord_resolved"].fillna(False).astype(bool)
     clean = ~df["quality_flags"].apply(has_dirty_coord)
 
     reasons = {
@@ -77,9 +86,10 @@ def _baseline_mask(df):
         "access_restricted": int(df["access"].eq("RESTRICTED").sum()),
         "access_unknown": int((~df["access"].isin(["PUBLIC", "RESTRICTED"])).sum()),
         "cross_source_dup": int((~primary).sum()),
+        "coord_unresolved": int((~resolved).sum()),
         "dirty_coord": int((~clean).sum()),
     }
-    return operational & public & primary & clean, reasons
+    return operational & public & primary & resolved & clean, reasons
 
 
 def _operational_only_mask(df):
@@ -125,7 +135,7 @@ def build(aoi, strict=True):
     """Lọc trạm operational+public+primary trong AOI -> covered0.{parquet,geojson}."""
     ensure_dirs()
     print(f"[covered0] {aoi}")
-    cols = _OUT_COLS + ["is_operational", "is_primary", "quality_flags"]
+    cols = _OUT_COLS + ["is_operational", "is_primary", "coord_resolved", "quality_flags"]
     df = pd.read_parquet(STATIONS_DIR, columns=cols)
     n_total = len(df)
 
@@ -140,18 +150,34 @@ def build(aoi, strict=True):
     out = covered0[_OUT_COLS].reset_index(drop=True)
     operational_out = df[_operational_only_mask(df)][_OUT_COLS].reset_index(drop=True)
 
+    # --- cổng tự kiểm (cùng khuôn với export_supply_report — artefact tự khai điểm) ---
+    gates = {
+        # baseline phải là TẬP CON của cung: cùng gate `coord_resolved` + bảo thủ thêm
+        "subset_of_supply": bool(df.loc[mask, "coord_resolved"].fillna(False).all()),
+        # h3 NULL = coverage ảo: candidate/MCLP không neo phủ được vào ô nào
+        "h3_not_null": int(out["h3_r8"].isna().sum()) == 0,
+        "pk_unique": bool(out["station_id"].is_unique),
+        "operational_subset_of_baseline": set(operational_out["station_id"])
+                                          <= set(out["station_id"]),
+        "reconciles_aoi": len(out) <= n_aoi,
+    }
+
     # --- report ---
     report = {
         "aoi": aoi.to_dict(),
-        "baseline_def": "is_operational & access==PUBLIC & is_primary & clean_coord (P8/E-DQ2/F4)",
+        "baseline_def": "is_operational & access==PUBLIC & is_primary "
+                        "& coord_resolved & clean_coord (P8/E-DQ2/E-DQ1/F4)",
         "n_stations_total": n_total,
         "n_stations_in_aoi": n_aoi,
         "n_covered0": len(out),
         "n_covered0_operational_only": len(operational_out),
+        "n_covered0_cells": int(out["h3_r8"].nunique()),
         "dropped_by_reason": reasons,
         "op_status_breakdown": {str(k): int(v) for k, v in
                                 covered0["op_status"].value_counts().items()},
         "config_capacity": _capacity_accounting(out),
+        "gates": gates,
+        "all_gates_pass": all(gates.values()),
     }
 
     out.to_parquet(COVERED0_SITES, index=False)
@@ -178,9 +204,11 @@ def build(aoi, strict=True):
               f"{cap['cells_all_unknown']:,}")
 
     # sanity: đối soát dòng (§8 bước 10) — không có dòng nào bị "bốc hơi"
-    dropped = n_aoi - len(out)
-    if strict and dropped < 0:
-        raise SystemExit("[covered0] đối soát dòng FAIL (n_covered0 > n_aoi)")
+    failed = [k for k, v in gates.items() if not v]
+    if failed:
+        print(f"  [covered0] ⚠️  cổng FAIL: {failed}")
+    if strict and failed:
+        raise SystemExit(f"[covered0] cổng tự kiểm FAIL: {failed}")
     return out
 
 

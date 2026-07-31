@@ -1,10 +1,10 @@
 {
   "schema": "vgreen.snapshot-manifest/1",
-  "snapshot_id": "2026-07-20",
-  "frozen_at": "2026-07-31T12:29:41.240482+07:00",
+  "snapshot_id": "2026-07-30",
+  "frozen_at": "2026-07-31T10:00:23.851441+07:00",
   "hash_algo": "sha256",
   "content_hashed": true,
-  "project_root": "/home/wanderer210/Documents/AI/vgreen-charging-siting",
+  "project_root": "/home/n91ym1nhky/Work/internVSF/aGiang-evcs",
   "sources": [
     {
       "id": "evcs",
@@ -13,8 +13,8 @@
       "license": "Proprietary (public map API, dùng cho nghiên cứu)",
       "vintage": "crawl 2026-07-21/22 (168h) + 2026-07-29 (720h)",
       "temporal_extent": {
-        "time_window_start": "2026-07-13T20:51:56.935000+07:00",
-        "time_window_end": "2026-07-21T00:32:01.302000+07:00"
+        "time_window_start": "2026-06-29T11:40:00+07:00",
+        "time_window_end": "2026-07-29T14:20:00+07:00"
       },
       "members": [
         {
@@ -22,9 +22,9 @@
           "path": "data/raw/evcs/catalog",
           "kind": "dir",
           "present": true,
-          "n_files": 11,
-          "total_bytes": 15248868,
-          "tree_sha256": "2a64e8d33da38ed9109a3fa1dac55cfbc6ca76d12dc85b7f9c1d5d906de909b9",
+          "n_files": 12,
+          "total_bytes": 15339843,
+          "tree_sha256": "0362afab55ee35c7d7dd5835b9a3927dfe791fdc097efb5c7667d902ec1a059b",
           "files": [
             {
               "path": "evcs_all_codes.txt",
@@ -77,6 +77,11 @@
               "sha256": "4853c263a573a08290e637d68ac05c5db9d454033f64b88217850da429155456"
             },
             {
+              "path": "evcs_stations_2026-07-29-new.csv",
+              "bytes": 90975,
+              "sha256": "4521f08823d33b6e5e71cb8e8d658b78f813ca9de1ab3a4ab1b5f3161963732c"
+            },
+            {
               "path": "evcs_stations_codes.txt",
               "bytes": 202055,
               "sha256": "a0d3d7b92400828b0c354059debc037915d9fd7b81883fc6c1d1b39527f69f3d"
@@ -89,14 +94,49 @@
           "kind": "file",
           "present": true,
           "bytes": 508491412,
-          "modified": "2026-07-21T16:24:28.548248+07:00",
+          "modified": "2026-07-28T11:07:12.261070+07:00",
           "sha256": "2e6bd5f98676a095d007677504aa4f59ff0f54fb5323ebcd03937344e62f8abd"
         },
         {
           "role": "occupancy_runs",
           "path": "data/raw/evcs/timeseries_runs",
           "kind": "dir",
-          "present": false
+          "present": true,
+          "n_files": 6,
+          "total_bytes": 1044905499,
+          "tree_sha256": "e22a1d7ea0d4f7bd85bd2d977176dccd59aa7d281e99b44e0198ec0f51aa679d",
+          "files": [
+            {
+              "path": "PILOT_2026-07-29.csv",
+              "bytes": 51042,
+              "sha256": "a786e08f9e91df8ed5af0ad166600bb66b081236d871d3c7dfc88db51562a791"
+            },
+            {
+              "path": "PILOT_2026-07-29.csv.done",
+              "bytes": 3098,
+              "sha256": "5ea1be4b2c74da78703816ba053f477b0df0d92aef58aca48ae25ed24dc87b12"
+            },
+            {
+              "path": "PILOT_2026-07-29.csv.failed",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+              "path": "load_ts_2026-07-29-full.csv",
+              "bytes": 1044649295,
+              "sha256": "36046025b43d2c058e43e30fb6e561322faf4d7e23c569dce5d2b5095e9ae4a2"
+            },
+            {
+              "path": "load_ts_2026-07-29-full.csv.done",
+              "bytes": 202064,
+              "sha256": "bd9fe747912c6ed343bf2ace3c11f74aa57f7f8b3a5742ce9709088ac0fc6b8f"
+            },
+            {
+              "path": "load_ts_2026-07-29-full.csv.failed",
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          ]
         }
       ]
     },
@@ -106,8 +146,8 @@
       "retrieval_url": "https://vinfastauto.com (store locator API)",
       "license": "Proprietary (public locator, ground-truth đối soát)",
       "vintage": {
-        "generation": 16,
-        "count": 58577
+        "generation": 210,
+        "count": 61333
       },
       "members": [
         {
@@ -115,18 +155,18 @@
           "path": "data/raw/vinfast_official/locators_meta.json",
           "kind": "file",
           "present": true,
-          "bytes": 97,
-          "modified": "2026-07-22T16:12:52.902698+07:00",
-          "sha256": "8e4cac606d3253a2b3b30d619990ff12cece908942c0fed71ca48ac319e3af71"
+          "bytes": 100,
+          "modified": "2026-07-30T23:39:54.829715+07:00",
+          "sha256": "8d37a4bf01431f55f70c0b86d1ecf968d7508a572582cf06b9395e4ff8135643"
         },
         {
           "role": "locators_full",
           "path": "data/raw/vinfast_official/locators_full.json",
           "kind": "file",
           "present": true,
-          "bytes": 60940742,
-          "modified": "2026-07-22T16:13:00.641642+07:00",
-          "sha256": "85e00caf12b42d0d2a594ff4d1d9fb2a479f0b914f50b8c6534a169889ba90d3"
+          "bytes": 63513498,
+          "modified": "2026-07-30T23:40:04.052682+07:00",
+          "sha256": "da8430022902be1135480933bf92c438870b4f460ea4e15a4d8a3f2a2b128dae"
         },
         {
           "role": "station_details",
@@ -136,6 +176,27 @@
           "n_files": 23240,
           "total_bytes": 165438117,
           "tree_sha256": "4f4f04973174e53b029ae6002c4923c5ab29822e76235f387ef6daa33d03f49e"
+        },
+        {
+          "role": "locators_snapshot_2026-07-29",
+          "path": "data/raw/vinfast_official/snapshot=2026-07-29",
+          "kind": "dir",
+          "present": true,
+          "n_files": 2,
+          "total_bytes": 63019588,
+          "tree_sha256": "9fde7bca134e860222fe114d076e473f0661be769243d57af43434bfdda1ca16",
+          "files": [
+            {
+              "path": "locators_full.json",
+              "bytes": 63019488,
+              "sha256": "9541d78345349a0aca1d29da6ddea2d176c3a319411fc17f2cc0fa8fdee10615"
+            },
+            {
+              "path": "locators_meta.json",
+              "bytes": 100,
+              "sha256": "a2059a4748408c8918c7c73056d7b611da86753745c29cef70f301d8e37f0f4c"
+            }
+          ]
         }
       ]
     },
@@ -164,7 +225,7 @@
           "kind": "file",
           "present": true,
           "bytes": 325450635,
-          "modified": "2026-07-21T21:25:32.874501+07:00",
+          "modified": "2026-07-28T11:08:50.119668+07:00",
           "sha256": "be18de21c54b3cd5c4598710500b38c4a0fbc6a270b3c06376c1fe42fcc03c4c"
         },
         {
@@ -208,7 +269,7 @@
     {
       "id": "worldpop",
       "name": "WorldPop — VN mật độ dân số, HAI niên đại (~100m)",
-      "retrieval_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_UNadj_constrained.tif ; https://data.worldpop.org/GIS/Population/Global_2015_2030/R2024B/2025/VNM/v1/100m/constrained/vnm_pop_2025_CN_100m_R2024B_v1.tif",
+      "retrieval_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_UNadj_constrained.tif ; https://data.worldpop.org/GIS/Population/Individual_countries/VNM/vnm_pop_2025_CN_100m_R2024B_v1.tif",
       "license": "CC-BY 4.0",
       "vintage": "2020 constrained (BSGM), UN-adjusted (UNadj); Σ = 97.569.444 người (E-DQ7e, đổi 2026-07-29 từ UN-unadjusted 99.627.388 — hệ số 0,979344); + 2025 R2024B (CN) unadjusted (P10) + 2020 R2024B (CN) — cặp cùng thế hệ cho so per-cell (31/07)",
       "members": [
@@ -218,7 +279,7 @@
           "kind": "file",
           "present": true,
           "bytes": 17612362,
-          "modified": "2026-07-29T10:36:39.415444+07:00",
+          "modified": "2026-07-30T23:18:59.052976+07:00",
           "sha256": "02f0265983f206f5095a9099cb5f212ae62deb1dd54664109550313b82252ef0"
         },
         {
@@ -227,7 +288,7 @@
           "kind": "file",
           "present": true,
           "bytes": 26519892,
-          "modified": "2026-07-22T08:46:39.277995+07:00",
+          "modified": "2026-07-28T11:08:23.885240+07:00",
           "sha256": "ce1e774cdbfd03a63548afb7228b5d2b03d8b976ea9ac5fdd62617be5d6dcf6f"
         },
         {
@@ -236,7 +297,7 @@
           "kind": "file",
           "present": true,
           "bytes": 73771675,
-          "modified": "2026-07-31T12:21:21.644523+07:00",
+          "modified": "2026-07-29T17:40:15.055082+07:00",
           "sha256": "4c96bd6bf615870db131f8d465c58efb2d70072b5024d023be2cea8e87cb245a"
         },
         {
@@ -245,7 +306,7 @@
           "kind": "file",
           "present": true,
           "bytes": 73530455,
-          "modified": "2026-07-31T12:27:39.637527+07:00",
+          "modified": "2026-07-31T09:59:09.736476+07:00",
           "sha256": "b6f8b1a00b992751356d8a9c615c98eb1188397b6272114f8e0662f98a33de90"
         }
       ]
@@ -385,7 +446,7 @@
       "retrieval_url": "https://vnsdi.mae.gov.vn/basemap/rest/services/34DVHC/MapServer/2",
       "license": "Bản đồ nền công khai VNSDI (Bộ Nông nghiệp & Môi trường)",
       "vintage": {
-        "retrieved_at": "2026-07-29T08:18:16.207837+00:00",
+        "retrieved_at": "2026-07-30T16:28:38.761995+00:00",
         "service": "34DVHC/MapServer/2",
         "server_count": 3321
       },
@@ -577,8 +638,8 @@
           "kind": "file",
           "present": true,
           "bytes": 953,
-          "modified": "2026-07-29T15:18:16.208061+07:00",
-          "sha256": "83e32c6299e0b77a30092070978619be689627bd6864d886eacbdffb5a5cc2aa"
+          "modified": "2026-07-30T23:28:38.762198+07:00",
+          "sha256": "240610f76a761a93146d25109173d3ea7d7f8d78ac2ac37f4ce94b54f67c4de1"
         }
       ]
     }
