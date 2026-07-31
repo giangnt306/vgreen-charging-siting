@@ -206,12 +206,14 @@ def source_specs() -> list[dict]:
             # `pop` lẫn `pop_2025` -> cả hai đều là INPUT thật, phải nằm trong snapshot.
             "vintage": "2020 constrained (BSGM), UN-adjusted (UNadj); "
                        "Σ = 97.569.444 người (E-DQ7e, đổi 2026-07-29 từ UN-unadjusted "
-                       "99.627.388 — hệ số 0,979344); + 2025 R2024B (CN) unadjusted (P10)",
+                       "99.627.388 — hệ số 0,979344); + 2025 R2024B (CN) unadjusted (P10) + 2020 R2024B (CN) — cặp cùng thế hệ cho so per-cell (31/07)",
             "members": [
                 {"role": "population_raster", "path": wp.POP_TIF, "kind": "file"},
                 {"role": "population_raster_unadjusted_legacy",
                  "path": wp.POP_TIF_UNADJUSTED, "kind": "file"},
                 {"role": "population_raster_2025", "path": wp.POP_TIF_2025, "kind": "file"},
+                {"role": "population_raster_2020_r24",
+                 "path": wp.POP_TIF_2020_R24, "kind": "file"},
             ],
         },
         {

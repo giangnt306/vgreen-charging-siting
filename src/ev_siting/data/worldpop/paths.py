@@ -30,11 +30,17 @@ POP_TIF_UNADJUSTED = RAW_DIR / "vnm_ppp_2020_constrained.tif"
 # Repo Kỳ đã tải sẵn -> nhận fallback sang repo anh em để không tải lại 74 MB;
 # ghi đè bằng env EVCS_WORLDPOP_2025_TIF (xem `resolve_tif`).
 POP_TIF_2025 = RAW_DIR / "vnm_pop_2025_CN_100m_R2024B_v1.tif"
+# R2024B 2020 (constrained) — cap CUNG THE HE voi POP_TIF_2025 de so per-cell hop le.
+# Do 2026-07-31: 188.094 o/11,33M nguoi chi co o footprint R2024B (khac mo hinh
+# settlement, khong phai tang dan) -> KHONG so per-cell cheo the he voi `pop`/`pop_adj`;
+# xem schema-contract muc pop_2025.
+POP_TIF_2020_R24 = RAW_DIR / "vnm_pop_2020_CN_100m_R2024B_v1.tif"
 
 # --- derived (data/interim/worldpop) ---
 INTERIM_DIR = DATA / "interim" / "worldpop"
 POP_H3 = INTERIM_DIR / "worldpop_pop_h3.parquet"        # h3_r8 -> pop
 POP_H3_2025 = INTERIM_DIR / "worldpop_pop_2025_h3.parquet"  # h3_r8 -> pop (R2024B 2025)
+POP_H3_2020_R24 = INTERIM_DIR / "worldpop_pop_2020_r24_h3.parquet"  # h3_r8 -> pop (R2024B 2020)
 POP_REPORT = INTERIM_DIR / "worldpop_pop_report.json"   # cổng QA hiệu chuẩn (E-DQ7e)
 
 # demand_h3 đầy đủ (pop + thành phần OSM) — đầu ra tích hợp
@@ -65,11 +71,15 @@ WORLDPOP_URL_UNADJUSTED = _WORLDPOP_BASE + "vnm_ppp_2020_constrained.tif"
 # WorldPop R2024B 2025, constrained. CC-BY 4.0.
 WORLDPOP_2025_URL = ("https://data.worldpop.org/GIS/Population/"
                      "Individual_countries/VNM/vnm_pop_2025_CN_100m_R2024B_v1.tif")
+WORLDPOP_2020_R24_URL = ("https://data.worldpop.org/GIS/Population/"
+                         "Global_2015_2030/R2024B/2020/VNM/v1/100m/constrained/"
+                         "vnm_pop_2020_CN_100m_R2024B_v1.tif")
 
 # vintage -> (đường raster, output H3, URL tải)
 POP_SOURCES = {
     "2020": (POP_TIF, POP_H3, WORLDPOP_URL),
     "2025": (POP_TIF_2025, POP_H3_2025, WORLDPOP_2025_URL),
+    "2020_r24": (POP_TIF_2020_R24, POP_H3_2020_R24, WORLDPOP_2020_R24_URL),
 }
 
 # --- hằng số hiệu chuẩn E-DQ7e (đo trên chính hai file đã checksum, 2026-07-29) ---
