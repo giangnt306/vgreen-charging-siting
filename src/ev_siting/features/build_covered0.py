@@ -50,7 +50,8 @@ import numpy as np
 import pandas as pd
 
 from ev_siting.aoi import add_aoi_args, aoi_from_args
-from ev_siting.data.evcs.paths import STATIONS_DIR
+from ev_siting.data.evcs.connector_rollup import attach as attach_live
+from ev_siting.data.evcs.paths import CONNECTORS_DIR, STATIONS_DIR
 from .paths import (COVERED0_GEOJSON, COVERED0_OPERATIONAL_GEOJSON,
                     COVERED0_OPERATIONAL_SITES, COVERED0_SITES, ensure_dirs,
                     has_dirty_coord)
@@ -63,6 +64,10 @@ _OUT_COLS = ["station_id", "lat", "lng", "h3_r8", "province_code", "op_status",
              # E-DQ4 — tầng TÀI SẢN + provenance cấu hình
              "n_guns_installed", "site_power_kw", "nameplate_power_kw",
              "current_type_asset", "config_src", "config_resolved"]
+
+#: cột LIVE trong `_OUT_COLS` — suy từ bảng `connectors`, KHÔNG đọc từ `stations`.
+#: (Tầng ASSET bên dưới vẫn ở `stations`: không suy được từ connectors — E-DQ4.)
+_LIVE_COLS = ["current_type", "max_power_kw", "total_power_kw", "num_connectors"]
 
 #: cờ E-DQ4 đánh dấu dòng KHÔNG có cấu hình lắp đặt từ bất kỳ nguồn nào.
 _CONFIG_UNKNOWN_FLAG = "CONFIG_UNKNOWN"
@@ -135,8 +140,15 @@ def build(aoi, strict=True):
     """Lọc trạm operational+public+primary trong AOI -> covered0.{parquet,geojson}."""
     ensure_dirs()
     print(f"[covered0] {aoi}")
-    cols = _OUT_COLS + ["is_operational", "is_primary", "coord_resolved", "quality_flags"]
+    # 31/07: cot LIVE khong con o `stations` (ban sao cua `connectors` — xem
+    # connector_rollup.py). Doc phan con lai roi gan LIVE tu bang connectors;
+    # schema xuat ra KHONG doi, chi doi CHO LAY.
+    cols = [c for c in _OUT_COLS if c not in _LIVE_COLS] + [
+        "is_operational", "is_primary", "coord_resolved", "quality_flags"]
     df = pd.read_parquet(STATIONS_DIR, columns=cols)
+    df = attach_live(df, pd.read_parquet(CONNECTORS_DIR, columns=[
+        "station_id", "power_kw", "current_type", "connector_label", "count_total",
+    ]), cols=_LIVE_COLS)
     n_total = len(df)
 
     # --- lọc theo AOI (đồng bộ candidate_sites) ---

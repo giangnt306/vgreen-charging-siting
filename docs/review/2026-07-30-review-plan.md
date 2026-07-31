@@ -1,5 +1,12 @@
 # Kế hoạch review dataset — 2026-07-30 (Kỳ)
 
+> ⛔ **HỒ SƠ LỊCH SỬ — số liệu trong file này ĐÃ BỊ THAY THẾ.** Đây là biên bản chốt tại thời điểm
+> ghi trên tiêu đề; **cố ý không cập nhật** để giữ đúng dấu vết quyết định. Số hiện hành (rebuild
+> toàn chuỗi **2026-07-31**, snapshot `2026-07-20`): `stations` **19.507 × 56** · `connectors`
+> **24.415 × 11** · master **28.625** · cung **19.181 / 12.801 ô** · `candidate_sites` **16.686 × 16** ·
+> `covered0` **19.012**. Nguồn chân lý: [dataset-inventory.md](../data-layer/dataset-inventory.md) ·
+> [overview.md](../data-layer/overview.md) · [processed-data-checklist.md](../data-layer/processed-data-checklist.md).
+
 > **Nguồn gốc & trạng thái:** port từ `checklist.txt` (nháp ở gốc repo, nhánh `devky/review-dataset`,
 > working tree 30/07) vào `docs/review/` theo quy ước cấu trúc khi hợp nhất (B3). Con số trong file đo trên
 > **nhánh Kỳ trước hợp nhất** (primary 19.644 · covered0 19.081 · candidate 22.217…) — sau rebuild trên

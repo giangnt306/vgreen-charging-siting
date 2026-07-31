@@ -92,10 +92,12 @@
 | **[L6](review/2026-07-29-data-lead-review.md)** | G | Canonical sửa bằng swap thư mục thủ công → `make canonical` không ra bản đã giao (F20 tái diễn) *(hợp nhất 30/07: E-DQ1 chạy trong `transform_canonical` + ghi nguyên tử F12 — xem §2.1)* | 🔴 | FIX | Kỳ | **2026-07-29** | ☑ |
 | **[L10](review/2026-07-29-data-lead-review.md)** | G | 298 trạm trong snapshot sinh bởi code không có trong repo → `evcs_enumerate --seed-from-official` + sidecar seed | 🔴 | FIX | Kỳ | **2026-07-29** | ☑ |
 
-> ✅ **Tái kiểm 2026-07-30 trên `integrate/final` (bước B5 — XONG).** Con số nhóm `F`/`G` gốc đo trên nhánh Kỳ
-> (28–29/07); sau hợp code 30/07 đã tái kiểm bằng **rebuild toàn chuỗi từ raw** (snapshot re-freeze 2026-07-30,
-> `verify-snapshot` HASHES=1 PASS, các QA-gate report đều PASS) + **pytest 161/161 PASS** — dấu ☑ nhóm `F`/`G`
-> nay trích dẫn được trên nhánh hợp nhất. Bằng chứng theo dòng:
+> ✅ **Tái kiểm 2026-07-31 trên `data/giang`.** Con số nhóm `F`/`G` gốc đo trên nhánh Kỳ (28–29/07); sau hợp
+> code 30/07 và **rebuild toàn chuỗi từ raw ngày 31/07** (`snapshot_id = 2026-07-20`, `verify-snapshot` PASS,
+> mọi QA-gate report PASS) + **pytest 169 passed / 1 skipped** — dấu ☑ nhóm `F`/`G` trích dẫn được.
+> *(31/07 bổ sung: `F5` siết gate toạ độ `covered0` — baseline ⊆ tập cung; tầng LIVE gỡ khỏi `stations` →
+> `tests/test_connector_rollup.py`. Nghiệm thu `data/processed/` →
+> [processed-data-checklist.md](data-layer/processed-data-checklist.md).)* Bằng chứng theo dòng:
 > `F2`/`F3`/`F6` → `tests/test_timeseries_integrity.py`; `F7`/`F8`/`F12` (+ `L1` guard dedup, `L6` swap
 > nguyên tử, E-DQ1) → `tests/test_f7_f12_integrity.py`; `F9`/`F13`/`F16` → `tests/test_f8_f9_f13_f14_f16.py`;
 > `F5` → `tests/test_covered0.py`; `F18` → guard `meta.count` fail-fast trong `vinfast_official/fetch_locators.py`;

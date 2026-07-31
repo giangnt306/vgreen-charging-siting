@@ -216,7 +216,7 @@ Ngoài MVP 1 thành phố, pipeline chạy được **toàn Việt Nam** trên *
 > 2026-07-30" bên dưới.
 
 > **Một tập candidate duy nhất toàn quốc (không per-tỉnh).** *(Cập nhật 30/07 — **rào chặn dữ liệu đã gỡ**:
-> `E-DQ3` gán `admin_l1_code`/`commune_code` cho **255.298/255.480** ô `demand_h3` *(đo 2026-07-30 trên lưới
+> `E-DQ3` gán `admin_l1_code`/`commune_code` cho **314.608/314.934** ô `demand_h3` *(đo 2026-07-31 trên lưới
 > hợp nhất: **314.608/314.934**)*, nên cắt theo tỉnh giờ là
 > một phép lọc.)* Việc **có nên** phân rã MCLP theo tỉnh hay không vẫn là **quyết định của tầng model** (Kỳ) —
 > phân rã theo địa giới làm mất coverage vắt qua ranh giới tỉnh, đúng cùng loại lỗi rìa mà `buffer_km` của AOI
@@ -256,10 +256,11 @@ Mọi ngưỡng scope-aware **override được** qua CLI (`--max-candidates`, `
   `NOT_BUILT_UP` 253.338 · `WATER` 9.459 · `ROAD_ACCESS_ISOLATED` 7.874 · `WETLAND` 7.286 · `MILITARY` 313 ·
   `PROTECTED` 246 · `AIRPORT` 162. **46,5% ô `pop>0` bị loại** (dưới gate 70%). Bậc lối vào: `DIRECT` 247.685 ·
   `ADJACENT` 48.575 · `NEAR` 10.800 · `ISOLATED` 7.874. Cổng `MAX_POP_NO_ROAD_FRAC`: **6,1%** < 0,20 → PASS.
-- **candidate_sites:** **16.659 candidate** — T0 12.769 · T1 2.104 · T2 866 · T4 920. CapEx: low 12.769 ·
-  mid 2.823 · high 1.067. `h3_r8` unique **16.659/16.659** (bất biến ≤1/ô giữ vững).
-- **QA gate: 5/5 PASS** (`candidate_sites_qa.json`) — upper-bound coverage **0,9105** · freedom 16.659
-  (≥4.000, p_hint 800) · size 16.659 (≤80.000) · anti-degenerate 1,00 · grid_radius 3,0.
+- **candidate_sites:** **16.686 candidate** — T0 12.827 · T1 2.078 · T2 862 · T4 919. CapEx: low 12.827 ·
+  mid 2.794 · high 1.065. `h3_r8` unique **16.686/16.686** (bất biến ≤1/ô giữ vững).
+  **16 cột** (14 + `admin_l1_code`/`province_name` hệ 34, thêm 31/07).
+- **QA gate: 5/5 PASS** (`candidate_sites_qa.json`) — upper-bound coverage **0,912** · freedom 16.686
+  (≥4.000, p_hint 800) · size 16.686 (≤80.000) · anti-degenerate 1,00 · grid_radius 3,0.
 
 > **Phát hiện đáng chú ý:** upper-bound coverage toàn quốc chỉ **91,3%** *(đo 2026-07-30 sau rebuild: **91,05%**)* — nghĩa là ~**9% dân số** *không thể*
 > được phủ bởi tập candidate hiện tại vì họ ở ô nông thôn thưa bị `NOT_BUILT_UP` loại và không có anchor
@@ -273,7 +274,7 @@ Mọi ngưỡng scope-aware **override được** qua CLI (`--max-candidates`, `
 - **Quy hoạch sử dụng đất chính thức VN không public** → WorldCover/OSM chỉ là **proxy**; điểm "buildable"
   vẫn có thể bị cấm theo quy hoạch địa phương.
 - **WorldCover 2021 vs hiện tại 2026** — lệch vintage như **P10**.
-- **Bias đô thị của OSM POI** — giảm nhẹ bằng T4, không khử được. *(Chốt 31/07: WARN `poi_recall_bias_parking_off` = 2,44 **chấp nhận có chủ đích** — hệ quả đo được: nông thôn thiếu anchor T1-parking, T4 gap-fill đang bù 920 ô, upper-bound coverage 91,05% PASS; cấm đọc `n_parking_off` như số tuyệt đối.)*
+- **Bias đô thị của OSM POI** — giảm nhẹ bằng T4, không khử được. *(Chốt 31/07: WARN `poi_recall_bias_parking_off` = 2,44 **chấp nhận có chủ đích** — hệ quả đo được: nông thôn thiếu anchor T1-parking, T4 gap-fill đang bù 919 ô, upper-bound coverage 91,2% PASS; cấm đọc `n_parking_off` như số tuyệt đối.)*
 - Candidate **`SYNTHETIC` (T4)** phải kèm cảnh báo khảo sát thực địa, không dùng như khuyến nghị chốt.
 - T3 (rest_area/nút giao QL) chưa có → hành lang liên tỉnh phủ chưa tối ưu (roadmap).
 - **Phủ nông thôn (national):** `BUILT_UP_MIN=0,05` loại 47% ô `pop>0` toàn quốc → ~9% dân số không nằm

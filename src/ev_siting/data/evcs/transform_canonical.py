@@ -39,9 +39,11 @@ import shutil
 import uuid
 
 import h3
+import numpy as np
 import pandas as pd
 
 from .paths import MASTER_CSV, STATIONS_DIR, CONNECTORS_DIR, CANONICAL_DIR, PROJECT_ROOT
+from .connector_rollup import rollup as live_rollup
 from .dedup_crosssource import assign_physical_id, dedup_report, DUP_COLS
 from .fix_coords import resolve_coords, fix_report, FIX_COLS
 from .resolve_config import resolve_config, config_report, load_occ_max, CONFIG_COLS
@@ -383,7 +385,12 @@ def run(keep_bss: bool = False, *, require_xref: bool = True):
         # E-DQ3: nhan hanh chinh (VNSDI cap xa, nien dai 2025-06-16) + provenance/trong tai
         *ADMIN_COLS, "province_code",
         "name", "address", "operator", "station_type", "vehicle_class",
-        "current_type", "max_power_kw", "total_power_kw", "num_connectors", "connector_types",
+        # 31/07 — 5 cot LIVE (current_type/max_power_kw/total_power_kw/num_connectors/
+        # connector_types) DA GO khoi `stations`: chung la ban sao cua `connectors`
+        # (doi soat 0/19.225 lech tren ca 4 cot scalar). Ban sao khong co cong -> P7
+        # da sua `connectors` + `current_type` nhung QUEN `connector_types`, de lai
+        # 1.579 tram tu mau thuan. Consumer can thi goi `connector_rollup.attach()`.
+        # Tang TAI SAN (E-DQ4, CONFIG_COLS ben duoi) O LAI: KHONG suy duoc tu connectors.
         "status", "is_public", "op_status", "access", "is_operational",
         "verified", "has_timeseries",
         "confidence", "freshness", "quality_flags",
@@ -482,6 +489,26 @@ def run(keep_bss: bool = False, *, require_xref: bool = True):
     ensure_admin_dirs()
     build_crosswalk(df).to_csv(PROVINCE_CROSSWALK, index=False)
 
+    # --- cong: go cot LIVE khoi `stations` phai KHONG mat thong tin ---
+    # Truoc khi bo 5 cot LIVE, chung minh `connectors` tai tao duoc chung ĐUNG BIT.
+    # Day chinh la cong ma ban denormalize cu THIEU: P7 sua `connectors` roi ma
+    # `connector_types` o `stations` van giu nhan AC cu, khong ai bao.
+    _live = live_rollup(connectors)
+    _chk = df[["station_id", "num_connectors", "max_power_kw", "total_power_kw"]].copy()
+    _chk = _chk.join(_live[["num_connectors", "max_power_kw", "total_power_kw"]],
+                     on="station_id", rsuffix="_der")
+    _has = _chk["station_id"].isin(_live.index)
+    _bad = {}
+    for c in ("num_connectors", "max_power_kw", "total_power_kw"):
+        a = pd.to_numeric(_chk.loc[_has, c], errors="coerce")
+        b = pd.to_numeric(_chk.loc[_has, c + "_der"], errors="coerce")
+        n = int((~np.isclose(a.fillna(-1), b.fillna(-1), rtol=1e-9, atol=1e-6)).sum())
+        if n:
+            _bad[c] = n
+    if _bad:
+        raise SystemExit(f"LIVE rollup KHONG tai tao duoc tu connectors: {_bad} "
+                         f"-> khong duoc go cot LIVE khoi stations")
+
     stations = df[stations_cols].reset_index(drop=True)
 
     # --- ghi Parquet Hive-partitioned theo province_code (F12: swap ca generation) ---
@@ -500,7 +527,7 @@ def run(keep_bss: bool = False, *, require_xref: bool = True):
     print(f"stations  -> {rel(STATIONS_DIR)}  ({len(stations):,} dong)")
     print(f"connectors-> {rel(CONNECTORS_DIR)}  ({len(connectors):,} dong)")
     print(f"  h3_r8 null (toa do xau) : {stations['h3_r8'].isna().sum():,}")
-    print(f"  tram 0 sung DANG BAO CAO: {(stations['num_connectors'] == 0).sum():,} "
+    print(f"  tram 0 sung DANG BAO CAO: {(df['num_connectors'] == 0).sum():,} "
           f"(gia tri LIVE dung — cau hinh LAP DAT xem E-DQ4)")
     print(f"  connector orphan (FK)   : {n_orphan}")
     print("--- P7 (chuan cam thay power tier) ------------------------")

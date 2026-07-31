@@ -54,7 +54,8 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 
-from .paths import INTERIM_DIR, PROJECT_ROOT, STATIONS_DIR
+from .paths import CONNECTORS_DIR, INTERIM_DIR, PROJECT_ROOT, STATIONS_DIR
+from .connector_rollup import LIVE_COLS, attach as attach_live
 
 CLEAN_SUPPLY_CSV = INTERIM_DIR / "clean_supply.csv"
 EXCLUDED_CSV = INTERIM_DIR / "excluded.csv"
@@ -70,8 +71,13 @@ EXCLUDED_COLS = [
     "reason", "station_id", "station_code", "name", "province_code", "lat_raw", "lng_raw",
 ]
 
-# Cot can doc de vua export vua phan loai ly do.
-_READ_COLS = sorted(set(SUPPLY_COLS + EXCLUDED_COLS) - {"reason"} | {
+# 31/07: 4 cot LIVE trong SUPPLY_COLS khong con nam o `stations` — chung duoc suy tu
+# bang `connectors` (nguon chan ly duy nhat, xem connector_rollup.py). CSV xuat ra
+# GIU NGUYEN thu tu cot cua ban 28/07: chi doi CHO LAY, khong doi hop dong doc.
+_LIVE_IN_SUPPLY = [c for c in SUPPLY_COLS if c in LIVE_COLS]
+
+# Cot can doc TU `stations` (da tru phan suy tu connectors).
+_READ_COLS = sorted((set(SUPPLY_COLS + EXCLUDED_COLS) - {"reason"} - set(_LIVE_IN_SUPPLY)) | {
     "access", "is_operational", "is_primary", "coord_resolved", "quality_flags",
 })
 
@@ -198,6 +204,10 @@ def main() -> int:
     args = ap.parse_args()
 
     df = pd.read_parquet(STATIONS_DIR, columns=_READ_COLS)
+    # gan lai tang LIVE tu `connectors` (khong con ban sao o `stations`)
+    df = attach_live(df, pd.read_parquet(CONNECTORS_DIR, columns=[
+        "station_id", "power_kw", "current_type", "connector_label", "count_total",
+    ]), cols=_LIVE_IN_SUPPLY)
     supply, excluded = build(df)
     rep = report(df, supply, excluded)
 

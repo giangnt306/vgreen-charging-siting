@@ -1,5 +1,12 @@
 # REVIEW TRƯỞNG NHÓM DỮ LIỆU — chốt dataset 2026-07-29
 
+> ⛔ **HỒ SƠ LỊCH SỬ — số liệu trong file này ĐÃ BỊ THAY THẾ.** Đây là biên bản chốt tại thời điểm
+> ghi trên tiêu đề; **cố ý không cập nhật** để giữ đúng dấu vết quyết định. Số hiện hành (rebuild
+> toàn chuỗi **2026-07-31**, snapshot `2026-07-20`): `stations` **19.507 × 56** · `connectors`
+> **24.415 × 11** · master **28.625** · cung **19.181 / 12.801 ô** · `candidate_sites` **16.686 × 16** ·
+> `covered0` **19.012**. Nguồn chân lý: [dataset-inventory.md](../data-layer/dataset-inventory.md) ·
+> [overview.md](../data-layer/overview.md) · [processed-data-checklist.md](../data-layer/processed-data-checklist.md).
+
 *Phạm vi: toàn bộ diff `devky/review-dataset` ↔ `main` (78 file, +9.762 dòng) + 4 module untracked mới.
 Đối chiếu với `docs/schema/schema-contract.md`, `docs/known-issues.md`, `docs/de-bai-v2.md`, `data/raw/MANIFEST.json`.*
 

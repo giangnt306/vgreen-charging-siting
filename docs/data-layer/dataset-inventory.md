@@ -19,8 +19,8 @@
 | ↳ **dữ liệu phi time-series** | **4,59 triệu** dòng |
 | **Tổng số cột (cộng dồn mọi bảng)** | **745** |
 | **Số file trên đĩa** | **63.023** file · **5,6 GB** (`data/`) |
-| **Bảng "lõi" cho mô hình** | **3** — `stations` (19.805 × **61 cột**), `connectors` (24.787), `demand_h3` (**314.934 × 32 cột**) |
-| **Cung sạch cuối cùng (T0)** | **19.086** trạm trên **12.744 ô** (rebuild 30/07). `clean_supply.csv` **đã đồng bộ** — sinh bởi `make export-supply`, 6/6 cổng QA PASS (xem §3.5) |
+| **Bảng "lõi" cho mô hình** | **3** — `stations` (19.507 × **56 cột**), `connectors` (24.415), `demand_h3` (**314.934 × 32 cột**) |
+| **Cung sạch cuối cùng (T0)** | **19.181** trạm trên **12.801 ô** (rebuild 31/07). `clean_supply.csv` **đã đồng bộ** — sinh bởi `make export-supply`, 6/6 cổng QA PASS (xem §3.5) |
 | **Tầng hành chính (E-DQ3)** | `admin/` — `cell_commune` (**395.276** cặp) · **`demand_commune`** (3.321 xã × **30**) · `province_crosswalk.csv` (64) · 6,2 MB |
 
 > ⚠️ **Không có dataset khảo sát (survey).** Từ "khảo sát" trong `problem-analysis.md` chỉ là **phương pháp
@@ -53,7 +53,7 @@ Nguồn 1–6 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 | `evcs/catalog/evcs_stations.csv` | CSV | 19.427 | 15 | Trạm sạc ô tô (`VINFAST_CS`) |
 | `evcs/catalog/evcs_bss.csv` | CSV | 9.118 | 11 | Trạm **đổi pin** — mặc định loại khỏi cung |
 | `evcs/catalog/evcs_other.csv` | CSV | 80 | 11 | Khác |
-| `evcs/catalog/evcs_stations_2026-07-29-new.csv` | CSV | **298** | 16 | Trạm mới phát hiện đợt probe 29/07 — nạp vào master (28.625 + 298 = 28.923) |
+| ~~`evcs/catalog/evcs_stations_2026-07-29-new.csv`~~ | CSV | **298** | 16 | Trạm mới đợt probe 29/07. ⚠️ **VẮNG trên máy này** — `data/raw/evcs/catalog/` chỉ tới 22/07, snapshot freeze là **2026-07-20**. Khi nạp sẽ thành 28.625 + 298 = 28.923 |
 | `evcs/load_ts.csv` | CSV | **18.630.532** | 3 | `station_code`, `timestamp`, `n_cars_charging` — 168h, **485 MB** (đo lại 30/07: không đổi) |
 | `evcs/timeseries_runs/load_ts_2026-07-29-full.csv` | CSV | **38.255.343** | 3 | Đợt **720h** (29/07) — 997 MB cả thư mục |
 | `evcs/timeseries_runs/PILOT_2026-07-29.csv` | CSV | 1.978 | 3 | Pilot đợt 720h |
@@ -77,34 +77,35 @@ Nguồn 1–6 được **freeze + checksum sha256** (E-DQ10, `make verify-snapsh
 
 | Artifact | Format | Dòng | Cột | Khóa |
 | --- | --- | ---: | ---: | --- |
-| `canonical/stations/` | Parquet Hive (65 partition `province_code`) | **19.805** | **61** | `station_id` (unique), `station_code` (unique) |
-| `canonical/connectors/` | Parquet Hive (64 partition) | **24.787** | **11** | `connector_id`; FK `station_id` — **0 orphan** |
+| `canonical/stations/` | Parquet Hive (65 partition `province_code`) | **19.507** | **56** | `station_id` (unique), `station_code` (unique) |
+| `canonical/connectors/` | Parquet Hive (64 partition) | **24.415** | **11** | `connector_id`; FK `station_id` — **0 orphan** |
 
 > `stations_no_connectors.csv` (282 dòng ở thế hệ trước) **không còn được sinh** ở bản rebuild 30/07 —
 > trạm không connector nay nhận diện qua `vehicle_class=UNKNOWN` (283) ngay trong `stations`.
 >
 > **Đã đồng bộ 30/07** — [overview.md §4](overview.md#4-schema-trạng-thái-thực-tế-đo-2026-07-30) ghi đúng
-> `stations` **61 cột** / `connectors` **11 cột** (kèm `province_code` là partition key). Lịch sử số cột của
-> `stations`: 34 (bản gửi collaborator) → 44 (23/07) → 49 (+5 cột **E-DQ1**) → **61** (+8 cột ASSET của
+> `stations` **56 cột** / `connectors` **11 cột** (kèm `province_code` là partition key). Lịch sử số cột của
+> `stations`: 34 (bản gửi collaborator) → 44 (23/07) → 49 (+5 cột **E-DQ1**) → 61 (+8 cột ASSET của
 > **E-DQ4** + 8 cột nhãn/provenance hành chính của **E-DQ3**).
 
-**Phân bố cờ trên `stations` (19.805 dòng, đo 2026-07-30):**
+**Phân bố cờ trên `stations` (19.507 dòng, đo 2026-07-31):**
 
 | Chiều | Phân bố |
 | --- | --- |
-| `is_primary` (E-DQ2) | True **19.654** · False 151 |
-| `op_status` (P8) | OPERATIONAL 15.827 · MAINTENANCE 3.488 · OUT_OF_SERVICE **432** · UNKNOWN 58 |
-| `access` (P8) | PUBLIC 19.717 · UNKNOWN 66 · RESTRICTED 22 |
-| `coord_resolved` (E-DQ1 + **E-DQ3**) | True **19.749** · False **56** (= 38 `COORD_PLACEHOLDER` + **18 `COORD_OUTSIDE_ADMIN`**) |
+| `is_primary` (E-DQ2) | True **19.361** · False 146 |
+| `op_status` (P8) | OPERATIONAL 16.014 · MAINTENANCE 3.392 · OUT_OF_SERVICE **42** · UNKNOWN 59 |
+| `access` (P8) | PUBLIC 19.418 · UNKNOWN 67 · RESTRICTED 22 |
+| `coord_resolved` (E-DQ1 + **E-DQ3**) | True **19.453** · False **54** (= 38 `COORD_PLACEHOLDER` + **16 `COORD_OUTSIDE_ADMIN`**) |
 | `admin_src` (**E-DQ3**) | inside **19.736** · nearest 13 · unresolved 56 — nhãn hành chính phủ **34 tỉnh · 2.700 xã** |
 | `admin_verdict` (**E-DQ3**) | NOT_FLAGGED 18.987 · **COORD_CONFIRMED 562** · UNRESOLVED 200 · NO_COORD 38 · **COORD_BAD 18** |
-| `vehicle_class` (P7) | CAR 19.304 · UNKNOWN 283 · UNVERIFIED 218 |
+| `vehicle_class` (P7) | CAR 19.218 · UNKNOWN 282 · UNVERIFIED 7 |
 | `has_timeseries` | True 19.426 · False 379 |
 | Độ phủ | **65** `province_code` (hệ 63 tỉnh **CŨ** — prefix mã evcs, gồm 2 mã không phải tỉnh) → **34** `admin_l1_code` (**E-DQ3**, niên đại 2025-06-16) |
 
 **Công thức cung dùng cho T0/coverage:** `is_operational & access=='PUBLIC' & is_primary & coord_resolved` →
-**19.086** trên **12.744 ô** (rebuild 30/07, master nhận thêm 298 trạm crawl 29/07; lịch sử: 19.015/12.811 →
-18.999/12.801 (E-DQ3) → **19.086/12.744**).
+**19.181** trên **12.801 ô** (rebuild 31/07; lịch sử: 19.015/12.811 → 18.999/12.801 (E-DQ3) →
+19.086/12.744 (bản 30/07 trên máy có lô 298 trạm) → **19.181/12.801** (31/07, snapshot 2026-07-20)).
+⚠️ Hai lần chạy trên **hai mẫu số khác nhau không so trực tiếp được** — xem ghi chú master ở §3.4.
 
 ### 3.2 Bảng cầu (demand, khóa `h3_r8` res 8)
 
@@ -162,18 +163,18 @@ Registry snapshot `2026-07-29` · **generation 210** · 61.333 locator (meta).
 
 | Artifact | Dòng | Cột | Khóa |
 | --- | ---: | ---: | --- |
-| `vinfast_official/official_stations.parquet` | **22.983** | 18 | `store_id` — chỉ trạm sạc ô tô |
+| `vinfast_official/official_stations.parquet` | **23.247** | 18 | `store_id` — chỉ trạm sạc ô tô |
 | `vinfast_official/official_connectors.parquet` | **71.174** | 11 | `store_id` + `evse_idx` + `connector_id` |
 | `vinfast_official/official_admin.parquet` | 23.240 | 7 | `store_id` → tỉnh/huyện/xã |
-| `vinfast_official/official_xref.parquet` | **28.923** | **25** | `station_code` ↔ `official_store_id` — `match_method`: **exact_code 19.706 · spatial_fuzzy 3.744 · none 5.473** → matched **23.450**, verified **22.936** (report 30/07) |
+| `vinfast_official/official_xref.parquet` | **28.625** | **25** | `station_code` ↔ `official_store_id` — `match_method`: **exact_code 19.427 · spatial_fuzzy 3.730 · none 5.468** → matched **23.157**, verified **22.658** (đo 31/07) |
 
 ### 3.5 Bảng master, cung sạch & audit trail
 
 | Artifact | Dòng | Cột | Vai trò |
 | --- | ---: | ---: | --- |
-| `stations_master_evcs.csv` | **28.923** | 33 | Master evcs khóa `station_code` (gồm 22 cột QA time-series); 28.625 + 298 trạm mới 29/07 |
-| `clean_supply.csv` | **19.086** | 14 | **Cung sạch (T0/coverage)** — sinh bởi `export_supply.py` (`make export-supply`), tái sinh 30/07, 6/6 cổng QA PASS |
-| `excluded.csv` | **719** | 7 | Dòng bị loại + **đúng một** lý do/dòng (xem bên dưới) |
+| `stations_master_evcs.csv` | **28.625** | 33 | Master evcs khóa `station_code` (gồm 22 cột QA time-series). ⚠️ Lô **298 trạm mới** của đợt probe 29/07 **KHÔNG có trên máy này** — `data/raw/evcs/catalog/` chỉ tới 22/07 và snapshot đang freeze là **2026-07-20**; con số 28.923 ở các bản doc cũ là của máy khác |
+| `clean_supply.csv` | **19.181** | 14 | **Cung sạch (T0/coverage)** — sinh bởi `export_supply.py` (`make export-supply`), tái sinh 31/07, 6/6 cổng QA PASS. Tầng LIVE nay join từ `connectors` (schema CSV **không đổi**) |
+| `excluded.csv` | **326** | 7 | Dòng bị loại + **đúng một** lý do/dòng (xem bên dưới) |
 | `export_supply_report.json` | — | — | Lineage của 2 file trên: `generated_at` 2026-07-30T16:41Z, mẫu số, 6 cổng QA |
 | `crosssource_dedup_groups.csv` | **306** | 10 | E-DQ2 — nhóm trùng chéo nguồn |
 | `edq1_suspect_stations.csv` | 796 | 17 | E-DQ1 — trạm nghi toạ độ sai |
@@ -181,14 +182,14 @@ Registry snapshot `2026-07-29` · **generation 210** · 61.333 locator (meta).
 | `evcs_timeseries/*.csv` | **18.630.532** | 2 | **19.218 file**, 1 file/trạm (`timestamp`, `n_cars_charging`) — tầng 168h; nguồn `load_ts.csv` đo lại 30/07 không đổi |
 | `evcs_timeseries_720h/*.csv` | **38.255.343** | 2 | **19.426 file**, 1 file/trạm; đo 31/07: tổng dòng dữ liệu **khớp nguồn `load_ts_2026-07-29-full.csv` từng dòng** (38.274.769 dòng file − 19.426 header). Giữ nguyên bản này, không crawl lại (quyết định 31/07) |
 
-**Đối soát cung: 19.805 − 719 = 19.086** ✓ — là **cổng QA ① `reconciles_input`** của
+**Đối soát cung: 19.507 − 326 = 19.181** ✓ — là **cổng QA ① `reconciles_input`** của
 `export_supply.py` (report 30/07 PASS), không phải phép cộng làm bằng tay trong doc.
 
 > ✅ **30/07 — hai file đã có producer.** Trước đó chúng là **ảnh chụp không ai sinh ra**
 > (`grep clean_supply src/` → 0 hit) nên đứng yên ở bản 28/07 trong khi canonical đi tiếp (từng lệch đúng
 > 16 dòng `COORD_OUTSIDE_ADMIN`). Nay `make export-supply` sinh lại cả hai từ `canonical/stations` + công thức
-> §3.1, kèm **6 cổng QA** và `export_supply_report.json` cho lineage. Sau rebuild 30/07: `clean_supply` 19.086 /
-> `excluded` 719 — **khớp canonical**. Nguồn chân lý **vẫn là** `canonical/stations` — hai CSV chỉ là bản xuất
+> §3.1, kèm **6 cổng QA** và `export_supply_report.json` cho lineage. Sau rebuild 31/07: `clean_supply` 19.181 /
+> `excluded` 326 — **khớp canonical**. Nguồn chân lý **vẫn là** `canonical/stations` — hai CSV chỉ là bản xuất
 > cho người đọc / công cụ ngoài.
 >
 > ⚠️ **Một thay đổi định dạng có ý:** `connector_types` bản cũ ghi `['A' 'B']` (`str` của ndarray —
@@ -210,7 +211,9 @@ Registry snapshot `2026-07-29` · **generation 210** · 61.333 locator (meta).
 
 | Artifact | Dòng | Cột | Ghi chú |
 | --- | ---: | ---: | --- |
-| `candidate_sites.parquet` / `.geojson` | **16.659** | 14 / 7 | Candidate MCLP (P5) — `candidate_id`, `tier` (**T0 12.769 · T1 2.104 · T2 866 · T4 920**), `capex_class`, `penalty` |
+| `candidate_sites.parquet` / `.geojson` | **16.686** | **16** / 9 | Candidate MCLP (P5) — `candidate_id`, `tier` (**T0 12.827 · T1 2.078 · T2 862 · T4 919**), `capex_class`, `penalty`, + 2 cột hành chính hệ 34 (`admin_l1_code`/`province_name`, 31/07) |
+| `covered0.parquet` / `.geojson` | **19.012** | **19** / 9 | Baseline coverage mạng hiện có (F5/P8) — `is_operational & PUBLIC & is_primary & coord_resolved & sạch cờ toạ độ`; **12.799 ô** |
+| `covered0_operational.parquet` / `.geojson` | **15.746** | **19** / 9 | Sensitivity: như trên nhưng chỉ `op_status == OPERATIONAL` |
 | `covered0.parquet` / `.geojson` | **18.928** | 19 / 11 | Baseline hiện trạng (P8) — **mức trạm** (không còn mức ô): active + public + primary + clean coord; kèm 8 cột ASSET (E-DQ4) |
 | `covered0_operational.parquet` / `.geojson` | **15.552** | 19 | **MỚI** — tập con `op_status=OPERATIONAL` (loại 3.376 MAINTENANCE) |
 
@@ -238,7 +241,7 @@ Registry snapshot `2026-07-29` · **generation 210** · 61.333 locator (meta).
 ## 7. Lưu ý khi đọc số liệu
 
 1. **Đừng dùng `wc -l` để đếm dòng CSV.** `name`/`address` có newline nhúng → `stations_master_evcs.csv` cho
-   28.951 dòng (sai) thay vì **28.923** (đúng). Mọi số ở doc này đọc bằng parser.
+   28.951 dòng (sai) thay vì **28.625** (đúng). Mọi số ở doc này đọc bằng parser.
 2. **"Bảng" ≠ "file".** `canonical/stations` là 1 bảng nhưng 65 file parquet (Hive partition theo `province_code`);
    `evcs_timeseries/` là 1 dataset nhưng 19.218 file (+ 19.426 file ở tầng `evcs_timeseries_720h/`).
 3. **Không cộng dồn dòng giữa các tầng.** Cùng một trạm xuất hiện ở raw → master → canonical → clean_supply;

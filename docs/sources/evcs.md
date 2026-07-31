@@ -104,7 +104,7 @@ theo tên file → **ghép 1-1, không orphan**. Cột chính:
 | `network` | Nhà mạng: VinFast, Honda, … |
 | `name`, `address`, `lat`, `lng` | Thông tin trạm |
 | `province_code` | Tiền tố tỉnh suy từ mã (chỉ trạm VinFast) |
-| `num_connectors` | **Số súng sạc lắp đặt** = `sum(totalEvse)` của `evsePowers` (khớp `stations.num_connectors` SCHEMA_CONTRACT) |
+| `num_connectors` | **Số súng ĐANG BÁO CÁO** = `sum(totalEvse)` của `evsePowers`. ⚠️ Cột này ở **master CSV**; từ 31/07 `stations` **không** giữ bản sao — tầng LIVE canonical suy từ bảng `connectors` (Σ`count_total`), xem `evcs/connector_rollup.py`. Số **LẮP ĐẶT** là `n_guns_installed` (E-DQ4) |
 | `connector_types` | Nhãn tier công suất/dòng điện, `|`-joined, vd `DC-120kW\|AC-3.5kW`. ⚠️ evcs.vn **không lộ chuẩn cắm** (CCS2/Type2) — đây là nhãn công suất, không phải chuẩn cắm |
 | `current_type` | `AC` / `DC` / `MIXED` (suy từ ngưỡng ≤25 kW = AC — **xấp xỉ tier**; canonical ghi đè bằng chuẩn cắm registry khi khớp official, **P7**/Q5) |
 | `max_power_kw`, `total_power_kw` | Công suất súng cao nhất + tổng công suất lắp đặt (`Σ type·totalEvse`) |
