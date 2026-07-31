@@ -1,7 +1,7 @@
 {
   "schema": "vgreen.snapshot-manifest/1",
   "snapshot_id": "2026-07-30",
-  "frozen_at": "2026-07-30T23:46:01.733958+07:00",
+  "frozen_at": "2026-07-31T10:00:23.851441+07:00",
   "hash_algo": "sha256",
   "content_hashed": true,
   "project_root": "/home/n91ym1nhky/Work/internVSF/aGiang-evcs",
@@ -271,7 +271,7 @@
       "name": "WorldPop — VN mật độ dân số, HAI niên đại (~100m)",
       "retrieval_url": "https://data.worldpop.org/GIS/Population/Global_2000_2020_Constrained/2020/BSGM/VNM/vnm_ppp_2020_UNadj_constrained.tif ; https://data.worldpop.org/GIS/Population/Individual_countries/VNM/vnm_pop_2025_CN_100m_R2024B_v1.tif",
       "license": "CC-BY 4.0",
-      "vintage": "2020 constrained (BSGM), UN-adjusted (UNadj); Σ = 97.569.444 người (E-DQ7e, đổi 2026-07-29 từ UN-unadjusted 99.627.388 — hệ số 0,979344); + 2025 R2024B (CN) unadjusted (P10)",
+      "vintage": "2020 constrained (BSGM), UN-adjusted (UNadj); Σ = 97.569.444 người (E-DQ7e, đổi 2026-07-29 từ UN-unadjusted 99.627.388 — hệ số 0,979344); + 2025 R2024B (CN) unadjusted (P10) + 2020 R2024B (CN) — cặp cùng thế hệ cho so per-cell (31/07)",
       "members": [
         {
           "role": "population_raster",
@@ -299,6 +299,15 @@
           "bytes": 73771675,
           "modified": "2026-07-29T17:40:15.055082+07:00",
           "sha256": "4c96bd6bf615870db131f8d465c58efb2d70072b5024d023be2cea8e87cb245a"
+        },
+        {
+          "role": "population_raster_2020_r24",
+          "path": "data/raw/worldpop/vnm_pop_2020_CN_100m_R2024B_v1.tif",
+          "kind": "file",
+          "present": true,
+          "bytes": 73530455,
+          "modified": "2026-07-31T09:59:09.736476+07:00",
+          "sha256": "b6f8b1a00b992751356d8a9c615c98eb1188397b6272114f8e0662f98a33de90"
         }
       ]
     },
