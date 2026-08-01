@@ -480,3 +480,21 @@ Sáu nợ/blocker còn lại được đưa qua grill từng-câu-một; quyết
 6. **WARN parking bias 2,44 — chấp nhận** (fact: PARKING_OFF là anchor T1, T4 gap-fill đang bù 920 ô, upper-bound 91,05% PASS); docs ghi hệ quả + cấm đọc `n_parking_off` tuyệt đối.
 
 Re-freeze giữ `snapshot_id=2026-07-30` (chỉ thêm member `population_raster_2020_r24`, nguồn cũ không đổi — tránh cascade sang bundle handoff đã đóng).
+
+---
+
+## Bổ sung 2026-08-01 — 2 commit Giang sau phiên chốt 31/07
+
+`data/giang` nhận thêm 2 commit của Giang sau khi `integrate/final` đã "chốt" (10:01 31/07):
+`fe3fefc` (14:26, gate `covered0`/admin mapping) và `f19777e` (16:19, gỡ 5 cột LIVE trùng lặp
+khỏi `stations` → nguồn chân lý duy nhất là `connectors`, xem `connector_rollup.py`).
+
+Kiểm tra ancestry: `origin/data/giang` = `integrate/final` (87d15b5) + đúng 2 commit này theo
+đường thẳng (không rẽ nhánh) — cả hai chỉ sửa tiếp các file đã thuộc về Giang theo quyết định
+B3 (Q3/Q5/Q7/Q8), không đụng vùng nào của Kỳ. Vì vậy port bằng `git merge --ff-only
+origin/data/giang`, không cherry-pick/port thủ công, zero conflict.
+
+Sau merge: `make canonical` phải chạy lại (schema `stations` đổi, artefact cũ trên đĩa còn cột
+LIVE cũ → `test_stations_artifact_has_no_live_copy` đỏ). Rebuild xong: gates PASS, **pytest
+170/170, 0 skip**. Chưa rebuild tiếp `admin-grid`/`demand`/`candidates`/`covered0`-national —
+để trong phạm vi kickoff thuật toán, không phải phần đóng nhánh này.
