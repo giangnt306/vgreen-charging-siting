@@ -10,6 +10,7 @@ venv/
 ENV/
 .python-version
 .claude
+*.egg-info/
 
 # Data blobs are gitignored (too large), but the snapshot MANIFEST is version-controlled
 # lineage/provenance (E-DQ10) — re-include just that file.
@@ -27,4 +28,3 @@ ENV/
 
 # VS Code
 .vscode/
-uv.lock
