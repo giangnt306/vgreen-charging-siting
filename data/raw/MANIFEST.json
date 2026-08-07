@@ -1,7 +1,7 @@
 {
   "schema": "vgreen.snapshot-manifest/1",
   "snapshot_id": "2026-07-20",
-  "frozen_at": "2026-07-31T12:29:41.240482+07:00",
+  "frozen_at": "2026-08-07T16:18:15.355236+07:00",
   "hash_algo": "sha256",
   "content_hashed": true,
   "project_root": "/home/wanderer210/Documents/AI/vgreen-charging-siting",
@@ -172,9 +172,9 @@
           "path": "data/raw/osm/poi",
           "kind": "dir",
           "present": true,
-          "n_files": 5,
-          "total_bytes": 7875499,
-          "tree_sha256": "5d45cd312bf19004addb9c3dcae55be77910bea547c9d8ca7b099c8aa6370c55",
+          "n_files": 8,
+          "total_bytes": 15260136,
+          "tree_sha256": "cc8db20b5c2ea0b2db2438cea74dfb8726d23fc02615c1f0712551f97387ace1",
           "files": [
             {
               "path": "apartments.json",
@@ -187,9 +187,19 @@
               "sha256": "1894bb45c46930b3521027f0165727abb60cc5336096cce8146bab359ff4b341"
             },
             {
+              "path": "hospital.json",
+              "bytes": 1080712,
+              "sha256": "4d1a7f7c10f00ea7e2a9f6fba1666d4df754db961d6a187a12684d0776c7c343"
+            },
+            {
               "path": "mall.json",
               "bytes": 461772,
               "sha256": "1901eff8968b9a80d1533de046bd4ee3c025330d3b908d97be225a1352807a7f"
+            },
+            {
+              "path": "park.json",
+              "bytes": 1078155,
+              "sha256": "3fe0b67b484fd052efb4e7c69e2cde5b34eaa14eee4502d339ac144f1accfd17"
             },
             {
               "path": "parking.json",
@@ -200,8 +210,48 @@
               "path": "retail.json",
               "bytes": 1334562,
               "sha256": "6ebe2feb0e83aff15e6eb141306c7230447ea028c74033f19456312e5e05ba09"
+            },
+            {
+              "path": "school.json",
+              "bytes": 5225770,
+              "sha256": "ab3f4d74e1b778b00926b43ff5434e92f21b05b17c672d5f7153d46ad5497e37"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "overture",
+      "name": "Overture Maps Places — POI toàn cầu (Meta/Microsoft/Foursquare hợp nhất)",
+      "retrieval_url": "s3://overturemaps-us-west-2/release/2026-07-22.0/theme=places/type=place/*",
+      "license": "CDLA-Permissive-2.0 (Overture Maps Foundation)",
+      "spatial_extent": {
+        "bbox_min_lat_min_lon_max_lat_max_lon": [
+          8.0,
+          102.0,
+          23.7,
+          110.0
+        ]
+      },
+      "vintage": "release 2026-07-22.0",
+      "members": [
+        {
+          "role": "places_scan",
+          "path": "data/raw/overture/places_vn_bbox_2026-07-22.0.parquet",
+          "kind": "file",
+          "present": true,
+          "bytes": 152813431,
+          "modified": "2026-08-07T12:36:15.368808+07:00",
+          "sha256": "8ef4c8a357ac32907c3b09755dc1ea98f1f85cf8dc9a8c3d82d710868247d489"
+        },
+        {
+          "role": "places_scan_meta",
+          "path": "data/raw/overture/places_vn_bbox_2026-07-22.0.meta.json",
+          "kind": "file",
+          "present": true,
+          "bytes": 1362,
+          "modified": "2026-08-07T12:36:15.370772+07:00",
+          "sha256": "20db20dec0ec849c33001cdb9e5d1bf3ae9d4c27116bf277c1188537bfebe5b8"
         }
       ]
     },
