@@ -51,6 +51,14 @@ CATEGORIES = {
     # `leisure=park` là công viên đô thị; cố ý KHÔNG lấy `leisure=garden` (vườn nhà,
     # 90% là sân sau tư nhân) và `leisure=nature_reserve` (khu bảo tồn, không sinh cầu).
     "park": ['["leisure"="park"]'],
+    # thêm 07/08 cùng `poi_semantics.CLASSES`. Bắt buộc đi kèm nhau: một lớp có trong
+    # CLASSES mà không có nhóm crawl thì mọi cổng QA vẫn đo nó và luôn ra 0 — "thiếu"
+    # trông y hệt "thưa" (chính lỗi đã giấu PARK nhiều tuần).
+    # `healthcare=hospital` chồng gần hết lên `amenity=hospital` (193/1.424 vs 275/1.514
+    # toàn quốc) nhưng KHÔNG bao trọn -> OR cả hai, `_resolve_objects` khử trùng.
+    "hospital": ['["amenity"="hospital"]', '["healthcare"="hospital"]'],
+    # chỉ trường phổ thông; `university`/`college` là lớp khác nếu cần (xem `classify`).
+    "school": ['["amenity"="school"]'],
 }
 
 # Ngưỡng tách bbox: >= CAP phần tử -> nghi ngờ bị cắt/quá tải -> chia 4.

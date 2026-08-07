@@ -52,8 +52,23 @@ import math
 #: Cố ý **chưa** đưa vào `DERIVED_COLUMNS`: bảng LỚP ghi lại được số đo, còn việc biến
 #: nó thành covariate cầu là quyết định của E-DQ7d (nguyên tắc C1/C3 — trích xuất tách
 #: khỏi chính sách).
+#: `HOSPITAL`/`SCHOOL` thêm **07/08** (cũng nối vào CUỐI, cùng lý do như `PARK`), sau khi
+#: đo trên `.pbf` đã freeze trong AOI Hà Nội: SCHOOL 1.617 đối tượng / **86,5%** là way
+#: đóng, HOSPITAL 264 / **79,2%** — xếp ngay dưới `PARKING_OFF` (86,9%) và trên
+#: `PARKING_STREET`. `HOSPITAL` gộp `amenity=hospital` OR `healthcare=hospital`: hai tag
+#: chồng gần hết lên nhau (275/1.514 vs 193/1.424 toàn quốc) nên phải OR rồi khử trùng
+#: theo `(osm_type, osm_id)`, **không** cộng dồn.
+#: ⚠️ Nối vào cuối ⇒ `CLASS_PRIORITY` của hai lớp này THẤP nhất, nên một toà vừa
+#: `amenity=school` vừa `building=apartments` sẽ về `APARTMENT` — ngược với nguyên tắc
+#: "venue thắng vỏ nhà". Chấp nhận có ý thức: đổi thứ tự sẽ đổi lặng lẽ output của các
+#: lớp CŨ, đắt hơn nhiều so với lợi ích ở một tổ hợp hiếm (đo 28/07: 13 đối tượng nằm ở
+#: 2 nhóm crawl trên toàn bộ dữ liệu). Xem lại nếu con số đó tăng.
+#:
+#: ⚠️ **`SUPERSTORE` đã cân nhắc và LOẠI 07/08** — `shop=superstore` không tồn tại trong
+#: OSM; lọc theo brand chỉ được 79/422 dòng ở Hà Nội, ~3,8% có polygon, 48/79 là WinMart
+#: (siêu thị thường). Số đo đầy đủ ở `viz/audit_poi.py`. Ghi lại để không đề xuất lại.
 CLASSES = ["FUEL", "PARKING_OFF", "PARKING_STREET", "MALL", "DEPT_STORE",
-           "SUPERMARKET", "MARKET", "APARTMENT", "PARK"]
+           "SUPERMARKET", "MARKET", "APARTMENT", "PARK", "HOSPITAL", "SCHOOL"]
 
 #: Độ ưu tiên khi MỘT đối tượng OSM rơi vào nhiều lớp (số nhỏ = thắng).
 #:
@@ -108,6 +123,15 @@ def classify(category, tags):
         return "APARTMENT"
     if category == "park":
         return "PARK"
+    if category == "hospital":
+        # nhóm crawl gộp `amenity=hospital` OR `healthcare=hospital` -> một lớp.
+        # Trùng lặp (đối tượng mang cả hai tag) do `_resolve_objects` khử theo
+        # `(osm_type, osm_id)`, y như nhóm `mall` vốn cũng có 2 bộ lọc.
+        return "HOSPITAL"
+    if category == "school":
+        # cố ý KHÔNG gộp `amenity=university`/`college` (436/505 way toàn quốc): quy mô
+        # và nhịp đi lại khác hẳn trường phổ thông. Thêm lớp riêng nếu cần, đừng trộn.
+        return "SCHOOL"
     return None
 
 

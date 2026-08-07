@@ -33,6 +33,45 @@ def test_classify_splits_units_inside_a_crawl_group():
     assert ps.classify("parking", {}) == "PARKING_OFF"          # 70% không có tag `parking`
 
 
+def test_every_class_has_a_crawl_group():
+    """**Cổng chống E-DQ7g.** Một lớp có trong `CLASSES` mà không có nhóm crawl nào sinh
+    ra nó thì mọi cổng QA vẫn lặp qua nó và luôn đo 0 — "lớp THIẾU" trông y hệt "lớp
+    THƯA". Đó chính là thứ đã giấu `PARK` nhiều tuần. Khoá cả hai chiều.
+    """
+    from ev_siting.data.osm.overpass_poi import CATEGORIES
+    produced = {ps.classify(cat, tags)
+                for cat in CATEGORIES
+                for tags in ({}, {"shop": "mall"}, {"shop": "department_store"},
+                             {"shop": "supermarket"}, {"amenity": "marketplace"},
+                             {"parking": "street_side"})} - {None}
+    assert produced == set(ps.CLASSES), (
+        f"lớp không có nhóm crawl: {set(ps.CLASSES) - produced}; "
+        f"lớp crawl ra mà không khai: {produced - set(ps.CLASSES)}")
+
+
+def test_hospital_and_school_classes(tmp_path):
+    """HOSPITAL/SCHOOL thêm 07/08 — ba chỗ phải đồng bộ, đúng tiền lệ PARK."""
+    from ev_siting.data.osm.overpass_poi import CATEGORIES
+    for cls, cat in (("HOSPITAL", "hospital"), ("SCHOOL", "school")):
+        assert cls in ps.CLASSES
+        assert cat in CATEGORIES
+        assert ps.classify(cat, {}) == cls
+        assert ps.n_col(cls) in ps.CLASS_COLUMNS
+
+    # `healthcare=hospital` KHÔNG bao trọn `amenity=hospital` -> phải OR cả hai.
+    assert len(CATEGORIES["hospital"]) == 2
+
+    # C1 — trích xuất tách khỏi chính sách: bảng LỚP có cột, cột SUY RA thì CHƯA.
+    # Biến thành covariate cầu là quyết định của E-DQ7d, không phải hệ quả phụ.
+    assert "n_hospital" not in ps.DERIVED_COLUMNS
+    assert "n_school" not in ps.DERIVED_COLUMNS
+
+
+def test_superstore_stays_out():
+    """SUPERSTORE đã cân nhắc và loại (đo: ~3,8% polygon, 48/79 khớp là WinMart)."""
+    assert "SUPERSTORE" not in ps.CLASSES
+
+
 def test_access_keeps_unknown_and_customers():
     """P8 — không loại ngầm cái KHÔNG BIẾT; bãi đỗ khách của TTTM là chỗ sạc công cộng."""
     assert ps.access_of({}) == "UNKNOWN"
