@@ -7,6 +7,7 @@ Các nhóm CRAWL (theo [problem-analysis.md] mục 2 #5 — sinh cầu sạc):
   - mall       : shop=mall / shop=department_store
   - apartments : building=apartments
   - retail     : shop=supermarket / amenity=marketplace
+  - park       : leisure=park                (thêm 07/08 — trước đó KHÔNG có, xem dưới)
 
 ⚠️ **E-DQ7c — nhóm crawl KHÔNG phải lớp ngữ nghĩa.** Mỗi nhóm ở trên còn lẫn hai loại
 cầu khác hẳn nhau bên trong (`retail` = 1.698 chợ + 1.409 siêu thị; `mall` = 1.137
@@ -46,6 +47,10 @@ CATEGORIES = {
     "mall": ['["shop"="mall"]', '["shop"="department_store"]'],
     "apartments": ['["building"="apartments"]'],
     "retail": ['["shop"="supermarket"]', '["amenity"="marketplace"]'],
+    # thêm 07/08 — trước đó tầng POI KHÔNG có công viên (xem `poi_semantics.CLASSES`).
+    # `leisure=park` là công viên đô thị; cố ý KHÔNG lấy `leisure=garden` (vườn nhà,
+    # 90% là sân sau tư nhân) và `leisure=nature_reserve` (khu bảo tồn, không sinh cầu).
+    "park": ['["leisure"="park"]'],
 }
 
 # Ngưỡng tách bbox: >= CAP phần tử -> nghi ngờ bị cắt/quá tải -> chia 4.

@@ -1,4 +1,4 @@
-.PHONY: help setup test settlement export-handoff data proxy model opex-electricity crawl crawl-validate match-official canonical discover-new resolve-config official landuse candidates landuse-national candidates-national covered0 covered0-national freeze verify-snapshot boundary osm demand poi-recall vnsdi reconcile-pop reallocate-roadless admin-stations admin-grid export-supply export-supply-check
+.PHONY: help setup test settlement export-handoff data proxy model opex-electricity crawl crawl-validate match-official canonical discover-new resolve-config official landuse candidates landuse-national candidates-national covered0 covered0-national freeze verify-snapshot boundary osm demand poi-recall poi-timestamps overture-fetch overture overture-compare vnsdi reconcile-pop reallocate-roadless admin-stations admin-grid export-supply export-supply-check
 
 CITY ?= hanoi
 PY = uv run python
@@ -80,6 +80,18 @@ osm:  ## Rebuild OSM demand components (POI clipped + classified + deduped)  [E-
 
 poi-recall:  ## Measure OSM POI coverage against EV stations sited at fuel/parking  [E-DQ7c]
 	$(PY) -m ev_siting.data.osm.poi_recall
+
+poi-timestamps:  ## Attach OSM last-edit dates to POI points (reads frozen .pbf)  [E-DQ7g]
+	$(PY) -m ev_siting.data.osm.poi_timestamps
+
+overture-fetch:  ## Scan Overture Places (S3, DuckDB) over VN_BBOX -> data/raw/overture/
+	$(PY) -m ev_siting.data.overture.fetch_places $(if $(RELEASE),--release $(RELEASE),)
+
+overture:  ## Build overture_poi_points/h3 from the raw scan (needs `make overture-fetch`)
+	$(PY) -m ev_siting.data.overture.build_poi
+
+overture-compare:  ## Compare OSM vs Overture POI layers -> osm_vs_overture.{json,md}
+	$(PY) -m ev_siting.data.overture.compare_osm
 
 reallocate-roadless:  ## Move pop out of cells with no road access -> worldpop_pop_acc_h3  [E-DQ8b]
 	$(PY) -m ev_siting.data.worldpop.reallocate_roadless

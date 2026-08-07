@@ -107,6 +107,7 @@ def source_specs() -> list[dict]:
     from ..evcs import paths as evcs
     from ..vinfast_official import paths as vo
     from ..osm import paths as osm
+    from ..overture import paths as ovt
     from ..worldpop import paths as wp
     from ..landuse import paths as lu
     from ..vnsdi import paths as vnsdi
@@ -192,6 +193,20 @@ def source_specs() -> list[dict]:
             "members": [
                 {"role": "roads_pbf", "path": osm.PBF_PATH, "kind": "file"},
                 {"role": "poi_overpass", "path": osm.POI_RAW_DIR, "kind": "dir"},
+            ],
+        },
+        {
+            "id": "overture",
+            "name": "Overture Maps Places — POI toàn cầu (Meta/Microsoft/Foursquare hợp nhất)",
+            "retrieval_url": ovt.places_url(),
+            # CDLA-Permissive-2.0 cho theme `places`. KHÁC ODbL của OSM: không share-alike,
+            # nên bảng chỉ trộn Overture KHÔNG bị nhiễm ODbL — xem F1 trước khi publish.
+            "license": "CDLA-Permissive-2.0 (Overture Maps Foundation)",
+            "spatial_extent": {"bbox_min_lat_min_lon_max_lat_max_lon": list(osm.VN_BBOX)},
+            "vintage": f"release {ovt.RELEASE}",
+            "members": [
+                {"role": "places_scan", "path": ovt.places_raw(), "kind": "file"},
+                {"role": "places_scan_meta", "path": ovt.fetch_meta(), "kind": "file"},
             ],
         },
         {

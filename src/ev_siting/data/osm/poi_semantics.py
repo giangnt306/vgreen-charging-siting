@@ -45,8 +45,15 @@ thì một khu tính 5–10 lần trong khi một mall tính 1 lần. Vì vậy 
 import math
 
 #: Thứ tự lớp — cố định vì nó quyết định tên cột của `osm_poi_h3.parquet`.
+#:
+#: `PARK` được **thêm 07/08** (nối vào CUỐI để cột cũ không đổi tên/đổi độ ưu tiên).
+#: Trước đó tầng POI **không hề crawl** `leisure=park` — verify thấy "thiếu công viên"
+#: là vì lớp này chưa tồn tại, không phải vì OSM thưa. Xem `overpass_poi.CATEGORIES`.
+#: Cố ý **chưa** đưa vào `DERIVED_COLUMNS`: bảng LỚP ghi lại được số đo, còn việc biến
+#: nó thành covariate cầu là quyết định của E-DQ7d (nguyên tắc C1/C3 — trích xuất tách
+#: khỏi chính sách).
 CLASSES = ["FUEL", "PARKING_OFF", "PARKING_STREET", "MALL", "DEPT_STORE",
-           "SUPERMARKET", "MARKET", "APARTMENT"]
+           "SUPERMARKET", "MARKET", "APARTMENT", "PARK"]
 
 #: Độ ưu tiên khi MỘT đối tượng OSM rơi vào nhiều lớp (số nhỏ = thắng).
 #:
@@ -99,6 +106,8 @@ def classify(category, tags):
         return "SUPERMARKET" if shop else "MARKET"
     if category == "apartments":
         return "APARTMENT"
+    if category == "park":
+        return "PARK"
     return None
 
 

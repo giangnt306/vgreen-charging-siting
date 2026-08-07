@@ -32,7 +32,9 @@ Six public sources, self-crawled, converging into **two output groups**:
 - **Supply (canonical):** `stations` (key `station_id`) + `connectors` (FK `station_id`), Parquet, Hive-partitioned by `province_code`.
 - **Demand:** `demand_h3` (key `h3_r8`, H3 res 8) + `admin/cell_commune` → rolled up into `admin/demand_commune`.
 
-Each source is a sub-package under `src/ev_siting/data/` (`evcs`, `vinfast_official`, `osm`, `worldpop`, `vnsdi`, `admin`, `landuse`, `provenance`), and each owns a `paths.py` holding its paths and constants (bbox, H3 res, URLs). Outside `data/`: `aoi.py`, `features/`, `models/`, `viz/`.
+Each source is a sub-package under `src/ev_siting/data/` (`evcs`, `vinfast_official`, `osm`, `overture`, `worldpop`, `vnsdi`, `admin`, `landuse`, `provenance`), and each owns a `paths.py` holding its paths and constants (bbox, H3 res, URLs). Outside `data/`: `aoi.py`, `features/`, `models/`, `viz/`.
+
+`overture` is a **verification** source, not a demand input (E-DQ7g): it scans Overture Places off S3 with DuckDB (`make overture-fetch` → `make overture` → `make overture-compare`) and stops at `data/interim/overture/`. Nothing under `demand_h3` reads it — merging the two POI layers into one feature is E-DQ7d's call.
 
 **Minimum reproduction order:**
 
@@ -55,6 +57,9 @@ The following are **settled decisions**; breaking them corrupts everything downs
 - **Two parallel keys:** `station_code` (evcs.vn) and `station_id` (canonical). Keep both for traceability. Joining against the official registry uses `station_code == store_id` (exact).
 - **Status/access resolution is official-first**; coordinate resolution is deliberately **inverted** (E-DQ1). Only `OUT_OF_SERVICE` is hard-filtered.
 - `n_poi` / `n_parking` / `road_len_mt_m` are **retired** (E-DQ7b/7c). `osm_poi_points` is **fail-closed**: it contains only `in_vn=True` rows.
+- **A missing POI class looks exactly like a sparse one.** `PARK` read as "OSM has almost no parks" for weeks while the real cause was that `overpass_poi.CATEGORIES` had no group producing it — every QA gate loops over `CLASSES`, so a class that does not exist is never measured (E-DQ7g). Adding a class is additive: append to `poi_semantics.CLASSES`, and leave `DERIVED_COLUMNS` alone unless E-DQ7d asks for the feature.
+- **Overture: a bigger count is not better coverage.** Its `shopping_center` outnumbers OSM's malls 22×, but only 8.4% of those names carry a mall noun — it is a business directory, and only `FUEL` survives the label-noise check (93.6%). Overture also has **no object-level edit date** in VN (`update_time` is the provider's batch-drop date, one distinct value for 99% of points); OSM does, read from the frozen `.pbf` via `poi_timestamps.py` since the Overpass raw carries no `meta`.
+- **Cross-source spatial matching must not use `poi_semantics.neighbour_pairs` above ~185 m** — it buckets at H3 res 9, so wider radii silently miss real pairs. `compare_osm._cross_pairs` buckets at res 8 (guaranteed to ~490 m) and refuses anything beyond.
 - Supply scope is **car charging stations only**; `BATTERY_SWAP` is dropped by default (keep it with `--keep-bss`). `current_type` is derived from the official connector standard, **not** from a kW threshold (P7).
 
 ## Pipeline safety gates
